@@ -1,0 +1,793 @@
+\documentclass[aspectratio=169,11pt]{beamer}
+\usetheme{default}
+\usecolortheme{dove}
+\setbeamertemplate{navigation symbols}{}
+\setbeamertemplate{footline}{\hfill\insertframenumber\hspace*{0.5cm}\vspace*{0.3cm}}
+\setbeamertemplate{frametitle}{\vspace*{0.3cm}{\large\bfseries\insertframetitle}\par\vspace*{-0.1cm}}
+
+\usepackage{amsmath,amssymb,graphicx,booktabs}
+\usepackage{xcolor}
+\definecolor{accent}{RGB}{33,102,172}
+\definecolor{highlight}{RGB}{178,24,43}
+\definecolor{muted}{RGB}{130,130,130}
+\newcommand{\accenttext}[1]{\textcolor{accent}{\textbf{#1}}}
+\newcommand{\highlighttext}[1]{\textcolor{highlight}{\textbf{#1}}}
+
+\graphicspath{{../input/analysis_figures/}{../input/static_figures/}{../input/tables/}{../input/}}
+
+\title{\textbf{Markups and Public Procurement:\\Evidence from Czech Construction}}
+\author{Marek Chadim\\\small Pre-Doctoral Fellow, Tobin Center for Economic Policy, Yale University}
+\date{ECON 601 --- Spring 2026}
+
+\begin{document}
+
+% ============================================================
+% TITLE
+% ============================================================
+\begin{frame}[plain]
+\maketitle
+\end{frame}
+
+% ============================================================
+% MOTIVATION
+% ============================================================
+\begin{frame}{Why Should You Care?}
+
+\begin{itemize}
+    \item Public procurement = \textbf{\$1.3 trillion/year} across OECD (12\% of GDP)
+    \item Czech construction = \textbf{49.6\%} of all Czech procurement contracts
+    \item Yet: surprisingly little evidence on how procurement affects \emph{firm pricing power}
+\end{itemize}
+
+\bigskip
+
+\accenttext{This paper:} Do government contractors charge higher markups?
+
+\bigskip
+
+\begin{itemize}
+    \item \textbf{Answer:} Yes --- procurement premium $\approx$ \highlighttext{15\%}, declining from 30\% (2006) to 10\% (2021)
+    \item \textbf{But:} the markup \emph{level} depends critically on specification choices
+    \item \textbf{Methodological insight:} variable input choice and Markov specification dominate all other modeling decisions --- including the estimator itself
+\end{itemize}
+
+\end{frame}
+
+% ============================================================
+% ROADMAP
+% ============================================================
+\begin{frame}{This Talk}
+
+\begin{enumerate}
+    \item \textbf{Data and Setting} --- MagnusWeb + Orbis + Datlab
+    \item \textbf{Markup Estimation} --- ACF, 9 alternative methods
+    \item \textbf{The Procurement Premium} --- firm FE, DLW entry/exit, Oster bounds
+    \item \textbf{Specification Sensitivity} --- which choices matter (and which don't)
+    \item \textbf{Double Market Power} --- KLMS labor supply, double markdown
+    \item \textbf{Czech Institutional Context} --- reforms, political connections
+\end{enumerate}
+
+\end{frame}
+
+% ============================================================
+% DATA
+% ============================================================
+\begin{frame}{Data}
+
+\textbf{Two linked datasets:}
+
+\medskip
+
+\begin{columns}[T]
+\begin{column}{0.48\textwidth}
+\accenttext{MagnusWeb} (firm financials)
+\begin{itemize}
+    \item CZ-NACE division F (construction)
+    \item 1,521 firms, 9,164 firm-year obs
+    \item Sales, COGS, capital, wages, employment
+    \item 2005--2021
+\end{itemize}
+\end{column}
+\begin{column}{0.48\textwidth}
+\accenttext{Datlab} (procurement register)
+\begin{itemize}
+    \item Universe of Czech public tenders
+    \item Contract values, procedure types
+    \item Bidder identities $\Rightarrow$ competitor sets
+    \item Linked by firm ID
+\end{itemize}
+\end{column}
+\end{columns}
+
+\bigskip
+
+\textbf{Three sub-industries:} NACE 41 (buildings), 42 (civil engineering), 43 (specialized)
+
+\end{frame}
+
+% ============================================================
+% MARKUP FORMULA
+% ============================================================
+\begin{frame}{How Are Markups Measured?}
+
+Start from cost minimization (De Loecker \& Warzynski, 2012):
+
+\begin{equation*}
+    \boxed{\mu_{it} = \frac{\theta^V_{it}}{\alpha^V_{it}}}
+\end{equation*}
+
+where:
+\begin{itemize}
+    \item $\theta^V_{it} = \partial \ln Y / \partial \ln V$ \quad (output elasticity --- from production function)
+    \item $\alpha^V_{it} = P^V V / PY$ \quad (expenditure share --- from data)
+\end{itemize}
+
+\bigskip
+
+\textbf{Key question:} what is the ``variable input'' $V$?
+
+\medskip
+
+\begin{itemize}
+    \item \accenttext{COGS} (cost of goods sold, $\approx$50\% of GO) $\Rightarrow$ markups $\approx$ 1.7--2.2
+    \item \highlighttext{Intermediate inputs} ($\approx$83\% of GO) $\Rightarrow$ markups $\approx$ 1.15
+    \item This choice \emph{flips the sign} of the procurement premium
+\end{itemize}
+
+\end{frame}
+
+% ============================================================
+% ESTIMATION
+% ============================================================
+\begin{frame}{Estimation: ACF Control Function}
+
+\textbf{Translog production function:}
+\begin{equation*}
+    y_{it} = \beta_k k_{it} + \beta_v v_{it} + \beta_{kk} k_{it}^2 + \beta_{vv} v_{it}^2 + \beta_{kv} k_{it} v_{it} + \omega_{it} + \varepsilon_{it}
+\end{equation*}
+
+\textbf{Two stages:}
+\begin{enumerate}
+    \item \textbf{First stage:} OLS with 3rd-order polynomial in $(k, v)$ interacted with procurement dummy + year FE $\Rightarrow$ predict $\hat{\phi}_{it}$
+    \item \textbf{Second stage:} GMM --- minimize $E[\xi_{it} \cdot Z_{it}] = 0$ where $\xi_{it}$ is innovation to Markov process
+    \begin{equation*}
+        \omega_{it} = g(\omega_{it-1}, pp_{it-1}) + \xi_{it}
+    \end{equation*}
+\end{enumerate}
+
+\medskip
+
+\textbf{Instruments:} lagged capital $k_{it-1}$, lagged COGS $v_{it-1}$
+
+\medskip
+
+Standard errors: ACH (2012) sandwich, firm-clustered, delta method for markups
+
+\end{frame}
+
+% ============================================================
+% RESULTS: MARKUPS
+% ============================================================
+\begin{frame}{Markups in Czech Construction}
+
+\begin{columns}[T]
+\begin{column}{0.55\textwidth}
+\includegraphics[width=\textwidth]{bmy_decomposition.pdf}
+\end{column}
+\begin{column}{0.42\textwidth}
+\textbf{Average markups by sub-industry:}
+
+\medskip
+
+\begin{tabular}{lc}
+\toprule
+NACE & Markup \\
+\midrule
+41 (Buildings) & 2.36 \\
+42 (Civil eng.) & 2.59 \\
+43 (Specialized) & 1.81 \\
+\bottomrule
+\end{tabular}
+
+\bigskip
+
+\textbf{BMY decomposition:}
+\begin{itemize}
+    \item Within-firm markups \emph{rose}
+    \item Aggregate markups \emph{fell}
+    \item Driven by net entry of low-markup firms
+\end{itemize}
+\end{column}
+\end{columns}
+
+\end{frame}
+
+% ============================================================
+% PROCUREMENT PREMIUM
+% ============================================================
+\begin{frame}{The Procurement Premium: $\approx$ 15\%}
+
+\begin{columns}[T]
+\begin{column}{0.55\textwidth}
+\includegraphics[width=\textwidth]{treat2.pdf}
+\end{column}
+\begin{column}{0.42\textwidth}
+\textbf{Three identification strategies:}
+
+\medskip
+
+\begin{enumerate}
+    \item Cross-sectional OLS with FE: \\\accenttext{14.9\%}
+    \item Selection on observables (11 estimators): \\\accenttext{ATT $\approx$ 15\%}
+    \item Panel methods (SDID, MC): \\\accenttext{confirms magnitude}
+\end{enumerate}
+
+\bigskip
+
+\textbf{Temporal pattern:}
+\begin{itemize}
+    \item 30\% in 2006 $\to$ 10\% in 2021
+    \item Coincides with transparency reforms
+\end{itemize}
+\end{column}
+\end{columns}
+
+\end{frame}
+
+% ============================================================
+% KEY TAKEAWAY 1
+% ============================================================
+\begin{frame}{}
+\vfill
+\begin{center}
+{\Large \textbf{Key Takeaway \#1}}
+
+\bigskip
+
+{\large Government contractors in Czech construction charge\\
+\highlighttext{15\% higher markups} than private-only firms.\\[0.3cm]
+This premium has \emph{declined} over time,\\
+consistent with transparency reforms reducing procurement rents.}
+\end{center}
+\vfill
+\end{frame}
+
+% ============================================================
+% SPECIFICATION SENSITIVITY
+% ============================================================
+\begin{frame}{Which Specification Choices Matter?}
+
+\begin{columns}[T]
+\begin{column}{0.55\textwidth}
+\includegraphics[width=\textwidth]{bmy_variable_input.pdf}
+\end{column}
+\begin{column}{0.42\textwidth}
+I vary four dimensions:
+
+\medskip
+
+\begin{tabular}{lc}
+\toprule
+Choice & Effect \\
+\midrule
+\highlighttext{Variable input} & \highlighttext{flips sign} \\
+\highlighttext{Markov spec} & \highlighttext{$\times$3} \\
+\textcolor{muted}{Functional form} & \textcolor{muted}{$<$1 SE} \\
+\textcolor{muted}{Estimator} & \textcolor{muted}{$\approx$0} \\
+\textcolor{muted}{IC correction} & \textcolor{muted}{$<$0.005} \\
+\bottomrule
+\end{tabular}
+
+\bigskip
+
+The \emph{estimator} barely matters.\\
+The \emph{variable input} is everything.
+\end{column}
+\end{columns}
+
+\end{frame}
+
+% ============================================================
+% WHY VARIABLE INPUT MATTERS
+% ============================================================
+\begin{frame}{Why Does the Variable Input Matter So Much?}
+
+\textbf{The markup formula is $\mu = \theta / \alpha$.} As the input's share of revenue ($\alpha$) grows:
+
+\medskip
+
+\begin{center}
+\begin{tabular}{lccc}
+\toprule
+Input & Share of GO & Median $\mu$ & 90/50 ratio \\
+\midrule
+Labor (wages) & $\sim$17\% & 4.79 & 1.44 \\
+COGS & $\sim$50\% & 2.02 & 1.23 \\
+Composite (W+COGS) & $\sim$67\% & 1.48 & 1.21 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\medskip
+
+\begin{itemize}
+    \item Raval (2023): markups from different inputs are \emph{positively} correlated ($\hat{\beta} = 0.28$) but far from $\beta = 1$ $\Rightarrow$ Hicks neutrality rejected
+    \item DLEU Reply (2025): output elasticities are \emph{constant} over time --- all the action is in $\alpha$
+    \item CMOY (2023): DLEU-style markups don't predict industry prices ($R^2 < 0.001$)
+\end{itemize}
+
+\medskip
+
+\highlighttext{Good news:} the \emph{ranking} of firms is preserved $\Rightarrow$ treatment effect is more robust than levels
+
+\end{frame}
+
+% ============================================================
+% KEY TAKEAWAY 2
+% ============================================================
+\begin{frame}{}
+\vfill
+\begin{center}
+{\Large \textbf{Key Takeaway \#2}}
+
+\bigskip
+
+{\large Markup \emph{levels} are unreliable---they depend mechanically\\
+on which input you call ``variable.''\\[0.3cm]
+But the procurement \emph{premium} is robust:\\
+15\% across ACF, OLS, Blundell-Bond, and cost-share methods.\\[0.3cm]
+\highlighttext{Specification sensitivity $\neq$ specification fragility.}}
+\end{center}
+\vfill
+\end{frame}
+
+% ============================================================
+% CAUSAL ANALYSIS
+% ============================================================
+\begin{frame}{Causal Analysis: Selection on Observables}
+
+\begin{columns}[T]
+\begin{column}{0.55\textwidth}
+\includegraphics[width=\textwidth]{estimators_example.pdf}
+\end{column}
+\begin{column}{0.42\textwidth}
+\textbf{11 estimators} (Imbens \& Xu, 2024):
+
+\medskip
+
+\begin{itemize}
+    \item IPW, AIPW, TMLE
+    \item Nearest neighbor matching
+    \item Causal forest
+    \item ...all yield ATT $\approx$ 15\%
+\end{itemize}
+
+\bigskip
+
+\textbf{Balanced panel:} 26 firms
+\begin{itemize}
+    \item All placebo tests pass
+    \item Overlap diagnostics clean
+    \item Trim at propensity $\in [0.1, 0.9]$
+\end{itemize}
+\end{column}
+\end{columns}
+
+\end{frame}
+
+% ============================================================
+% PANEL METHODS
+% ============================================================
+\begin{frame}{Panel Data: The Premium Declines Over Time}
+
+\begin{columns}[T]
+\begin{column}{0.55\textwidth}
+\includegraphics[width=\textwidth]{synthdid_plot.pdf}
+\end{column}
+\begin{column}{0.42\textwidth}
+\textbf{Methods:}
+\begin{itemize}
+    \item Heterogeneity-robust DiD
+    \item Synthetic DiD
+    \item Matrix completion
+    \item Augmented synthetic control
+\end{itemize}
+
+\bigskip
+
+\textbf{Finding:}\\
+Premium $\approx$ 30\% in 2006 \\
+$\to$ $\approx$ 10\% by 2021
+
+\bigskip
+
+Coincides with:
+\begin{itemize}
+    \item 2012: single-bidding ban
+    \item 2017: Register of Contracts
+\end{itemize}
+\end{column}
+\end{columns}
+
+\end{frame}
+
+% ============================================================
+% ROBUSTNESS
+% ============================================================
+\begin{frame}{Robustness}
+
+\begin{tabular}{lcc}
+\toprule
+Test & Result & Interpretation \\
+\midrule
+ACF vs.\ OLS & $\Delta < 3.4\%$ & GNR non-identification \\
+CD vs.\ Translog & within 1 SE & functional form irrelevant \\
+ADL IC correction & $\Delta < 0.005$ & differential bias is small \\
+Blundell-Bond IV-GMM & 19.5\% & alternative estimator confirms \\
+Cost-share $\theta$ & 16.6\% & no PF estimation needed \\
+DGM cross-validation & $\Delta < 0.001$ & implementation irrelevant \\
+Sample rebuilt vs.\ original & identical & construction doesn't drive results \\
+\bottomrule
+\end{tabular}
+
+\bigskip
+
+\textbf{What varies:} variable input (COGS vs.\ II) and Markov specification
+
+\textbf{What doesn't:} everything else
+
+\end{frame}
+
+% ============================================================
+% REFORMS
+% ============================================================
+\begin{frame}{Czech Transparency Reforms and the Declining Premium}
+
+\begin{center}
+\begin{tabular}{lll}
+\toprule
+Date & Reform & Mechanism \\
+\midrule
+2006 & EU procurement framework & TED publication \\
+\highlighttext{2012} & \highlighttext{Single-bidding ban} & \highlighttext{mandatory cancellation} \\
+2014 & Bearer share abolition & ownership transparency \\
+\highlighttext{2016} & \highlighttext{New procurement act} & \highlighttext{MEAT criteria} \\
+\highlighttext{2017} & \highlighttext{Register of Contracts} & \highlighttext{online publication} \\
+2018 & Beneficial ownership register & ultimate owner disclosure \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\bigskip
+
+The declining premium (30\% $\to$ 10\%) is consistent with these reforms reducing procurement rents.
+
+\medskip
+
+Complements price-based evidence: Titl (2023) finds 6--10\% price reduction from the 2012 ban.
+
+\end{frame}
+
+% ============================================================
+% WHAT SHOULD RESEARCHERS DO
+% ============================================================
+\begin{frame}{What Should Researchers Do?}
+
+\begin{enumerate}
+    \item \textbf{Report multiple variable inputs.} COGS and II give qualitatively different answers. The Raval (2023) overidentification test helps diagnose the problem.
+
+    \medskip
+
+    \item \textbf{Include the treatment dummy in the Markov process.} Omitting it understates the premium by a factor of 3. This is a modeling choice, not a robustness check.
+
+    \medskip
+
+    \item \textbf{Don't obsess over the estimator.} ACF $\approx$ OLS (GNR). Functional form doesn't matter much either. The imperfect competition correction is a second-order concern.
+
+    \medskip
+
+    \item \textbf{Focus on the treatment effect, not the markup level.} Absolute markups are mechanical (driven by $\alpha$). The \emph{relative} premium is what's informative about market power.
+\end{enumerate}
+
+\end{frame}
+
+% ============================================================
+% NEW: IDENTIFICATION + DLW
+% ============================================================
+
+\begin{frame}{Primary Identification: Full-Panel Fixed Effects}
+
+\textbf{Firm FE + Year FE} on 1,267 firms (474 switchers):
+$$\ln\mu_{it} = \highlighttext{0.131} \times pp_{it} + \alpha_i + \gamma_t + \nu_{it}$$
+
+\pause
+\medskip
+\begin{itemize}
+    \item Premium = \highlighttext{14.0\%} (SE = 0.005) --- \accenttext{6,849 observations}
+    \item Stable across specs: pooled OLS (15.0\%), firm FE (14.8\%), + controls (14.1\%)
+    \item By NACE: buildings 17.4\%, civil eng.\ 6.4\%, specialized 11.1\%
+\end{itemize}
+
+\pause
+\medskip
+\textbf{Oster (2019) bounds:} Identified set $[12.3\%, 15.0\%]$ \\
+$\delta^* = -5.9$ --- unobservables would need to work in the \emph{opposite} direction \\
+Even removing Baran\v{e}k \& Titl (2024) +6\% favoritism $\rightarrow$ residual \highlighttext{$\sim$9\%}
+
+\end{frame}
+
+\begin{frame}{DLW Treatment Evaluation: Entry and Exit}
+
+Following De Loecker \& Warzynski (2012) exporter framework:
+
+\medskip
+\begin{itemize}
+    \item Entry into procurement: \highlighttext{+11.5\%} markup increase
+    \item Exit from procurement: \highlighttext{$-$11.2\%} markup decrease
+    \item \accenttext{Symmetric reversal} = strongest causal evidence
+\end{itemize}
+
+\pause
+\medskip
+\textbf{Productivity decomposition:}
+\begin{itemize}
+    \item Translog $\omega$ explains \accenttext{76\%} of premium (DLW: $\sim$70\% for exports)
+    \item Residual after $\omega$: 3.2\% ($t = 4.1$) --- \emph{pricing power beyond productivity}
+    \item Intensive margin: +3.7\% per unit of procurement share (dose-response)
+\end{itemize}
+
+\end{frame}
+
+\begin{frame}{Nine Methods, Same Answer}
+
+\small
+\begin{center}
+\begin{tabular}{lccc}
+\toprule
+Method & Mean $\mu$ & Premium & SE \\
+\midrule
+Cost-share & 1.19 & \highlighttext{14.3\%} & (0.020) \\
+ACF CD & 2.05 & \highlighttext{13.4\%} & (0.005) \\
+ACF Translog & 2.02 & \highlighttext{13.6\%} & (0.005) \\
+BB IV-GMM & 2.17 & \highlighttext{13.6\%} & (0.005) \\
+GNR share & 1.18 & \highlighttext{12.5\%} & --- \\
+ADL IC & 2.05 & \highlighttext{13.4\%} & (0.005) \\
+\textcolor{muted}{OLS} & \textcolor{muted}{2.04} & \textcolor{muted}{0.3\%} & \textcolor{muted}{(0.005)} \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\normalsize
+\pause
+\medskip
+Markup \textbf{levels} vary 1.02--2.17 \quad $\rightarrow$ \quad DGM (2026): variation preserved, levels biased \\
+\textbf{Premium} stable at \highlighttext{12.5--14.3\%} across 8/9 methods \\
+OLS = outlier: simultaneity bias kills cross-sectional variation (GNR theorem)
+
+\end{frame}
+
+% ============================================================
+% NEW: DOUBLE MARKET POWER (Berry monopsony lecture framing)
+% ============================================================
+
+\begin{frame}{}
+\begin{center}
+{\Large\bfseries Double Market Power}\\[8pt]
+{\normalsize Following Kroft, Luo, Mogstad \& Setzler (2025, AER)}
+\end{center}
+\end{frame}
+
+\begin{frame}{Labor Supply Elasticity from Orbis}
+
+\textbf{Problem:} MagnusWeb employment = categorical brackets $\rightarrow$ $\Delta\ell \approx 0$ \\
+\textbf{Solution:} Orbis (WRDS) provides \accenttext{continuous employee counts}
+
+\pause
+\medskip
+\textbf{KLMS Proposition 3:} $\theta_{\text{DiD}} = \frac{\text{cov}[\Delta w, D]}{\text{cov}[\Delta \ell, D]}$
+
+\medskip
+\begin{center}
+\begin{tabular}{lcccc}
+\toprule
+& $\hat{\theta}$ & $1/\theta$ & Markdown & $N$ \\
+\midrule
+Czech construction & \highlighttext{0.125} & 7.98 & 0.889 & 124K \\
+Czech all industries & 0.465 & 2.15 & 0.683 & 124K \\
+\textcolor{muted}{KLMS US construction} & \textcolor{muted}{0.245} & \textcolor{muted}{4.08} & \textcolor{muted}{0.803} & --- \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\pause
+Czech construction: \accenttext{more elastic labor} than US ($1/\theta = 8.0$ vs 4.1)
+
+\end{frame}
+
+\begin{frame}{Double Wage Markdown}
+
+\textbf{KLMS equation (17):} $W_{jt} = \underbrace{(1+\theta)^{-1}}_{\text{markdown}} \times \underbrace{(1-\epsilon)}_{\text{inv.\ markup}} \times P_{jt} \cdot \text{MPL}_{jt}$
+
+\pause
+\medskip
+\begin{center}
+\begin{tabular}{lccc}
+\toprule
+& Markdown & Inv.\ markup & \textbf{Double markdown} \\
+\midrule
+Czech construction & 0.889 & 0.711 & \highlighttext{0.632} \\
+\textcolor{muted}{KLMS US (DiD)} & \textcolor{muted}{0.803} & \textcolor{muted}{0.863} & \textcolor{muted}{0.693} \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\pause
+\medskip
+\begin{itemize}
+    \item Wages are \highlighttext{37\% below} the value of MPL (KLMS US: 31--33\%)
+    \item Czech product demand \emph{less} elastic ($1{-}\epsilon = 0.71$ vs 0.86) --- smaller, more concentrated markets
+    \item Czech labor \emph{more} elastic ($1/\theta = 8.0$ vs 4.1) --- larger informal sector
+    \item \accenttext{Attenuation:} product + labor power partially cancel $\rightarrow$ explains null ADL correction
+\end{itemize}
+
+\end{frame}
+
+\begin{frame}{Cross-Industry: Premium Not Construction-Specific}
+
+\textbf{Orbis panel:} 275,000 firms $\times$ 2006--2023
+
+\medskip
+\begin{center}
+\begin{tabular}{llcc}
+\toprule
+NACE & Industry & Premium & SE \\
+\midrule
+71 & Architecture/engineering & \highlighttext{16.6\%} & (0.003) \\
+62 & IT services & \highlighttext{15.3\%} & (0.004) \\
+41 & Buildings & \highlighttext{13.6\%} & (0.002) \\
+46 & Wholesale trade & 4.8\% & (0.003) \\
+43 & Specialized construction & 2.8\% & (0.003) \\
+\midrule
+41--43 & Construction (pooled) & \highlighttext{13.5\%} & (0.002) \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\pause
+\medskip
+MagnusWeb construction: 14.0\% $\approx$ Orbis construction: 13.5\% \\
+$\rightarrow$ \accenttext{Independent dataset ($16\times$ more firms) confirms headline result}
+
+\end{frame}
+
+\begin{frame}{Political Connections: Baran\v{e}k \& Titl (2024, JLE)}
+
+\textbf{Key confounder:} politically connected firms overprice by \highlighttext{+6\%}
+\begin{itemize}
+    \item Electoral variation: connection disappears when party loses power
+    \item No quality gains --- pure rent extraction
+    \item EU oversight \emph{eliminates} favoritism (intergovernment level)
+\end{itemize}
+
+\pause
+\medskip
+\textbf{Implication for our premium:}
+\begin{itemize}
+    \item 14\% premium $-$ 6\% favoritism = \accenttext{$\sim$8\% residual} (still large)
+    \item Oster bounds: $\delta^* = -5.9$ (robust even under worst-case)
+    \item DLW: $\omega$ explains 76\% $\rightarrow$ most of premium is productivity selection
+    \item \accenttext{Remaining 3.2\%}: pricing power + favoritism + other mechanisms
+\end{itemize}
+
+\end{frame}
+
+% ============================================================
+% CONCLUSION
+% ============================================================
+\begin{frame}{Summary}
+
+\begin{enumerate}
+    \item \highlighttext{14\% procurement markup premium} --- firm FE on 1,267 firms, Oster-robust, confirmed across 9 methods and 5 industries on independent Orbis data
+
+    \medskip
+
+    \item \textbf{Specification sensitivity} propagates to treatment effects --- variable input choice flips the sign, Markov specification triples it. \accenttext{Extends BMY (2026) from levels to ATT}
+
+    \medskip
+
+    \item \textbf{Double market power:} Czech construction $\theta = 0.13$ (Orbis), double markdown = 0.63 --- wages 37\% below VMPL. Attenuation explains null ADL correction
+
+    \medskip
+
+    \item The premium \textbf{declined 30\% $\rightarrow$ 10\%} (2006--2021); productivity explains 76\% (DLW), political connections 6\% (B\&T), residual 3.2\%
+\end{enumerate}
+
+\bigskip
+
+\begin{center}
+\textcolor{muted}{Paper + code: \texttt{github.com/marek-chadim/Markups-and-Public-Procurement}}
+\end{center}
+
+\end{frame}
+
+% ============================================================
+% APPENDIX
+% ============================================================
+\appendix
+
+\begin{frame}{Appendix: Production Function Coefficients}
+
+\begin{center}
+\begin{tabular}{lccc}
+\toprule
+& NACE 41 & NACE 42 & NACE 43 \\
+\midrule
+$\hat{\beta}_{\text{cogs}}$ (CD) & 0.93 & 0.90 & 0.85 \\
+$\hat{\beta}_k$ (CD) & 0.05 & $-$0.04 & 0.07 \\
+Mean markup (CD) & 2.36 & 2.59 & 1.81 \\
+\midrule
+$\hat{\beta}_{\text{cogs}}$ (TL, mean) & 0.91 & 0.87 & 0.83 \\
+Mean markup (TL) & 2.25 & 2.45 & 1.73 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\medskip
+
+$\hat{\beta}_{\text{cogs}} \approx 0.85$--$0.93$ across industries and specifications.\\
+Cost-share approach gives $\hat{\theta} \approx 0.98$ --- consistent with near-constant returns.
+
+\end{frame}
+
+\begin{frame}{Appendix: Raval (2023) Overidentification Test}
+
+\begin{columns}[T]
+\begin{column}{0.50\textwidth}
+\includegraphics[width=\textwidth]{raval_time_trends.pdf}
+\end{column}
+\begin{column}{0.47\textwidth}
+\textbf{Cross-input correlations:}\\
+(null: $\beta = 1$)
+
+\medskip
+
+\begin{tabular}{lc}
+\toprule
+Pair & $\hat{\beta}$ \\
+\midrule
+COGS on Labor & 0.28 \\
+Composite on Labor & 0.29 \\
+Composite on COGS & 0.82 \\
+\bottomrule
+\end{tabular}
+
+\bigskip
+
+\begin{itemize}
+    \item All reject $\beta = 1$
+    \item But \emph{positive} (unlike Raval's negative cross-country results)
+    \item Firm ranking preserved $\Rightarrow$ treatment effect robust
+\end{itemize}
+\end{column}
+\end{columns}
+
+\end{frame}
+
+\begin{frame}{Appendix: BMY Decomposition by Procurement Status}
+
+\begin{columns}
+\begin{column}{0.48\textwidth}
+\centering
+\includegraphics[width=\textwidth]{bmy_decomposition_procurement.pdf}\\
+\small Procurement firms
+\end{column}
+\begin{column}{0.48\textwidth}
+\centering
+\includegraphics[width=\textwidth]{bmy_decomposition_non_procurement.pdf}\\
+\small Non-procurement firms
+\end{column}
+\end{columns}
+
+\end{frame}
+
+\end{document}

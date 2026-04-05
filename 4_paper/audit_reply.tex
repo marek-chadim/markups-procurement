@@ -1,0 +1,140 @@
+\documentclass[11pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{parskip}
+\usepackage[hidelinks]{hyperref}
+\usepackage{xcolor}
+
+\definecolor{accept}{RGB}{0,100,0}
+\definecolor{partial}{RGB}{180,120,0}
+\definecolor{acknowledge}{RGB}{100,100,100}
+
+\newcommand{\accept}{\textcolor{accept}{\textbf{[ACCEPT]}}}
+\newcommand{\partialresp}{\textcolor{partial}{\textbf{[PARTIAL]}}}
+\newcommand{\acknowledge}{\textcolor{acknowledge}{\textbf{[ACKNOWLEDGE]}}}
+
+\title{Response to MAD Audit\\[0.5em]
+\large Markups and Public Procurement: Evidence from Czech Construction}
+\author{Marek Chadim\\\small Pre-Doctoral Fellow, Tobin Center for Economic Policy, Yale University}
+\date{April 4, 2026}
+
+\begin{document}
+\maketitle
+
+\noindent This document responds to the Multi-Agent Debate (MAD) audit conducted on April 4, 2026, which identified 1 critical issue, 8 major issues, and 2 minor issues. Each response uses one of three classifications: \accept{} (the finding is correct and revisions have been made), \partialresp{} (the finding has merit but overstates the issue), or \acknowledge{} (the finding is valid but cannot be fully resolved with current data).
+
+\section{Response to Critical Issues}
+
+\subsection*{CRITICAL \#1: Markov specification sensitivity}
+
+\textit{Finding:} Including the procurement dummy in the Markov productivity transition raises the regression-adjusted premium from 0.003 to 0.138. Three of four agents characterized this as ``circular'' and flagged it as the central vulnerability.
+
+\partialresp{} The audit is correct that the specification dominates all other sources of variation, but it misidentifies the direction of the econometric argument. Under De Loecker (2013, \emph{AEJ: Microeconomics}) and De Loecker and Syverson (2021, \emph{Handbook of Industrial Organization} Ch.~3), including the treatment variable in the Markov transition $g(\cdot)$ is the \emph{only} specification internally consistent with the proxy variable method whenever the treatment may affect future productivity. Omitting a productivity-relevant treatment from $g(\cdot)$ contaminates the residual $\xi_{it}$ with the systematic component $g(pp_{it-1})$, violating the moment conditions underlying second-stage estimation. De Loecker and Syverson state the point directly: ``if the changes in the environment are part of the information set of a producer, they should be included in the model for forecasting productivity, $g(\cdot)$'' (p.~196), and ``standard approaches fail to identify these effects'' when the treatment is omitted (p.~197).
+
+The ``plain ACF'' specification is therefore not a neutral benchmark---it is an estimator under the strong assumption that procurement has zero effect on productivity dynamics. For Czech construction, where government contracts involve elevated quality standards, scale economies, and technology transfer, this assumption is economically implausible. The 14\% premium is the estimate under the internally consistent specification; the 0.3\% plain ACF premium is biased by misspecification of $g(\cdot)$.
+
+\textit{Revised framing:} Section 3.4 now defends the Markov-with-$pp$ specification as econometrically required, cites De Loecker (2013) and De Loecker and Syverson (2021) directly, and interprets the residual 14\% premium as the pure pricing-power effect after the specification absorbs procurement-induced productivity gains into $\omega$.
+
+\textit{Location:} Abstract, Introduction, Section 3.4 (expanded discussion citing De Loecker 2013 and De Loecker--Syverson 2021), plus a new publication table (\texttt{spec\_sensitivity.tex}) decomposing the premium by specification choice.
+
+\section{Response to Major Issues}
+
+\subsection*{MAJOR \#1: Favoritism decomposition is calibration from incomparable quantities}
+
+\textit{Finding:} The ``14\% = 6\% favoritism + 8\% productivity'' decomposition subtracts Baran\'{e}k and Titl's contract-price overpricing from a production-function markup ratio.
+
+\accept{} The revised text explicitly labels this as a ``suggestive calibration'' with an ``upper bound'' interpretation, and emphasizes that contract-price overpricing and production-function markups are distinct economic objects. The competition heterogeneity test (premium by single-bid share) and reform timing test (pre/post-2012) are reframed as the paper's own evidence on the favoritism channel, with the Baran\'{e}k and Titl benchmark serving only as an external reference point.
+
+\textit{Location:} Section 6.1 (favoritism subsection), revised paragraph replacing the arithmetic subtraction.
+
+\subsection*{MAJOR \#2: COGS markup levels strain plausibility}
+
+\textit{Finding:} Markup levels of 1.7--2.35 imply prices 70--135\% above marginal cost, which is hard to reconcile with 3--8\% profit margins in Czech construction.
+
+\accept{} A new paragraph (Section 3.1) explicitly addresses this using Hall (2018): markups measure price relative to \emph{variable} cost only, while fixed costs drive the wedge between markups and profit margins. An industry with 5\% profit margins can sustain markups of 2.0 if fixed costs account for 47\% of revenue---consistent with Czech construction's capital intensity.
+
+\textit{Location:} Section 3.1, new paragraph after markup distribution discussion. Hall (2018) added to bibliography.
+
+\subsection*{MAJOR \#3: GNR non-identification implies the premium is identified from $\alpha$, not $\theta$}
+
+\textit{Finding:} Under the Gandhi, Navarro, and Rivers (2020) non-identification theorem, the output elasticity is pinned down by the expenditure share (data), not by the estimated production function.
+
+\accept{} This is correct and is elevated from a robustness footnote to a core discussion point in Section 3.4. The revised text states explicitly that the premium is identified from cross-firm variation in cost shares, not from the estimated production function. This is framed as a \emph{feature} for treatment evaluation: the premium is robust to production function misspecification provided the cost-share bias is common across treatment groups.
+
+\textit{Caveat preserved:} The common-bias assumption fails when alternative variable inputs (II vs.\ COGS) are used, as the premium flips sign---confirming that the choice of variable input, not the estimator, is the binding specification decision.
+
+\textit{Location:} Section 3.4.
+
+\subsection*{MAJOR \#4: SUTVA violation is acknowledged but unquantified}
+
+\textit{Finding:} The paper cites KLMS 27\% crowding out but does not bound the implied bias.
+
+\accept{} The revised text adds a quantitative bound: using the 27\% displacement estimate and the 30\% procurement share in Czech construction, the implied control-group markup depression is bounded at 1--2 percentage points---meaningful but insufficient to explain the full 14\% premium.
+
+\textit{Location:} Section 4.1, after Oster bounds discussion.
+
+\subsection*{MAJOR \#5: Hansen J rejects for NACE 41}
+
+\textit{Finding:} The Hansen J test rejects ($p = 0.004$) for buildings (NACE 41), the largest sub-industry.
+
+\accept{} The rejection is reported prominently and discussed as a genuine concern. The revised text notes that finer market definitions---using NACE 4-digit classifications or regional procurement markets defined by bidder-overlap networks---could strengthen or overturn the null ADL correction.
+
+\textit{Location:} Section 5.1, expanded ADL discussion.
+
+\subsection*{MAJOR \#6: KLMS Wald DiD exclusion restriction is untested}
+
+\textit{Finding:} The Wald DiD requires that procurement entry shifts labor demand without affecting supply. If procurement firms offer non-wage amenities attracting workers, the supply curve shifts simultaneously, biasing $\hat{\theta}$.
+
+\acknowledge{} The exclusion restriction cannot be tested with the current data. The revised text adds an explicit discussion of this limitation: the estimated $\theta = 0.13$ should be interpreted as a combined demand-supply response rather than a pure demand-side labor supply elasticity. This is a genuine limitation that requires continuous employment data (Orbis, CZSO) and additional identifying variation (e.g., procurement shocks that plausibly shift only demand).
+
+\textit{Location:} Section 7.1 (KLMS double market power).
+
+\subsection*{MAJOR \#7: DLEU Reply (2025) connection underexploited}
+
+\textit{Finding:} The specification sensitivity result directly parallels DLEU's finding that $\theta$ is stable and all action is in $\alpha$.
+
+\accept{} A dedicated paragraph in Section 3.4 now connects this paper's Markov specification result to the DLEU reply, framing both as variants of the same underlying insight: production function identification is not the binding constraint; the binding constraint is how we partition treatment effects between estimated components ($\theta$, $\omega$) and observed components ($\alpha$).
+
+\textit{Location:} Section 3.4.
+
+\subsection*{MAJOR \#8: Missing references}
+
+\textit{Finding:} Doraszelski and Jaumandreu (2018) and Flynn, Huo, and Kako (2019) are absent.
+
+\accept{} Both added to bibliography. Diez, Leigh, and Tambunlertchai (2018) also added for the European context reference (MINOR \#2).
+
+\textit{Location:} Bibliography.
+
+\section{Response to Minor Issues}
+
+\subsection*{MINOR \#1: Unconfoundedness analysis on 26 firms is underpowered}
+
+\accept{} The revised text explicitly acknowledges the power limitation: the balanced panel comprises only 26 firms (312 observations), and these results are interpreted as supplementary evidence rather than a standalone identification strategy. The full-panel fixed-effects estimates remain the primary causal evidence.
+
+\textit{Location:} Section 4.3.
+
+\subsection*{MINOR \#2: European markup literature positioning gap}
+
+\accept{} A sentence has been added to the introduction placing Czech construction markups within the range documented by Diez, Leigh, and Tambunlertchai (2018), with a caveat that cross-country comparisons are complicated by differences in variable input definitions.
+
+\textit{Location:} Introduction.
+
+\section{Response to Irreducible Disagreements}
+
+\subsection*{IRREDUCIBLE \#1: Is the baseline Markov specification justified? \textbf{Resolved.}}
+
+The audit flagged a fundamental disagreement about whether including the procurement dummy in the Markov productivity transition is ``circular'' (agents A, B, D) or justified by CWDL (2015) precedent (the paper's original position). This disagreement is resolved by De Loecker (2013) and the De Loecker--Syverson (2021) \emph{Handbook of IO} chapter, both of which establish that the treatment variable belongs in $g(\cdot)$ whenever it can affect productivity dynamics. The agents' ``circularity'' characterization reverses the econometric logic: it is the \emph{omission} of a productivity-relevant treatment from the Markov transition that creates bias, not its inclusion. Under the consensus position in the literature, the Markov-with-$pp$ specification is required for internal consistency, and the plain ACF specification is an estimator under an implicit assumption of no productivity effect.
+
+\section{Summary of Revisions}
+
+\begin{itemize}
+\item 11 discrete textual revisions applied across the introduction, Section 3.4 (specification sensitivity), Section 4.1 (SUTVA bounding), Section 5.1 (ADL/Hansen J), Section 6.1 (favoritism), Section 7.1 (KLMS).
+\item 1 new publication table (\texttt{spec\_sensitivity.tex}) decomposing the premium across specification choices.
+\item 3 new bibliography entries (Doraszelski--Jaumandreu, Flynn--Huo--Kako, Diez--Leigh--Tambunlertchai).
+\item Paper length: 35 pages (up from 34), reflecting the expanded specification sensitivity discussion and SUTVA bounding exercise.
+\end{itemize}
+
+\noindent The revised paper retains its core findings---the procurement premium, the double market power analysis, the favoritism channel heterogeneity---while honestly presenting the specification sensitivity that makes these findings contingent on modeling choices. This contingency is now framed as the paper's central intellectual contribution rather than a limitation.
+
+\end{document}
