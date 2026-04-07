@@ -414,6 +414,10 @@ I also report identification-robust confidence sets following Andrews \cite{Andr
 
 \input{../input/tables/ags_twostep_ci.tex}
 
+Andrews, Chen, and Tecchio \cite{AndrewsChenTecchio2026} show that under local misspecification, the Hansen $J$-statistic bounds the scope for ``weight hacking'': $\sqrt{J}$ measures how many standard errors a researcher can move the GMM estimate by varying the weighting matrix. All three ACF specifications in this paper are just-identified ($J = 0$, $df = 0$), so the weight matrix cannot move the estimate at all---a feature of the parsimonious Cobb-Douglas specification. Table~\ref{tab:misspec} further reports misspecification-robust standard errors for the procurement premium, computed via non-recentered cluster bootstrap (500 replications) following their recommendation. The bootstrap SE (0.005) matches the analytical clustered SE (0.005) almost exactly (ratio $\approx$ 1.01), confirming that misspecification does not inflate uncertainty in the reduced-form premium.
+
+\input{../input/tables/misspecification_diagnostics.tex}
+
 Figure~\ref{fig:spec_curve} aggregates all point estimates into a specification curve \cite{SimonsohnSimmonsNelson2020} covering ACF, OLS, cost-share, lalonde selection-on-observables (11 estimators), fect counterfactual methods, ABGRS residualization, Borusyak-Hull randomization inference, and Oster bounds. Out of 33 specifications, the procurement premium ranges from 0.003 (ACF without $pp_{it-1}$ in Markov) to 0.186 (raw difference-in-means), with a median of approximately 0.138. The preferred specification (ACF Base) falls near the center of the distribution, and the vast majority of specifications place the premium between 0.12 and 0.17.
 
 \begin{figure}[htbp]\centering
@@ -762,6 +766,8 @@ Following KLMS equation (25), the revenue elasticity $(1-\epsilon)$ is estimated
 \bibitem{Andrews2017ECMA} Andrews, I. (2017). ``Valid Two-Step Identification-Robust Confidence Sets for GMM,'' \emph{Econometrica}, 84(6), 2155--2182.
 
 \bibitem{Andrews2025Lecture} Andrews, I. (2025). ``Recent Developments in Econometrics for Transparency and Communication,'' AEA Continuing Education Lecture.
+
+\bibitem{AndrewsChenTecchio2026} Andrews, I., J.~Chen, and O.~Tecchio (2026). ``The Purpose of an Estimator Is What It Does: Misspecification, Estimands, and Over-Identification,'' Working Paper, arXiv:2508.13076v5.
 
 \bibitem{SimonsohnSimmonsNelson2020} Simonsohn, U., J.P.\ Simmons, and L.D.\ Nelson (2020). ``Specification Curve Analysis,'' \emph{Nature Human Behaviour}, 4, 1208--1214.
 

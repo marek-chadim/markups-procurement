@@ -1985,6 +1985,22 @@ if __name__ == '__main__':
             1e-10, None)),
         np.nan)
 
+    # competitors' lagged productivity (ADL Theorem 6: optimal IV uses
+    # theta_f * f_{k1} + rho * omega_{k0}). Approximate omega with Solow
+    # residual (go - beta_k*k - beta_cogs*cogs ≈ go - k - cogs as proxy).
+    df_ic['omega_proxy'] = df_ic['go'] - 0.05 * df_ic['k'] - 0.95 * df_ic['cogs']
+    df_ic['L_omega_proxy'] = df_ic.groupby('id')['omega_proxy'].shift(1)
+    mkt_omega = df_ic.groupby('mkt_id').agg(
+        mkt_Lomega_sum=('L_omega_proxy', 'sum'),
+        mkt_Lomega_n=('L_omega_proxy', 'count'),
+    ).reset_index()
+    df_ic = df_ic.merge(mkt_omega, on='mkt_id', how='left')
+    df_ic['comp_Lomega_mean'] = np.where(
+        df_ic['comp_n'] > 0,
+        (df_ic['mkt_Lomega_sum'] - df_ic['L_omega_proxy'].fillna(0))
+        / df_ic['comp_n'],
+        np.nan)
+
     # report coverage
     has_comp = df_ic['comp_go_lse'].notna() & (df_ic['comp_n'] > 0)
     print(f'  Firms with competitors: {has_comp.sum()} / {len(df_ic)} '
@@ -1997,14 +2013,15 @@ if __name__ == '__main__':
     # ------------------------------------------------------------------
     #  Instrument sets to compare
     # ------------------------------------------------------------------
-    # (a) Baseline: comp_k_mean + comp_n_log (current, 2 instruments)
+    # (a) Baseline: comp_k_mean + comp_n_log (2 instruments)
     # (b) BLP sums: comp_k_sum + comp_cogs_sum + comp_n_log (3 instruments)
-    # (c) BLP rich: comp_k_sum + comp_cogs_sum + comp_n_log + comp_k_sd (4)
+    # (c) ADL optimal: comp_k_mean + comp_Lomega_mean (Theorem 6: f_{-j} + omega_{-j,t-1})
+    # (d) ADL full: comp_k_mean + comp_Lomega_mean + comp_n_log (3 instruments)
     iv_sets = {
         'baseline': ['comp_k_mean', 'comp_n_log'],
         'blp_sums': ['comp_k_sum', 'comp_cogs_sum', 'comp_n_log'],
-        'blp_rich': ['comp_k_sum', 'comp_cogs_sum', 'comp_n_log',
-                     'comp_k_sd'],
+        'adl_optimal': ['comp_k_mean', 'comp_Lomega_mean'],
+        'adl_full': ['comp_k_mean', 'comp_Lomega_mean', 'comp_n_log'],
     }
 
     # ------------------------------------------------------------------
@@ -2022,7 +2039,8 @@ if __name__ == '__main__':
                   f'(N={len(df_n)}, firms={df_n["id"].nunique()})')
             print(f'{"="*60}')
 
-            form = Formulation(spec=spec)
+            form = Formulation(spec=spec, pp_in_markov=True,
+                              pp_interactions=True, year_fe=True)
             opt = Optimization(method='nm+bfgs')
 
             # standard (no IC)
