@@ -298,6 +298,18 @@ Following the exporter markup analysis of De Loecker and Warzynski \cite{DLW2012
 
 \textbf{Intensive margin.} Interacting the procurement dummy with procurement revenue share yields a coefficient of 0.037 ($t = 4.3$): each additional unit of procurement intensity raises markups by 3.7\%. This dose-response relationship reinforces the causal interpretation.
 
+\textbf{Sub-industry heterogeneity.} Interacting procurement status with NACE 2-digit dummies reveals heterogeneous premiums: buildings (NACE 41) 16.9\%, civil engineering (NACE 42) 15.5\%, and specialized construction (NACE 43) 7.8\%. The 2:1 ratio between buildings and specialized construction mirrors the concentration differences across sub-industries and suggests the premium partly reflects market structure, not just procurement participation.
+
+\textbf{Event study.} Figure~\ref{fig:event_study} plots the markup trajectory around procurement entry ($\tau = -3$ to $+5$, with $\tau = -1$ as reference). Pre-entry coefficients are flat and insignificant ($\tau = -3$: $-0.010$; $\tau = -2$: $-0.008$), validating the parallel trends assumption. The markup jumps sharply at entry ($\tau = 0$: $+0.134$) and remains persistently elevated through $\tau = +5$ ($\approx 0.09$--$0.11$). The absence of pre-trends combined with persistent post-entry effects is the cleanest causal evidence in the paper.
+
+\begin{figure}[htbp]\centering
+\includegraphics[width=0.85\textwidth]{dlw_event_study.pdf}
+\caption{Event Study: Markup Dynamics Around Procurement Entry}\label{fig:event_study}
+\begin{minipage}{0.85\textwidth}\footnotesize
+\emph{Notes:} Coefficients from regressing $\log \mu^A_{it}$ on relative-year dummies ($\tau = -3$ to $+5$, $\tau = -1$ omitted as reference) with controls ($k$, cogs) and year $\times$ NACE FE. Firm-clustered 95\% CIs. Multi-switcher firms excluded (DLW fn.\ 52). Sample: firms with at least one year of pre-procurement data.
+\end{minipage}
+\end{figure}
+
 \input{../input/tables/dlw_treatment_eval.tex}
 
 \subsection{Selection on Observables}\label{sec:unconfound}

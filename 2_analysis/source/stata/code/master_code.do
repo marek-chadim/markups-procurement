@@ -11,6 +11,7 @@ do "$code/table_pf.do"
 do "$code/table_premium.do"
 do "$code/table_moments.do"
 do "$code/table_correlations.do"
+do "$code/table_dlw_eval.do"
 
 * Figures (require Stata graph capabilities)
 cap do "$code/figure_timeseries.do"
