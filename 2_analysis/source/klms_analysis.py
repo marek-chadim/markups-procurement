@@ -42,6 +42,7 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 INPUT_DIR = SCRIPT_DIR.parent / 'input'
 OUTPUT_DIR = SCRIPT_DIR.parent / 'output'
 REBUILT_DTA = INPUT_DIR / 'data_rebuilt.dta'
+ORBIS_DTA = INPUT_DIR / 'orbis_panel_construction.dta'
 TABLE_DIR = OUTPUT_DIR / 'tables'
 FIG_DIR = OUTPUT_DIR / 'figures'
 
@@ -62,18 +63,32 @@ class KLMSAnalysis:
     Parameters
     ----------
     data_path : Path or str
-        Path to data_rebuilt.dta (firm-year panel with procurement indicators).
+        Path to firm-year panel .dta file.
+    use_orbis : bool
+        If True, load orbis_panel_construction.dta (continuous employment)
+        instead of data_rebuilt.dta (MagnusWeb bracket employment).
     """
 
-    def __init__(self, data_path: Optional[Path] = None):
-        self.data_path = Path(data_path) if data_path else REBUILT_DTA
+    def __init__(self, data_path: Optional[Path] = None, use_orbis: bool = False):
+        self.use_orbis = use_orbis
+        if data_path:
+            self.data_path = Path(data_path)
+        elif use_orbis:
+            self.data_path = ORBIS_DTA
+        else:
+            self.data_path = REBUILT_DTA
         self.df = self._load_data()
         self.results: Dict[str, any] = {}
 
     def _load_data(self) -> pd.DataFrame:
         """Load data and construct KLMS-relevant variables."""
-        print(f'Loading data from {self.data_path}')
+        source = 'Orbis' if self.use_orbis else 'MagnusWeb'
+        print(f'Loading {source} data from {self.data_path}')
         df = pd.read_stata(self.data_path)
+
+        # Orbis uses 'ico' as firm ID; MagnusWeb uses 'id'
+        if self.use_orbis and 'ico' in df.columns and 'id' not in df.columns:
+            df = df.rename(columns={'ico': 'id'})
 
         # Ensure numeric types
         df['id'] = pd.to_numeric(df['id'], errors='coerce')
@@ -81,6 +96,14 @@ class KLMSAnalysis:
         df = df.dropna(subset=['id', 'year'])
         df['id'] = df['id'].astype(int)
         df['year'] = df['year'].astype(int)
+
+        # Orbis has continuous 'empl' — compute le if missing
+        if self.use_orbis and 'empl' in df.columns:
+            if 'le' not in df.columns or df['le'].isna().all():
+                df['le'] = np.log(df['empl'].clip(lower=0.5))
+            # Fill le from empl where le is NaN but empl exists
+            mask = df['le'].isna() & df['empl'].notna() & (df['empl'] > 0)
+            df.loc[mask, 'le'] = np.log(df.loc[mask, 'empl'].clip(lower=0.5))
 
         # --- Construct KLMS variables ---
 

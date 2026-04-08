@@ -504,7 +504,7 @@ Panel~F provides a direct test using engineering cost estimates from the procure
 \section{Aggregate Markup Trends}\label{sec:aggregate}
 
 To place the procurement premium in broader context, I construct aggregate markup trends for Czech construction following the De Loecker, Eeckhout, and Unger \cite{DeLoekerEeckhout2020} methodology. For each year $t$, the sales-weighted aggregate markup is
-\begin{equation}\label{eq:agg_markup}
+\begin{equation}\label{eq:dleu_agg}
     M_t^{sw} = \sum_i \omega_{it} \mu_{it}^A, \quad \omega_{it} = \frac{\text{sales}_{it}}{\sum_j \text{sales}_{jt}},
 \end{equation}
 where $\mu_{it}^A$ is the firm-level ACF Cobb-Douglas markup with procurement in the Markov transition. Figure~\ref{fig:dleu_aggregate} plots four specifications: the ACF benchmark, a calibrated constant elasticity ($\theta = 0.85$), and two cost-share approaches (firm-level and industry-median). Table~\ref{tab:dleu_markup_specs} reports selected years.
@@ -521,7 +521,7 @@ where $\mu_{it}^A$ is the firm-level ACF Cobb-Douglas markup with procurement in
 
 Unlike the secular rise documented by DLEU for US manufacturing (1.21 in 1980 to 1.61 in 2016), Czech construction exhibits a \emph{declining} aggregate markup, from 2.45 in 2007 to 2.08 in 2021. The pattern is robust across all four specifications. The sales-weighted aggregate consistently exceeds the simple mean by 0.20--0.40 markup points, indicating that larger firms carry systematically higher markups---consistent with the reallocation mechanism emphasized by DLEU. COGS-weighted and total-cost-weighted aggregates yield lower levels throughout, mirroring DLEU Figure~II(B): firms with higher markups have higher revenue relative to input expenditure, widening the gap between sales-weighted and input-weighted aggregates.
 
-\subsection{Decomposition of Markup Growth}\label{sec:decomposition}
+\subsection{Decomposition of Markup Growth}\label{sec:dleu_decomposition}
 
 Following DLEU (eq.~9), I decompose changes in the aggregate markup into within-firm, market-share reallocation, cross, and net-entry components using the Haltiwanger (1997) demeaning:
 \begin{equation}\label{eq:decomp}

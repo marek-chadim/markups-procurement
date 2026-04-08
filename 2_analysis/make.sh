@@ -64,6 +64,7 @@ run_python klms_analysis.py "${LOGFILE}" || exit 1
 run_python panel_treatment.py "${LOGFILE}" || exit 1
 run_R fect_estimation.R "${LOGFILE}" || exit 1
 run_python aggregate_markup_trends.py "${LOGFILE}" || exit 1
+run_python dleu_replication.py "${LOGFILE}" || exit 1
 run_python favoritism_decomposition.py "${LOGFILE}" || exit 1
 run_python orbis_acf_estimation.py "${LOGFILE}" || exit 1
 run_python strong_exclusion_diagnostic.py "${LOGFILE}" || exit 1
