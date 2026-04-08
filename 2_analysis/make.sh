@@ -69,6 +69,7 @@ run_python acf_strong_exclusion.py "${LOGFILE}" || exit 1
 run_python borusyak_hull_randomization.py "${LOGFILE}" || exit 1
 run_python ags_twostep_identification.py "${LOGFILE}" || exit 1
 run_python misspecification_diagnostics.py "${LOGFILE}" || exit 1
+run_python adl_instrument_comparison.py "${LOGFILE}" || exit 1
 run_R lalonde_estimation.R "${LOGFILE}" || exit 1
 
 # Phase 3: Specification curve (reads all prior outputs)

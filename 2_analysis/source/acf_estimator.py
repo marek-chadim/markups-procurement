@@ -398,6 +398,8 @@ class ACFResults:
     hansen_j: Optional[float] = None
     hansen_j_pvalue: Optional[float] = None
     n_overid: int = 0
+    markov_coefs: Optional[Array] = None
+    markov_names: Optional[List[str]] = None
 
     def __repr__(self) -> str:
         lines = [
@@ -626,6 +628,12 @@ class ACFEstimator:
             _output(f"\n  Hansen J test: χ²({n_overid}) = {hansen_j:.3f}, "
                     f"p = {hansen_j_pvalue:.3f}")
 
+        # Markov transition parameters
+        markov_coefs, markov_names = self._markov_parameters(betas)
+        _output("\n  Markov transition g(omega_lag, controls):")
+        for nm, mc in zip(markov_names, markov_coefs):
+            _output(f"    {nm:20s}  {mc:+.6f}")
+
         elapsed = time.time() - t0
 
         results = ACFResults(
@@ -644,6 +652,8 @@ class ACFEstimator:
             hansen_j=hansen_j,
             hansen_j_pvalue=hansen_j_pvalue,
             n_overid=n_overid,
+            markov_coefs=markov_coefs,
+            markov_names=markov_names,
         )
 
         _output(f"\n{results}")
@@ -1049,6 +1059,46 @@ class ACFEstimator:
         omega_lag_pol = np.hstack(omega_lag_pol)
         g_b = np.linalg.lstsq(omega_lag_pol, omega, rcond=None)[0]
         return omega - omega_lag_pol @ g_b
+
+    def _markov_parameters(self, betas: Array) -> Tuple[Array, List[str]]:
+        """Extract Markov transition parameters at given betas.
+
+        Returns (coefficients, names) for g(omega_lag, controls).
+        """
+        betas = np.asarray(betas, dtype=options.dtype).ravel()
+        omega = self._PHI - self._X @ betas
+        omega_lag = self._PHI_LAG - self._X_lag @ betas
+
+        omega_lag_col = omega_lag.reshape(-1, 1)
+        rhs = [self._C, omega_lag_col]
+        names = ['const', 'omega_lag']
+        for p in range(2, self._formulation.ar_order + 1):
+            rhs.append((omega_lag ** p).reshape(-1, 1))
+            names.append(f'omega_lag^{p}')
+
+        ctrl_labels = []
+        if self._formulation.pp_in_markov:
+            ctrl_labels.append('pp_lag')
+        if self._extensions.survival_correction:
+            ctrl_labels.append('survival_lag')
+        for mc in self._extensions.markov_controls:
+            ctrl_labels.append(f'{mc}_lag')
+        if self._ic.enabled and self._ic.in_markov:
+            ctrl_labels.append(f'{self._ic.sufficient_statistic}_lag')
+
+        ci = 0
+        for ctrl in self._markov_extras:
+            rhs.append(ctrl)
+            names.append(ctrl_labels[ci] if ci < len(ctrl_labels) else f'ctrl_{ci}')
+            if self._extensions.markov_interactions:
+                rhs.append(ctrl * omega_lag_col)
+                names.append(f'{ctrl_labels[ci]}*omega_lag' if ci < len(ctrl_labels)
+                             else f'ctrl_{ci}*omega_lag')
+            ci += 1
+
+        rhs_mat = np.hstack(rhs)
+        g_b = np.linalg.lstsq(rhs_mat, omega, rcond=None)[0]
+        return g_b, names
 
     def _gmm_criterion(self, betas: Array) -> float:
         """GMM objective: (Z'xi)' W (Z'xi)."""

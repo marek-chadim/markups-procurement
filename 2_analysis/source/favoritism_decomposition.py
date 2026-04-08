@@ -36,6 +36,7 @@ DATA_PATH = INPUT_DIR / 'data.dta'
 MARKUPS_PATH = OUTPUT_DIR / 'data' / 'paper_markups.dta'
 TABLE_DIR = OUTPUT_DIR / 'tables'
 OSTER_CSV = TABLE_DIR / 'oster_bounds.csv'
+TENDERS_CSV = SCRIPT_DIR.parents[1] / '1_data' / 'input' / 'datlab' / 'master_tender_analytics.csv'
 
 
 # ================================================================== #
@@ -309,6 +310,162 @@ def test_policy_reform_did(df: pd.DataFrame) -> list[dict]:
 
 
 # ================================================================== #
+#  Test 6: Rel_Price Direct Test (Engineer Cost Estimates)
+# ================================================================== #
+
+def build_firm_year_rel_price() -> pd.DataFrame:
+    """Build firm-year average Rel_Price from contract-level tender data.
+
+    Rel_Price = bid_final_price / lot_estimated_price, trimmed to (0.2, 5)
+    following Baranek & Titl (2024) methodology.
+    """
+    if not TENDERS_CSV.exists():
+        print(f'  WARNING: {TENDERS_CSV} not found. Skipping Rel_Price analysis.')
+        return pd.DataFrame()
+
+    tenders = pd.read_csv(str(TENDERS_CSV), low_memory=False)
+    tenders = tenders.dropna(subset=['lot_estimated_price', 'bid_final_price'])
+    tenders = tenders[
+        (tenders['lot_estimated_price'] > 0) & (tenders['bid_final_price'] > 0)
+    ].copy()
+    tenders['rel_price'] = tenders['bid_final_price'] / tenders['lot_estimated_price']
+
+    # Trim outliers (B&T methodology)
+    tenders = tenders[(tenders['rel_price'] > 0.2) & (tenders['rel_price'] < 5)]
+
+    # Aggregate to firm-year
+    tenders['year'] = pd.to_numeric(tenders['year'], errors='coerce')
+    tenders['bidder_id'] = tenders['bidder_id'].astype(str)
+    firm_year = tenders.groupby(['bidder_id', 'year']).agg(
+        mean_rel_price=('rel_price', 'mean'),
+        n_contracts_est=('rel_price', 'count'),
+    ).reset_index()
+    firm_year = firm_year.rename(columns={'bidder_id': 'id_str'})
+
+    print(f'  Tender data: {len(tenders):,} contracts -> '
+          f'{len(firm_year):,} firm-year Rel_Price observations')
+    return firm_year
+
+
+def test_rel_price(df: pd.DataFrame) -> list[dict]:
+    """Panel F: Direct test using engineer cost estimates.
+
+    Three regressions on the subsample with Rel_Price data:
+    (1) Baseline premium (subsample comparison)
+    (2) Premium controlling for Rel_Price (mediation test)
+    (3) Within procurement firms: markup ~ Rel_Price (correlation test)
+    """
+    print('\n=== Panel F: Engineer Cost Estimate Test (Rel_Price) ===')
+    results = []
+
+    firm_year_rp = build_firm_year_rel_price()
+    if firm_year_rp.empty:
+        for label in ['Subsample baseline', 'Controlling for Rel\\_Price',
+                       'Within-PP: markup $\\sim$ Rel\\_Price']:
+            results.append({'label': label, 'premium': np.nan, 'se': np.nan,
+                            'n_obs': 0, 'n_firms': 0})
+        return results
+
+    # Merge Rel_Price onto the main panel
+    df_rp = df.copy()
+    df_rp['id_str'] = df_rp['id'].astype(int).astype(str)
+    df_rp['year_int'] = df_rp['year'].astype(int)
+    firm_year_rp['year_int'] = firm_year_rp['year'].astype(int)
+
+    df_rp = df_rp.merge(
+        firm_year_rp[['id_str', 'year_int', 'mean_rel_price', 'n_contracts_est']],
+        on=['id_str', 'year_int'], how='left',
+    )
+
+    # Subsample: firm-years where at least one party has Rel_Price
+    # (procurement firms with estimates + all non-PP firms as control)
+    has_rp = df_rp['mean_rel_price'].notna()
+    pp_with_rp = df_rp[has_rp & (df_rp['pp_dummy'] == 1)]
+    pp_ids_with_rp = set(pp_with_rp['id'].unique())
+
+    # Subsample: PP firms that have Rel_Price + all non-PP firms
+    sub = df_rp[(df_rp['id'].isin(pp_ids_with_rp)) | (df_rp['pp_dummy'] == 0)].copy()
+    # Fill Rel_Price = 0 for non-PP firms (no contracts, no overpricing)
+    sub['mean_rel_price'] = sub['mean_rel_price'].fillna(0)
+
+    print(f'  PP firms with Rel_Price: {len(pp_ids_with_rp):,}')
+    print(f'  Subsample: {len(sub):,} obs ({sub["id"].nunique():,} firms)')
+
+    # --- (1) Subsample baseline: same spec as full sample ---
+    sub_base = sub[['id', 'year', 'ln_mu', 'pp_dummy', 'k', 'cogs', 'nace2']].dropna()
+    if len(sub_base) < 20:
+        for label in ['Subsample baseline', 'Controlling for Rel\\_Price',
+                       'Within-PP: markup $\\sim$ Rel\\_Price']:
+            results.append({'label': label, 'premium': np.nan, 'se': np.nan,
+                            'n_obs': 0, 'n_firms': 0})
+        return results
+
+    yr_nace = sub_base['year'].astype(int).astype(str) + '_' + sub_base['nace2'].astype(int).astype(str)
+    fe = pd.get_dummies(yr_nace, prefix='yn', drop_first=True, dtype=float)
+
+    X1 = pd.concat([sub_base[['pp_dummy', 'k', 'cogs']].reset_index(drop=True),
+                     fe.reset_index(drop=True)], axis=1)
+    X1 = sm.add_constant(X1)
+    y = sub_base['ln_mu'].reset_index(drop=True)
+    groups = sub_base['id'].reset_index(drop=True)
+
+    res1 = sm.OLS(y, X1).fit(cov_type='cluster', cov_kwds={'groups': groups})
+    r1 = {'label': 'Subsample baseline',
+           'premium': res1.params['pp_dummy'], 'se': res1.bse['pp_dummy'],
+           'n_obs': int(res1.nobs), 'n_firms': sub_base['id'].nunique()}
+    results.append(r1)
+    print(f'  (1) Subsample baseline: {r1["premium"]:.3f} (SE {r1["se"]:.3f})')
+
+    # --- (2) Controlling for Rel_Price ---
+    sub2 = sub[['id', 'year', 'ln_mu', 'pp_dummy', 'k', 'cogs', 'nace2',
+                 'mean_rel_price']].dropna(subset=['ln_mu', 'pp_dummy', 'k', 'cogs', 'nace2'])
+    yr_nace2 = sub2['year'].astype(int).astype(str) + '_' + sub2['nace2'].astype(int).astype(str)
+    fe2 = pd.get_dummies(yr_nace2, prefix='yn', drop_first=True, dtype=float)
+
+    X2 = pd.concat([sub2[['pp_dummy', 'mean_rel_price', 'k', 'cogs']].reset_index(drop=True),
+                     fe2.reset_index(drop=True)], axis=1)
+    X2 = sm.add_constant(X2)
+    y2 = sub2['ln_mu'].reset_index(drop=True)
+    groups2 = sub2['id'].reset_index(drop=True)
+
+    res2 = sm.OLS(y2, X2).fit(cov_type='cluster', cov_kwds={'groups': groups2})
+    r2 = {'label': 'Controlling for Rel\\_Price',
+           'premium': res2.params['pp_dummy'], 'se': res2.bse['pp_dummy'],
+           'n_obs': int(res2.nobs), 'n_firms': sub2['id'].nunique(),
+           'rp_coef': res2.params['mean_rel_price'],
+           'rp_se': res2.bse['mean_rel_price']}
+    results.append(r2)
+    print(f'  (2) Controlling for RP: {r2["premium"]:.3f} (SE {r2["se"]:.3f}), '
+          f'Rel_Price coef = {r2["rp_coef"]:.3f} (SE {r2["rp_se"]:.3f})')
+
+    # --- (3) Within procurement firms: markup ~ Rel_Price ---
+    pp_only = sub2[sub2['pp_dummy'] == 1].copy()
+    pp_only = pp_only[pp_only['mean_rel_price'] > 0]  # actual Rel_Price, not filled zeros
+    if len(pp_only) < 20:
+        results.append({'label': 'Within-PP: markup $\\sim$ Rel\\_Price',
+                        'premium': np.nan, 'se': np.nan, 'n_obs': 0, 'n_firms': 0})
+        return results
+
+    yr_nace3 = pp_only['year'].astype(int).astype(str) + '_' + pp_only['nace2'].astype(int).astype(str)
+    fe3 = pd.get_dummies(yr_nace3, prefix='yn', drop_first=True, dtype=float)
+
+    X3 = pd.concat([pp_only[['mean_rel_price', 'k', 'cogs']].reset_index(drop=True),
+                     fe3.reset_index(drop=True)], axis=1)
+    X3 = sm.add_constant(X3)
+    y3 = pp_only['ln_mu'].reset_index(drop=True)
+    groups3 = pp_only['id'].reset_index(drop=True)
+
+    res3 = sm.OLS(y3, X3).fit(cov_type='cluster', cov_kwds={'groups': groups3})
+    r3 = {'label': 'Within-PP: markup $\\sim$ Rel\\_Price',
+           'premium': res3.params['mean_rel_price'], 'se': res3.bse['mean_rel_price'],
+           'n_obs': int(res3.nobs), 'n_firms': pp_only['id'].nunique()}
+    results.append(r3)
+    print(f'  (3) Within-PP correlation: {r3["premium"]:.3f} (SE {r3["se"]:.3f})')
+
+    return results
+
+
+# ================================================================== #
 #  LaTeX Table
 # ================================================================== #
 
@@ -318,6 +475,7 @@ def write_latex_table(
     decomp_results: list[dict],
     oster: dict,
     did_results: list[dict],
+    rp_results: list[dict],
     outpath: Path,
 ) -> None:
     """Write booktabs LaTeX table."""
@@ -402,6 +560,16 @@ def write_latex_table(
             f'{r["label"]}: $\\beta_3$ & {fmt_coef(r["did"])} & {fmt_se(r["se"])} '
             f'& {fmt_int(r["n_obs"])} & {fmt_int(r["n_firms"])} \\\\'
         )
+    lines.append(r'\midrule')
+
+    # Panel F
+    lines.append(r'\multicolumn{5}{l}{\textit{Panel F: Engineer Cost Estimate Test}} \\')
+    for r in rp_results:
+        coef = r.get('premium', r.get('did', np.nan))
+        lines.append(
+            f'{r["label"]} & {fmt_coef(coef)} & {fmt_se(r["se"])} '
+            f'& {fmt_int(r["n_obs"])} & {fmt_int(r["n_firms"])} \\\\'
+        )
 
     lines.append(r'\bottomrule')
     lines.append(r'\end{tabular}')
@@ -422,7 +590,13 @@ def write_latex_table(
         r"+ \beta_3\,(\mathrm{PP}_{jt} \times \mathrm{Post}_t) + \gamma\,k_{jt} + \delta\,\mathrm{cogs}_{jt} "
         r"+ \alpha_{t,s} + \varepsilon_{jt}$, "
         r"where $\mathrm{Post}_t$ equals one after the reform year; the DiD coefficient $\beta_3$ "
-        r"captures the change in the procurement markup premium around each reform."
+        r"captures the change in the procurement markup premium around each reform. "
+        r"Panel~F uses engineering cost estimates from the procurement register "
+        r"($\mathrm{Rel\_Price}_{jt} = \overline{\mathrm{price}/\mathrm{estimate}}$, "
+        r"trimmed to $(0.2, 5)$ following Baran\'{e}k \& Titl 2024). "
+        r"Row~1 re-estimates the baseline on the subsample with estimates. "
+        r"Row~2 adds $\mathrm{Rel\_Price}$ as a control (mediation test). "
+        r"Row~3 reports the within-procurement-firms correlation between markups and Rel\_Price."
     )
     lines.append(r'\end{tablenotes}')
     lines.append(r'\end{threeparttable}')
@@ -456,6 +630,9 @@ if __name__ == '__main__':
     # Panel E: Policy reform DiDs
     did_results = test_policy_reform_did(df)
 
+    # Panel F: Rel_Price direct test
+    rp_results = test_rel_price(df)
+
     # Write LaTeX table
     write_latex_table(
         comp_results=comp_results,
@@ -463,6 +640,7 @@ if __name__ == '__main__':
         decomp_results=decomp_results,
         oster=oster,
         did_results=did_results,
+        rp_results=rp_results,
         outpath=TABLE_DIR / 'favoritism_decomposition.tex',
     )
 
@@ -488,3 +666,13 @@ if __name__ == '__main__':
           f'(SE {did_results[0]["se"]:.3f})')
     print(f'  DiD Act 134/2016 beta_3:   {did_results[1]["did"]:.3f} '
           f'(SE {did_results[1]["se"]:.3f})')
+    if rp_results and not np.isnan(rp_results[0].get('premium', np.nan)):
+        print(f'  RP subsample baseline:     {rp_results[0]["premium"]:.3f} '
+              f'(SE {rp_results[0]["se"]:.3f})')
+        print(f'  RP-controlled premium:     {rp_results[1]["premium"]:.3f} '
+              f'(SE {rp_results[1]["se"]:.3f})')
+        if 'rp_coef' in rp_results[1]:
+            print(f'  Rel_Price coefficient:     {rp_results[1]["rp_coef"]:.3f} '
+                  f'(SE {rp_results[1]["rp_se"]:.3f})')
+        print(f'  Within-PP RP correlation:  {rp_results[2]["premium"]:.3f} '
+              f'(SE {rp_results[2]["se"]:.3f})')

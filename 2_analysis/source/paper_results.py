@@ -231,6 +231,11 @@ def main():
                 row['criterion'] = res.gmm_criterion
                 row['r2_first'] = res.first_stage_r2
 
+                # Markov transition parameters
+                if res.markov_coefs is not None:
+                    for mn, mc in zip(res.markov_names, res.markov_coefs):
+                        row[f'markov_{mn}'] = mc
+
                 all_results.append(row)
 
                 keep_cols = ['id', 'year', 'markup']
@@ -359,6 +364,21 @@ def main():
             print(f'  {r["short"]:<20} {bk:>8.4f} {se_k_str:>8} '
                   f'{bc:>8.4f} {se_c_str:>8} '
                   f'{rts:>6.3f} {r["markup_mean"]:>6.3f} {r["N"]:>6}')
+
+    # Markov transition parameters
+    markov_cols = [c for c in res_df.columns if c.startswith('markov_')]
+    if markov_cols:
+        print(f'\n  Productivity Process: omega_t = g(omega_{{t-1}}, controls) + xi_t')
+        print(f'  {"Spec":<12} {"NACE":>5}', end='')
+        for mc in markov_cols:
+            print(f' {mc.replace("markov_",""):>12}', end='')
+        print()
+        for _, r in res_df[res_df['spec'] == 'A'].iterrows():
+            print(f'  {"A":<12} {int(r["nace2"]):>5}', end='')
+            for mc in markov_cols:
+                v = r.get(mc, np.nan)
+                print(f' {v:>12.4f}' if np.isfinite(v) else f' {"":>12}', end='')
+            print()
 
     # Translog
     print(f'\n  Translog:')
