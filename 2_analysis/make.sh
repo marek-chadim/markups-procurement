@@ -74,6 +74,7 @@ run_python ags_twostep_identification.py "${LOGFILE}" || exit 1
 run_python misspecification_diagnostics.py "${LOGFILE}" || exit 1
 run_python adl_instrument_comparison.py "${LOGFILE}" || exit 1
 run_R lalonde_estimation.R "${LOGFILE}" || exit 1
+run_R kitagawa_iv_test.R "${LOGFILE}" || exit 1
 
 # Phase 3: Specification curve (reads all prior outputs)
 run_python specification_curve.py "${LOGFILE}" || exit 1
@@ -83,6 +84,11 @@ run_python specification_curve.py "${LOGFILE}" || exit 1
 echo "Running Stata replication pipeline..." | tee -a "${LOGFILE}"
 (cd source/stata && /Applications/StataNow/StataMP.app/Contents/MacOS/stata-mp -e do launcher.do) \
     >> "${LOGFILE}" 2>&1 || echo "Warning: Stata replication had errors" | tee -a "${LOGFILE}"
+
+# Phase 4b: DLEU Orbis extension (Stata, produces orbis_dleu_cross_industry table/figure)
+echo "Running DLEU Orbis extension..." | tee -a "${LOGFILE}"
+(cd source && /Applications/StataNow/StataMP.app/Contents/MacOS/stata-mp -e do dleu_orbis_extension.do) \
+    >> "${LOGFILE}" 2>&1 || echo "Warning: DLEU Orbis extension had errors" | tee -a "${LOGFILE}"
 
 # Phase 5: Stata table formatting
 run_stata paper_tables.do "${LOGFILE}" || exit 1

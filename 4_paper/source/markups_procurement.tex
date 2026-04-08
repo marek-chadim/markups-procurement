@@ -420,6 +420,12 @@ Table~\ref{tab:bh_ri} reports randomization-inference confidence intervals for t
 
 \input{../input/tables/borusyak_hull_ri.tex}
 
+\textbf{IV validity test.} Building on the BH recentering framework, I construct a shift-share instrument for procurement participation: $Z_{it} = \overline{pp}_i^{\text{pre}} \times \mathbf{1}[t \geq 2012]$, where $\overline{pp}_i^{\text{pre}}$ is firm $i$'s pre-reform procurement intensity and the shift is the 2012 single-bid ban. Recentering subtracts the expected instrument under counterfactual reform timings (2008--2016), yielding $\tilde{z}_{it} = Z_{it} - E[Z_{it} | X_i]$. The binarized instrument $\mathbf{1}[\tilde{z}_{it} > 0]$ has a first-stage $F = 287$ with $\Pr(D=1|Z=1) = 0.77$ vs.\ $\Pr(D=1|Z=0) = 0.41$.
+
+I apply the Kitagawa \cite{Kitagawa2015} specification test, which tests whether the LATE IV validity conditions (exclusion, independence, monotonicity) are jointly consistent with the data by checking nonnegativity of the compliers' potential outcome densities. Table~\ref{tab:kitagawa} reports the variance-weighted KS statistic and bootstrap $p$-values for both the 2012 and 2016 reform instruments across three trimming constants $\xi \in \{0.01, 0.05, 0.10\}$. All $p$-values exceed 0.97---the test cannot reject IV validity for either reform instrument at any conventional significance level.
+
+\input{../input/tables/kitagawa_iv_test.tex}
+
 \subsection{Transparency: AGS Sensitivity and Identification-Robust CS}\label{sec:ags_twostep}
 
 Andrews, Gentzkow, and Shapiro \cite{AGS2017} and Andrews \cite{Andrews2025Lecture} argue that structural estimates should be reported alongside a sensitivity vector $\Lambda = -(G'WG)^{-1}G'W$ that maps moment-condition violations into parameter bias. I implement this diagnostic for ACF spec A on NACE 41 (the largest sub-industry, $N = 4{,}911$). Table~\ref{tab:ags_twostep_sensitivity} reports $\Lambda_{k,m}$ and $\Lambda_{\text{cogs},m}$ for each moment $m$. The lagged COGS moment is the most load-bearing for both production-function parameters, as expected: the ACF identification relies primarily on orthogonality of lagged input quantities with the productivity innovation.
@@ -902,6 +908,8 @@ Following KLMS equation (25), the revenue elasticity $(1-\epsilon)$ is estimated
 \bibitem{Raval2023} Raval, D.\ (2023). ``Testing the Production Approach to Markup Estimation,'' \emph{Review of Economic Studies}, 90(5), 2592--2611.
 
 \bibitem{KLMS2025} Kroft, K., Y.~Luo, M.~Mogstad, and B.~Setzler (2025). ``Imperfect Competition and Rents in Labor and Product Markets: The Case of the Construction Industry,'' \emph{American Economic Review}, 115(9), 2926--2969.
+
+\bibitem{Kitagawa2015} Kitagawa, T.\ (2015). ``A Test for Instrument Validity,'' \emph{Econometrica}, 83(5), 2043--2063.
 
 \bibitem{KletteGriliches1996} Klette, T.~J.\ and Z.~Griliches (1996). ``The Inconsistency of Common Scale Estimators When Output Prices Are Unobserved and Endogenous,'' \emph{Journal of Applied Econometrics}, 11(4), 343--361.
 
