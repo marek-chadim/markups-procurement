@@ -503,25 +503,65 @@ Panel~F provides a direct test using engineering cost estimates from the procure
 %% ============================================================
 \section{Aggregate Markup Trends}\label{sec:aggregate}
 
-To place the procurement premium in broader context, I construct aggregate sales-weighted markup trends for Czech construction following the De Loecker, Eeckhout, and Unger \cite{DeLoekerEeckhout2020} methodology. For each year $t$, the sales-weighted aggregate markup is
-\begin{equation}
+To place the procurement premium in broader context, I construct aggregate markup trends for Czech construction following the De Loecker, Eeckhout, and Unger \cite{DeLoekerEeckhout2020} methodology. For each year $t$, the sales-weighted aggregate markup is
+\begin{equation}\label{eq:agg_markup}
     M_t^{sw} = \sum_i \omega_{it} \mu_{it}^A, \quad \omega_{it} = \frac{\text{sales}_{it}}{\sum_j \text{sales}_{jt}},
 \end{equation}
-where $\mu_{it}^A$ is the firm-level ACF Cobb-Douglas markup with procurement in the Markov transition. Table \ref{tab:aggregate_trends} reports the trends; Figure \ref{fig:aggregate_trends} plots them.
+where $\mu_{it}^A$ is the firm-level ACF Cobb-Douglas markup with procurement in the Markov transition. Figure~\ref{fig:dleu_aggregate} plots four specifications: the ACF benchmark, a calibrated constant elasticity ($\theta = 0.85$), and two cost-share approaches (firm-level and industry-median). Table~\ref{tab:dleu_markup_specs} reports selected years.
 
-\input{../input/tables/aggregate_markup_trends.tex}
+\input{../input/tables/dleu_table_markup_specs.tex}
 
 \begin{figure}[htbp]\centering
-\includegraphics[width=0.85\textwidth]{aggregate_markup_trends.pdf}
-\caption{Aggregate Markup Trends, Czech Construction}\label{fig:aggregate_trends}
+\includegraphics[width=0.85\textwidth]{dleu_fig1_aggregate_markup.pdf}
+\caption{Aggregate Markups --- Czech Construction (CZ-NACE F)}\label{fig:dleu_aggregate}
 \begin{minipage}{0.85\textwidth}\footnotesize
-\emph{Notes:} Sales-weighted aggregate markup $M_t^{sw} = \sum_i \omega_{it} \mu_{it}^A$. Simple mean shown for comparison. Vertical dashed lines mark Act 55/2012 (single-bid ban) and Act 134/2016 (MEAT criteria).
+\emph{Notes:} Sales-weighted aggregate markup $M_t^{sw}$ under four specifications: ACF production-function-estimated $\hat{\theta}_{st}$ (benchmark), calibrated $\theta = 0.85$, firm-level cost share $\alpha^V_{it} = \text{COGS}_{it}/(\text{COGS}_{it} + r_t K_{it})$, and industry-median cost share. Vertical dashed lines mark Act~55/2012 (single-bid ban) and Act~134/2016 (MEAT criteria).
 \end{minipage}
 \end{figure}
 
-Two patterns stand out. First, unlike the secular rise of aggregate markups documented by De Loecker, Eeckhout, and Unger (2020) in US manufacturing, Czech construction exhibits a flat-to-declining aggregate markup trajectory, falling from 2.39 in 2007 to 2.14 in 2021, with a trough of 2.07 in 2013 and a modest rebound to 2.30 in 2020. Second, the sales-weighted aggregate consistently exceeds the simple mean by 0.20--0.40 markup points, indicating that larger firms carry systematically higher markups---a pattern consistent with the reallocation mechanism emphasized by DLEU.
+Unlike the secular rise documented by DLEU for US manufacturing (1.21 in 1980 to 1.61 in 2016), Czech construction exhibits a \emph{declining} aggregate markup, from 2.45 in 2007 to 2.08 in 2021. The pattern is robust across all four specifications. The sales-weighted aggregate consistently exceeds the simple mean by 0.20--0.40 markup points, indicating that larger firms carry systematically higher markups---consistent with the reallocation mechanism emphasized by DLEU. COGS-weighted and total-cost-weighted aggregates yield lower levels throughout, mirroring DLEU Figure~II(B): firms with higher markups have higher revenue relative to input expenditure, widening the gap between sales-weighted and input-weighted aggregates.
 
-The Olley-Pakes decomposition of year-over-year changes reveals that within-firm changes are small ($|\Delta| < 0.07$) and the dynamics are dominated by net entry and reallocation: entrants enter with high markups (contributing $+0.12$ to $+1.34$ per year), and exiters leave with comparable markups (contributing $-0.10$ to $-1.51$). This entry-exit churn is characteristic of Czech construction, where 2005--2006 saw major sectoral restructuring following EU accession. The absence of a secular rise in aggregate markups---unlike US manufacturing---suggests that the Czech construction market has not experienced the concentration-driven market power accumulation documented for US firms over the same period.
+\subsection{Decomposition of Markup Growth}\label{sec:decomposition}
+
+Following DLEU (eq.~9), I decompose changes in the aggregate markup into within-firm, market-share reallocation, cross, and net-entry components using the Haltiwanger (1997) demeaning:
+\begin{equation}\label{eq:decomp}
+    \Delta M_t = \underbrace{\sum_i m_{i,t-1} \Delta\mu_{it}}_{\Delta\text{within}} + \underbrace{\sum_i \tilde{\mu}_{i,t-1} \Delta m_{it}}_{\Delta\text{market share}} + \underbrace{\sum_i \Delta\mu_{it} \Delta m_{it}}_{\Delta\text{cross}} + \underbrace{\sum_{i \in E_t} \tilde{\mu}_{it} m_{it} - \sum_{i \in X_t} \tilde{\mu}_{i,t-1} m_{i,t-1}}_{\text{net entry}},
+\end{equation}
+where $\tilde{\mu}_{it} = \mu_{it} - M_{t-1}$ and $m_{it} = \omega_{it}$. I set the initial level to the first sample year and cumulatively add each component to construct counterfactual paths (Figure~\ref{fig:dleu_decomp}).
+
+\begin{figure}[htbp]\centering
+\includegraphics[width=0.85\textwidth]{dleu_fig4_decomposition.pdf}
+\caption{Decomposition of Markup Growth at the Firm Level}\label{fig:dleu_decomp}
+\begin{minipage}{0.85\textwidth}\footnotesize
+\emph{Notes:} Cumulative decomposition following DLEU (2020, eq.~9). Each counterfactual starts from the 2007 aggregate markup and adds only the indicated component. ``Within'' holds market shares fixed; ``Reallocation'' holds markups fixed (market share + cross terms); ``Net entry'' isolates the contribution of entering and exiting firms.
+\end{minipage}
+\end{figure}
+
+\input{../input/tables/dleu_table1_sectoral_decomp.tex}
+
+Three findings emerge. First, the within-firm component dominates the aggregate decline---firms' markups fell, not just their market shares shifted. Second, net entry contributes large year-to-year swings but is approximately neutral cumulatively, consistent with balanced entry and exit in Czech construction. Third, the sectoral decomposition by CZ-NACE sub-industry (Table~\ref{tab:dleu_sectoral}) shows that most variation is within-industry, with reallocation between NACE~41 (buildings), 42 (civil engineering), and 43 (specialized) playing a secondary role---qualitatively matching the DLEU finding that aggregate markup dynamics are driven by within-sector, not between-sector, forces.
+
+\subsection{Distribution and Profitability}\label{sec:dleu_distribution}
+
+The distribution of markups mirrors the DLEU pattern: the upper tail drives the aggregate (Figure~\ref{fig:dleu_percentiles}). The sales-weighted P90 exceeds 3.0 throughout, while the median is stable around 1.6--1.8. The gap between the P90 and P50 widened from 2007 to 2013 before narrowing, suggesting a transient increase in dispersion during the post-crisis period.
+
+\begin{figure}[htbp]\centering
+\includegraphics[width=0.85\textwidth]{dleu_fig3b_percentiles.pdf}
+\caption{Percentiles of the Markup Distribution (sales-weighted)}\label{fig:dleu_percentiles}
+\begin{minipage}{0.85\textwidth}\footnotesize
+\emph{Notes:} Firms ranked by markup; percentiles computed using cumulative sales shares as weights (DLEU Figure~III, Panel~B). Average is the sales-weighted aggregate $M_t^{sw}$.
+\end{minipage}
+\end{figure}
+
+Splitting the aggregate by procurement status (Figure~\ref{fig:dleu_pp_split}) confirms that procurement firms maintain systematically higher markups throughout the sample period, with the gap narrowing after 2012 consistent with the transparency reforms documented in Section~\ref{sec:causal}.
+
+\begin{figure}[htbp]\centering
+\includegraphics[width=0.85\textwidth]{dleu_fig_procurement_split.pdf}
+\caption{Aggregate Markup by Procurement Status}\label{fig:dleu_pp_split}
+\begin{minipage}{0.85\textwidth}\footnotesize
+\emph{Notes:} Sales-weighted aggregate markup computed separately for procurement ($pp = 1$) and non-procurement ($pp = 0$) firms. Vertical lines mark the 2012 and 2016 transparency reforms.
+\end{minipage}
+\end{figure}
 
 %% ============================================================
 %% 8. DOUBLE MARKET POWER (short)
@@ -535,7 +575,7 @@ As a short supplement, I estimate the ``double market power'' framework of Kroft
 %% ============================================================
 \section{Conclusion}\label{sec:conclusion}
 
-This paper establishes three findings on markups and public procurement in Czech construction. The procurement markup premium is approximately 14\%, robust across estimators, functional forms, and four identification strategies; the premium declined from 30\% in 2006 to 10\% in 2021, with Act 55/2012 (single-bid ban) and Act 134/2016 (MEAT criteria) associated with DiD estimates of $-2.6$ and $-2.2$ log points respectively; and aggregate sales-weighted markups in Czech construction exhibit compositional dynamics that echo the within-firm versus reallocation decomposition in De Loecker, Eeckhout, and Unger \cite{DeLoekerEeckhout2020}.
+This paper establishes three findings on markups and public procurement in Czech construction. The procurement markup premium is approximately 14\%, robust across estimators, functional forms, and four identification strategies; the premium declined from 30\% in 2006 to 10\% in 2021, with Act 55/2012 (single-bid ban) and Act 134/2016 (MEAT criteria) associated with DiD estimates of $-2.6$ and $-2.2$ log points respectively; and aggregate sales-weighted markups in Czech construction, unlike the secular rise documented by De Loecker, Eeckhout, and Unger \cite{DeLoekerEeckhout2020} for US manufacturing, exhibit a declining trajectory driven primarily by within-firm markup changes rather than between-industry reallocation.
 
 Several limitations qualify these results. The sensitivity of markup estimates to the variable input definition---COGS versus intermediate inputs---remains unresolved empirically and affects the sign of the treatment effect. The favoritism decomposition relies on benchmarking against Baran\v{e}k and Titl \cite{BaranekTitl2024} rather than a direct test, because the tender data lack EU co-funding indicators needed to isolate the oversight channel. Bid-level data from the Czech procurement register---currently limited to winning bids---would enable structural rent and incidence calculations that could distinguish market power from cost efficiency more sharply. A supplementary labor-market market power analysis (Appendix \ref{app:klms}) benchmarks Czech construction against the Kroft et al.\ \cite{KLMS2025} US estimates.
 
