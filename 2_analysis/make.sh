@@ -51,6 +51,7 @@ run_python paper_results.py "${LOGFILE}" || exit 1
 run_python premium_timeseries.py "${LOGFILE}" || exit 1
 run_python summary_stats.py "${LOGFILE}" || exit 1
 run_python specification_sensitivity_table.py "${LOGFILE}" || exit 1
+run_python acf_specification_tests.py "${LOGFILE}" || exit 1
 
 # Phase 2: Analysis scripts
 run_python bmy_czech_analysis.py "${LOGFILE}" || exit 1

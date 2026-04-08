@@ -432,6 +432,10 @@ Figure~\ref{fig:spec_curve} aggregates all point estimates into a specification 
 \end{minipage}
 \end{figure}
 
+Armstrong \cite{Armstrong2025} formalizes this specification sensitivity through the \emph{expanded model approach}: rather than assuming the baseline model is correct, expand to a larger class of specifications and report the worst-case bias within this class. Table~\ref{tab:armstrong_ci} implements this diagnostic. The standard firm-clustered 95\% CI is $[0.132, 0.144]$. The Armstrong bias-adjusted CI---accounting for the maximum specification-curve deviation as an upper bound on bias---widens to $[0.052, 0.224]$ when restricting to internally consistent specifications (those including $pp_{it-1}$ in the Markov per De Loecker 2013), or $[-0.003, 0.279]$ over the full expanded model. Even the widest interval excludes zero only marginally, but the interquartile range of the specification curve $[0.132, 0.150]$ indicates that the central tendency is tightly concentrated around 14\%.
+
+\input{../input/tables/armstrong_bias_adjusted_ci.tex}
+
 \subsection{Cross-Industry Validation}\label{sec:cross_industry_rob}
 
 A natural concern is whether the procurement premium is specific to Czech construction. Using the Orbis all-industry panel (Section \ref{sec:data}), I estimate ACF production functions and markup premiums for the five industries with the highest procurement participation. The construction premium (13.5\%, pooled NACE 41--43) matches the MagnusWeb baseline (14.0\%) on an independent dataset with $16\times$ more firms (24,382 vs.\ 1,267). Knowledge-intensive services exhibit even larger premiums: architecture and engineering (16.6\%, NACE 71) and IT services (15.3\%, NACE 62). Wholesale trade, where products are more homogeneous, shows a smaller premium (4.8\%, NACE 46). The cross-industry pattern is consistent with procurement conferring larger markup advantages in industries with differentiated products and high fixed costs.
@@ -772,6 +776,8 @@ Following KLMS equation (25), the revenue elasticity $(1-\epsilon)$ is estimated
 \bibitem{Andrews2017ECMA} Andrews, I. (2017). ``Valid Two-Step Identification-Robust Confidence Sets for GMM,'' \emph{Econometrica}, 84(6), 2155--2182.
 
 \bibitem{Andrews2025Lecture} Andrews, I. (2025). ``Recent Developments in Econometrics for Transparency and Communication,'' AEA Continuing Education Lecture.
+
+\bibitem{Armstrong2025} Armstrong, T.B. (2025). ``Misspecification in Econometrics: A Selective Review,'' Working Paper, USC.
 
 \bibitem{AndrewsChenTecchio2026} Andrews, I., J.~Chen, and O.~Tecchio (2026). ``The Purpose of an Estimator Is What It Does: Misspecification, Estimands, and Over-Identification,'' Working Paper, arXiv:2508.13076v5.
 

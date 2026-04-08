@@ -182,6 +182,81 @@ def main():
     df.to_csv(data_path, index=False)
     print(f'Saved: {data_path.relative_to(OUTPUT_DIR)}')
 
+    # Armstrong (2025) bias-adjusted CI
+    # CI = estimate ± max_bias ± z_{0.975} × SE
+    # where max_bias = sup over expanded model |bias(θ; w)|
+    # Use specification curve deviations from preferred estimate as bias bound
+    beta_preferred = 0.138
+    se_preferred = 0.003
+
+    # Full expanded model (all 33 specs)
+    max_bias_full = max(abs(df['est'].max() - beta_preferred),
+                        abs(df['est'].min() - beta_preferred))
+    ci_armstrong_full = (beta_preferred - max_bias_full - 1.96 * se_preferred,
+                         beta_preferred + max_bias_full + 1.96 * se_preferred)
+
+    # Restricted expanded model (exclude specs without pp in Markov —
+    # internally inconsistent per De Loecker 2013)
+    df_consistent = df[df['est'] > 0.05]  # plain ACF specs give ~0.003
+    max_bias_consistent = max(abs(df_consistent['est'].max() - beta_preferred),
+                              abs(df_consistent['est'].min() - beta_preferred))
+    ci_armstrong_consistent = (beta_preferred - max_bias_consistent - 1.96 * se_preferred,
+                               beta_preferred + max_bias_consistent + 1.96 * se_preferred)
+
+    # Summary statistics
+    median_est = df['est'].median()
+    iqr = (df['est'].quantile(0.25), df['est'].quantile(0.75))
+
+    # Armstrong summary table
+    armstrong = pd.DataFrame([
+        {'CI_type': 'Standard (clustered SE)',
+         'lower': beta_preferred - 1.96*se_preferred,
+         'upper': beta_preferred + 1.96*se_preferred,
+         'width': 2*1.96*se_preferred},
+        {'CI_type': 'Armstrong bias-adjusted (full)',
+         'lower': ci_armstrong_full[0], 'upper': ci_armstrong_full[1],
+         'width': ci_armstrong_full[1] - ci_armstrong_full[0]},
+        {'CI_type': 'Armstrong bias-adjusted (consistent)',
+         'lower': ci_armstrong_consistent[0], 'upper': ci_armstrong_consistent[1],
+         'width': ci_armstrong_consistent[1] - ci_armstrong_consistent[0]},
+        {'CI_type': 'Specification curve IQR',
+         'lower': iqr[0], 'upper': iqr[1],
+         'width': iqr[1] - iqr[0]},
+    ])
+    armstrong.to_csv(OUTPUT_DIR / 'armstrong_bias_adjusted_ci.csv', index=False)
+
+    print(f'\n=== Armstrong (2025) Bias-Adjusted CIs ===')
+    print(f'  Preferred estimate: {beta_preferred:.4f} (SE {se_preferred:.4f})')
+    print(f'  Standard 95% CI:           [{beta_preferred-1.96*se_preferred:.4f}, {beta_preferred+1.96*se_preferred:.4f}]')
+    print(f'  Armstrong full:            [{ci_armstrong_full[0]:.4f}, {ci_armstrong_full[1]:.4f}]')
+    print(f'  Armstrong consistent:      [{ci_armstrong_consistent[0]:.4f}, {ci_armstrong_consistent[1]:.4f}]')
+    print(f'  Spec curve median: {median_est:.4f}, IQR: [{iqr[0]:.4f}, {iqr[1]:.4f}]')
+
+    # LaTeX table
+    tex_arm = [
+        r'\begin{table}[htbp]\centering',
+        r'\caption{Confidence Intervals Under Specification Uncertainty (Armstrong 2025)}\label{tab:armstrong_ci}',
+        r'\begin{threeparttable}',
+        r'\begin{tabular}{lccc}',
+        r'\toprule',
+        r'Inference method & 95\% CI & Width \\',
+        r'\midrule',
+    ]
+    for _, r in armstrong.iterrows():
+        tex_arm.append(f'{r["CI_type"]} & [{r["lower"]:.4f}, {r["upper"]:.4f}] & {r["width"]:.4f} \\\\')
+    tex_arm += [
+        r'\bottomrule',
+        r'\end{tabular}',
+        r'\begin{tablenotes}\footnotesize',
+        r"\item \textit{Notes:} Standard CI uses firm-clustered SE. Armstrong (2025) bias-adjusted CI: $\hat{\beta} \pm \overline{\text{bias}} \pm z_{0.975}\hat{\sigma}$, where $\overline{\text{bias}} = \sup_w |\hat{\beta} - \hat{\beta}(w)|$ over the specification curve. ``Full'' includes all 33 specs; ``consistent'' excludes specifications without $pp_{it-1}$ in the Markov transition (internally inconsistent per De Loecker 2013). IQR: interquartile range of specification curve estimates.",
+        r'\end{tablenotes}',
+        r'\end{threeparttable}',
+        r'\end{table}',
+    ]
+    with open(OUTPUT_DIR / 'tables' / 'armstrong_bias_adjusted_ci.tex', 'w') as f:
+        f.write('\n'.join(tex_arm))
+    print(f'Saved: tables/armstrong_bias_adjusted_ci.tex')
+
 
 if __name__ == '__main__':
     main()
