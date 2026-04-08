@@ -237,6 +237,119 @@ if m:
     print(f'    (DLW find β = 0.3 for Slovenian manufacturing)')
 
 # ══════════════════════════════════════════════════════════════════════
+#  ANALYSIS 6: Sub-industry heterogeneity (DLW destination analog)
+# ══════════════════════════════════════════════════════════════════════
+print(f'\n{"=" * 60}')
+print('  6. SUB-INDUSTRY HETEROGENEITY (DLW destination analog)')
+print(f'{"=" * 60}')
+
+for nace in [41, 42, 43]:
+    df[f'pp_x_n{nace}'] = df['pp_dummy'] * (df['nace2'] == nace).astype(float)
+
+m = run_reg('lmu ~ pp_x_n41 + pp_x_n42 + pp_x_n43 + k + cogs', df, 'NACE heterogeneity')
+if m:
+    for nace in [41, 42, 43]:
+        v = f'pp_x_n{nace}'
+        nace_labels = {41: 'Buildings', 42: 'Civil eng.', 43: 'Specialized'}
+        coef = m.params.get(v, np.nan)
+        se = m.bse.get(v, np.nan)
+        print(f'  NACE {nace} ({nace_labels[nace]}): premium = {coef:.4f} (SE {se:.4f})')
+        results.append({'Analysis': f'NACE {nace} ({nace_labels[nace]})',
+                        'Spec': 'pp × NACE interaction',
+                        'coef': coef, 'se': se, 'N': int(m.nobs)})
+
+# ══════════════════════════════════════════════════════════════════════
+#  ANALYSIS 7: Event study (dynamic entry effects)
+# ══════════════════════════════════════════════════════════════════════
+print(f'\n{"=" * 60}')
+print('  7. EVENT STUDY (dynamic entry effects)')
+print(f'{"=" * 60}')
+
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
+
+df_event = df[df['first_pp_year'].notna()].copy()
+df_event['rel_year'] = (df_event['year'] - df_event['first_pp_year']).astype(int)
+df_event = df_event[df_event['rel_year'].between(-3, 5)].copy()
+print(f'  Event study sample: N={len(df_event):,}, firms={df_event["id"].nunique()}')
+
+# Create relative-year dummies (omit τ = -1)
+tau_range = list(range(-3, 6))
+def _tau_col(t):
+    return f'tau_m{abs(t)}' if t < 0 else f'tau_p{t}'
+
+for tau in tau_range:
+    if tau == -1:
+        continue
+    df_event[_tau_col(tau)] = (df_event['rel_year'] == tau).astype(float)
+
+tau_vars = [_tau_col(t) for t in tau_range if t != -1]
+formula = 'lmu ~ ' + ' + '.join(tau_vars) + ' + k + cogs'
+m = run_reg(formula, df_event, 'event study')
+
+if m:
+    # Extract coefficients and CIs
+    event_data = []
+    for tau in tau_range:
+        if tau == -1:
+            event_data.append({'tau': tau, 'coef': 0, 'se': 0, 'ci_lo': 0, 'ci_hi': 0})
+        else:
+            v = _tau_col(tau)
+            c = m.params.get(v, np.nan)
+            s = m.bse.get(v, np.nan)
+            event_data.append({'tau': tau, 'coef': c, 'se': s,
+                               'ci_lo': c - 1.96*s, 'ci_hi': c + 1.96*s})
+    event_df = pd.DataFrame(event_data)
+
+    print('\n  τ (rel. to entry)  Coef       SE       95% CI')
+    print('  ' + '-'*55)
+    for _, r in event_df.iterrows():
+        ref = ' (ref)' if r['tau'] == -1 else ''
+        print(f'  {int(r["tau"]):>3}{ref:<6}  {r["coef"]:>8.4f}  {r["se"]:>8.4f}  '
+              f'[{r["ci_lo"]:>7.4f}, {r["ci_hi"]:>7.4f}]')
+
+    # Plot
+    fig, ax = plt.subplots(figsize=(8, 5))
+    ax.errorbar(event_df['tau'], event_df['coef'],
+                yerr=[event_df['coef']-event_df['ci_lo'],
+                      event_df['ci_hi']-event_df['coef']],
+                fmt='o-', capsize=4, color='#1f77b4', linewidth=2, markersize=7)
+    ax.axhline(0, color='grey', linestyle='--', linewidth=0.8)
+    ax.axvline(-0.5, color='red', linestyle=':', linewidth=1, alpha=0.5,
+               label='Procurement entry')
+    ax.set_xlabel(r'Years relative to procurement entry ($\tau$)')
+    ax.set_ylabel('Log markup relative to $\\tau = -1$')
+    ax.set_title('Event Study: Markup Dynamics Around Procurement Entry')
+    ax.set_xticks(tau_range)
+    ax.legend(loc='upper left')
+    ax.grid(True, alpha=0.3)
+    plt.tight_layout()
+    fig_path = OUT + 'figures/dlw_event_study.pdf'
+    plt.savefig(fig_path, dpi=200, bbox_inches='tight')
+    plt.close()
+    print(f'\n  Saved: {fig_path}')
+
+    # Save event study data
+    event_df.to_csv(OUT + 'data/dlw_event_study.csv', index=False)
+
+# ══════════════════════════════════════════════════════════════════════
+#  ANALYSIS 8: DLW Table 2 format (markup distribution by specification)
+# ══════════════════════════════════════════════════════════════════════
+print(f'\n{"=" * 60}')
+print('  8. DLW TABLE 2: MARKUP DISTRIBUTION BY SPECIFICATION')
+print(f'{"=" * 60}')
+
+# Read existing PF estimates
+pf = pd.read_csv(OUT + 'paper_pf_estimates.csv')
+print(f'\n  {"Spec":<25} {"Median μ":>10} {"Mean μ":>10} {"SD μ":>10} {"p10":>8} {"p90":>8}')
+print('  ' + '-'*75)
+for _, r in (pf[pf['nace2'] == 0].iterrows() if 0 in pf['nace2'].values else pf.iterrows()):
+    spec_label = r.get('label', r.get('short', r.get('spec', '?')))
+    print(f'  {spec_label:<25} {r["markup_p50"]:>10.3f} {r["markup_mean"]:>10.3f} '
+          f'{r["markup_sd"]:>10.3f} {r["markup_p10"]:>8.3f} {r["markup_p90"]:>8.3f}')
+
+# ══════════════════════════════════════════════════════════════════════
 #  Save results
 # ══════════════════════════════════════════════════════════════════════
 results_df = pd.DataFrame(results)
