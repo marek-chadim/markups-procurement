@@ -546,7 +546,7 @@ Three findings emerge. First, the within-firm component dominates the aggregate 
 The distribution of markups mirrors the DLEU pattern: the upper tail drives the aggregate (Figure~\ref{fig:dleu_percentiles}). The sales-weighted P90 exceeds 3.0 throughout, while the median is stable around 1.6--1.8. The gap between the P90 and P50 widened from 2007 to 2013 before narrowing, suggesting a transient increase in dispersion during the post-crisis period.
 
 \begin{figure}[htbp]\centering
-\includegraphics[width=0.85\textwidth]{dleu_fig3b_percentiles.pdf}
+\includegraphics[width=0.85\textwidth]{dleu_fig3_distribution.pdf}
 \caption{Percentiles of the Markup Distribution (sales-weighted)}\label{fig:dleu_percentiles}
 \begin{minipage}{0.85\textwidth}\footnotesize
 \emph{Notes:} Firms ranked by markup; percentiles computed using cumulative sales shares as weights (DLEU Figure~III, Panel~B). Average is the sales-weighted aggregate $M_t^{sw}$.
@@ -562,6 +562,20 @@ Splitting the aggregate by procurement status (Figure~\ref{fig:dleu_pp_split}) c
 \emph{Notes:} Sales-weighted aggregate markup computed separately for procurement ($pp = 1$) and non-procurement ($pp = 0$) firms. Vertical lines mark the 2012 and 2016 transparency reforms.
 \end{minipage}
 \end{figure}
+
+\subsection{Cross-Industry Validation}\label{sec:dleu_cross_industry}
+
+Extending the analysis across industries using the Orbis all-industry panel (275,000 firms, 77 NACE 2-digit sectors) confirms that the declining markup pattern is not unique to construction (Figure~\ref{fig:orbis_cross_industry}). All five top procurement industries exhibit flat or declining cost-share markups over 2008--2022, in contrast to the secular rise documented by DLEU for US manufacturing. Table~\ref{tab:orbis_industry} reports the industry-specific levels. Architecture and engineering (NACE~71) has the highest markups, consistent with high human-capital intensity and differentiated services. The all-industry aggregate is stable around 1.05--1.10, reflecting the dominance of wholesale trade and real estate in the Czech economy.
+
+\begin{figure}[htbp]\centering
+\includegraphics[width=0.85\textwidth]{orbis_dleu_cross_industry.pdf}
+\caption{Aggregate Markups by Industry --- Czech Orbis Panel}\label{fig:orbis_cross_industry}
+\begin{minipage}{0.85\textwidth}\footnotesize
+\emph{Notes:} Sales-weighted aggregate markup using cost-share output elasticity $\alpha^V_{it} = \text{COGS}_{it}/(\text{COGS}_{it} + r_t K_{it})$, $r = 0.12$. Data: Orbis Bureau van Dijk via WRDS, 275,000 Czech firms, 2006--2023. All-industry aggregate shown in dashed black.
+\end{minipage}
+\end{figure}
+
+\input{../input/tables/orbis_dleu_cross_industry.tex}
 
 %% ============================================================
 %% 8. DOUBLE MARKET POWER (short)
@@ -789,27 +803,7 @@ This appendix reports the full tables underlying the brief benchmark in Section 
 
 KLMS identify the inverse labor supply elasticity $\theta$ from a DiD comparing first-differenced log wages and log employment for procurement winners versus losers. The Wald estimator for Czech construction yields $\hat{\theta} = 0.13$ (labor supply elasticity $1/\theta = 8.0$), implying a wage markdown of $1/(1+\theta) = 0.89$. Czech construction firms face more elastic labor supply than US firms (KLMS: $1/\theta = 4.1$), consistent with a larger informal and self-employed sector. Across all industries, $\hat{\theta} = 0.47$ ($1/\theta = 2.2$), reflecting stickier labor markets.
 
-\begin{table}[htbp]\centering
-\caption{Labor Supply Elasticity Estimates (Appendix)}\label{tab:klms_theta}
-\begin{threeparttable}
-\begin{tabular}{lcccc}
-\toprule
-& $\hat{\theta}$ & $1/\theta$ & Markdown & $N$ \\
-\midrule
-\multicolumn{5}{l}{\emph{Czech Republic (Orbis)}} \\
-\quad Construction (Wald DiD) & 0.125 & 7.98 & 0.889 & 123,968 \\
-\quad All industries (Wald DiD) & 0.465 & 2.15 & 0.683 & 123,968 \\
-\quad Construction (Panel FE OLS) & 0.796 & 1.26 & 0.557 & 42,857 \\[4pt]
-\multicolumn{5}{l}{\emph{United States (KLMS 2025)}} \\
-\quad Construction (DiD) & 0.245 & 4.08 & 0.803 & --- \\
-\quad Construction (RDD) & 0.286 & 3.50 & 0.777 & --- \\
-\bottomrule
-\end{tabular}
-\begin{tablenotes}\footnotesize
-\item \emph{Notes:} The Wald DiD estimator is $\hat{\theta}_{\text{DiD}} = (\bar{\Delta w}_1 - \bar{\Delta w}_0)/(\bar{\Delta \ell}_1 - \bar{\Delta \ell}_0)$ where subscripts denote procurement status. KLMS estimates from Table 2, Panel A of Kroft et al.\ (2025). The Wald DiD requires that procurement entry shifts labor demand without affecting supply; if procurement firms offer non-wage amenities that attract workers, $\hat{\theta}$ is biased downward. This exclusion restriction cannot be tested with current data.
-\end{tablenotes}
-\end{threeparttable}
-\end{table}
+\input{../input/tables/klms_theta_appendix.tex}
 
 Following KLMS equation (25), the revenue elasticity $(1-\epsilon)$ is estimated from the regression of log revenues on log intermediate expenditures among non-procurement firms with firm fixed effects. The double markdown $(1+\theta)^{-1} \times (1-\epsilon) = 0.889 \times 0.711 = 0.632$ represents wages as a fraction of the value of the marginal product of labor. Czech construction exhibits slightly more labor rent extraction than US construction (KLMS US double markdown: 0.69), driven by less elastic product demand ($(1-\epsilon) = 0.71$ vs.\ 0.86) partly offset by more elastic labor supply. Cross-industry $(1-\epsilon)$ estimates from the Orbis all-industry panel range from 0.71 (specialized construction) to 0.86 (machinery manufacturing), with wholesale trade (0.80) and IT services (0.75) in between.
 

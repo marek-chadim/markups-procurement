@@ -785,6 +785,102 @@ class KLMSAnalysis:
 #  Main
 # ========================================================================== #
 
+def write_theta_latex(results_mw, results_orbis):
+    """Write LaTeX table for KLMS theta appendix (replaces hardcoded table)."""
+    fn = TABLE_DIR / 'klms_theta_appendix.tex'
+
+    def _fmt(v, fmt='%.3f'):
+        return fmt % v if not np.isnan(v) else '---'
+
+    lines = [
+        r'\begin{table}[htbp]\centering',
+        r'\caption{Labor Supply Elasticity Estimates}\label{tab:klms_theta}',
+        r'\begin{threeparttable}',
+        r'\begin{tabular}{lcccc}',
+        r'\toprule',
+        r'& $\hat{\theta}$ & $1/\theta$ & Markdown & $N$ \\',
+        r'\midrule',
+    ]
+
+    # Orbis results
+    if results_orbis:
+        th = results_orbis.get('theta', {})
+        lines.append(r'\multicolumn{5}{l}{\emph{Czech Republic (Orbis, continuous employment)}} \\')
+
+        theta_w = th.get('theta_wald', np.nan)
+        lines.append(
+            r'\quad Construction (Wald DiD) & '
+            f'{_fmt(theta_w)} & {_fmt(1/theta_w, "%.2f") if abs(theta_w) > 0.01 else "---"} & '
+            f'{_fmt(1/(1+theta_w))} & {th.get("n_obs", ""):,} \\\\'
+        )
+
+        theta_iv = th.get('theta_panel_iv', np.nan)
+        lines.append(
+            r'\quad Construction (Panel FE-IV) & '
+            f'{_fmt(theta_iv)} & {_fmt(1/theta_iv, "%.2f") if abs(theta_iv) > 0.01 else "---"} & '
+            f'{_fmt(1/(1+theta_iv))} & {th.get("n_obs", ""):,} \\\\[4pt]'
+        )
+
+    # MagnusWeb results
+    if results_mw:
+        th = results_mw.get('theta', {})
+        lines.append(r'\multicolumn{5}{l}{\emph{Czech Republic (MagnusWeb, bracket employment)}} \\')
+        theta_w = th.get('theta_wald', np.nan)
+        lines.append(
+            r'\quad Construction (Wald DiD) & '
+            f'{_fmt(theta_w) if not np.isnan(theta_w) else "N/A$^*$"} & '
+            f'{_fmt(1/theta_w, "%.2f") if not np.isnan(theta_w) and abs(theta_w) > 0.01 else "---"} & '
+            f'{_fmt(1/(1+theta_w)) if not np.isnan(theta_w) else "---"} & '
+            f'{th.get("n_obs", ""):,} \\\\[4pt]'
+        )
+
+    # KLMS US benchmarks
+    lines += [
+        r'\multicolumn{5}{l}{\emph{United States (KLMS 2025)}} \\',
+        r'\quad Construction (DiD) & 0.245 & 4.08 & 0.803 & --- \\',
+        r'\quad Construction (RDD) & 0.286 & 3.50 & 0.777 & --- \\',
+        r'\bottomrule',
+        r'\end{tabular}',
+        r'\begin{tablenotes}\footnotesize',
+        r'\item \emph{Notes:} Wald DiD: $\hat{\theta} = (\bar{\Delta w}_1 - \bar{\Delta w}_0)/(\bar{\Delta \ell}_1 - \bar{\Delta \ell}_0)$. Panel FE-IV instruments log employment with procurement entry (firm and year FE). KLMS estimates from Table~2 of Kroft et al.\ (2025). $^*$MagnusWeb bracket employment produces near-zero $\Delta\ell$, precluding identification.',
+        r'\end{tablenotes}',
+        r'\end{threeparttable}',
+        r'\end{table}',
+    ]
+
+    with open(fn, 'w') as f:
+        f.write('\n'.join(lines))
+    print(f'  Saved: {fn}')
+
+
 if __name__ == '__main__':
-    analysis = KLMSAnalysis()
-    analysis.run_all()
+    import sys
+
+    # Run MagnusWeb baseline
+    print('=' * 60)
+    print('  KLMS Analysis — MagnusWeb (baseline)')
+    print('=' * 60)
+    mw = KLMSAnalysis(use_orbis=False)
+    mw.run_all()
+    results_mw = mw.results
+
+    # Run Orbis (continuous employment)
+    if ORBIS_DTA.exists():
+        print('\n' + '=' * 60)
+        print('  KLMS Analysis — Orbis (continuous employment)')
+        print('=' * 60)
+        orb = KLMSAnalysis(use_orbis=True)
+        orb.run_all()
+        results_orbis = orb.results
+
+        # Save Orbis-specific outputs
+        orbis_summary = orb.summary_table()
+        orbis_summary.to_csv(TABLE_DIR / 'klms_summary_orbis.csv', index=False)
+        print(f'\n  Saved: klms_summary_orbis.csv')
+
+        # Generate appendix LaTeX table
+        write_theta_latex(results_mw, results_orbis)
+    else:
+        print(f'\n  Orbis data not found at {ORBIS_DTA} — skipping')
+        results_orbis = None
+        write_theta_latex(results_mw, None)
