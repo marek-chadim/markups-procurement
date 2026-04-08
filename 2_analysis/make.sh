@@ -55,6 +55,7 @@ run_python specification_sensitivity_table.py "${LOGFILE}" || exit 1
 # Phase 2: Analysis scripts
 run_python bmy_czech_analysis.py "${LOGFILE}" || exit 1
 run_python dls_markup_comparison.py "${LOGFILE}" || exit 1
+run_python dls_table2_replication.py "${LOGFILE}" || exit 1
 run_python dlw_treatment_eval.py "${LOGFILE}" || exit 1
 run_python cwdl_robustness.py "${LOGFILE}" || exit 1
 run_python raval_test.py "${LOGFILE}" || exit 1
@@ -75,7 +76,13 @@ run_R lalonde_estimation.R "${LOGFILE}" || exit 1
 # Phase 3: Specification curve (reads all prior outputs)
 run_python specification_curve.py "${LOGFILE}" || exit 1
 
-# Phase 4: Stata table formatting
+# Phase 4: Stata replication (DGM-style ACF pipeline — parallel to Python)
+# Run from stata/ subdirectory so relative paths work
+echo "Running Stata replication pipeline..." | tee -a "${LOGFILE}"
+(cd source/stata && /Applications/StataNow/StataMP.app/Contents/MacOS/stata-mp -e do launcher.do) \
+    >> "${LOGFILE}" 2>&1 || echo "Warning: Stata replication had errors" | tee -a "${LOGFILE}"
+
+# Phase 5: Stata table formatting
 run_stata paper_tables.do "${LOGFILE}" || exit 1
 ) || false
 
