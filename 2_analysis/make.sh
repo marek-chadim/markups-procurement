@@ -50,7 +50,8 @@ cd "${MAKE_SCRIPT_DIR}/source"
 run_python paper_results.py "${LOGFILE}" || exit 1
 run_python summary_stats.py "${LOGFILE}" || exit 1
 
-# Phase 2: Five methodological pillars — DLW, DLEU, CWDL, ADL, DLS
+# Phase 2: Six methodological pillars — DLW, DLEU, CWDL, ADL, DLS, BMY
+run_python bmy_czech_analysis.py "${LOGFILE}" || exit 1
 run_python dls_markup_comparison.py "${LOGFILE}" || exit 1
 run_python dlw_treatment_eval.py "${LOGFILE}" || exit 1
 run_python cwdl_robustness.py "${LOGFILE}" || exit 1
