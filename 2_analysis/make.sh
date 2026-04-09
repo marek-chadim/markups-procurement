@@ -48,50 +48,40 @@ cd "${MAKE_SCRIPT_DIR}/source"
 
 # Phase 1: Core estimation (produces markups consumed by later scripts)
 run_python paper_results.py "${LOGFILE}" || exit 1
-run_python premium_timeseries.py "${LOGFILE}" || exit 1
 run_python summary_stats.py "${LOGFILE}" || exit 1
-run_python specification_sensitivity_table.py "${LOGFILE}" || exit 1
-run_python acf_specification_tests.py "${LOGFILE}" || exit 1
 
-# Phase 2: Analysis scripts
-run_python bmy_czech_analysis.py "${LOGFILE}" || exit 1
+# Phase 2: Five methodological pillars — DLW, DLEU, CWDL, ADL, DLS
 run_python dls_markup_comparison.py "${LOGFILE}" || exit 1
-run_python dls_table2_replication.py "${LOGFILE}" || exit 1
 run_python dlw_treatment_eval.py "${LOGFILE}" || exit 1
 run_python cwdl_robustness.py "${LOGFILE}" || exit 1
-run_python raval_test.py "${LOGFILE}" || exit 1
-run_python klms_analysis.py "${LOGFILE}" || exit 1
-run_python panel_treatment.py "${LOGFILE}" || exit 1
-run_R fect_estimation.R "${LOGFILE}" || exit 1
 run_python aggregate_markup_trends.py "${LOGFILE}" || exit 1
 run_python dleu_replication.py "${LOGFILE}" || exit 1
-run_python favoritism_decomposition.py "${LOGFILE}" || exit 1
-run_python orbis_acf_estimation.py "${LOGFILE}" || exit 1
-run_python strong_exclusion_diagnostic.py "${LOGFILE}" || exit 1
-run_python acf_strong_exclusion.py "${LOGFILE}" || exit 1
-run_python borusyak_hull_randomization.py "${LOGFILE}" || exit 1
-run_python ags_twostep_identification.py "${LOGFILE}" || exit 1
-run_python misspecification_diagnostics.py "${LOGFILE}" || exit 1
 run_python adl_instrument_comparison.py "${LOGFILE}" || exit 1
-run_R lalonde_estimation.R "${LOGFILE}" || exit 1
-run_R kitagawa_iv_test.R "${LOGFILE}" || exit 1
+run_python panel_treatment.py "${LOGFILE}" || exit 1
 
-# Phase 3: Specification curve (reads all prior outputs)
-run_python specification_curve.py "${LOGFILE}" || exit 1
-
-# Phase 4: Stata replication (DGM-style ACF pipeline — parallel to Python)
-# Run from stata/ subdirectory so relative paths work
-echo "Running Stata replication pipeline..." | tee -a "${LOGFILE}"
-(cd source/stata && /Applications/StataNow/StataMP.app/Contents/MacOS/stata-mp -e do launcher.do) \
-    >> "${LOGFILE}" 2>&1 || echo "Warning: Stata replication had errors" | tee -a "${LOGFILE}"
-
-# Phase 4b: DLEU Orbis extension (Stata, produces orbis_dleu_cross_industry table/figure)
-echo "Running DLEU Orbis extension..." | tee -a "${LOGFILE}"
-(cd source && /Applications/StataNow/StataMP.app/Contents/MacOS/stata-mp -e do dleu_orbis_extension.do) \
-    >> "${LOGFILE}" 2>&1 || echo "Warning: DLEU Orbis extension had errors" | tee -a "${LOGFILE}"
-
-# Phase 5: Stata table formatting
+# Phase 3: Stata table formatting
 run_stata paper_tables.do "${LOGFILE}" || exit 1
+
+## --- DISABLED (not in core DLW/DLEU/CWDL/ADL/DLS scope) ---
+# run_python premium_timeseries.py "${LOGFILE}" || exit 1
+# run_python specification_sensitivity_table.py "${LOGFILE}" || exit 1
+# run_python acf_specification_tests.py "${LOGFILE}" || exit 1
+# run_python bmy_czech_analysis.py "${LOGFILE}" || exit 1
+# run_python dls_table2_replication.py "${LOGFILE}" || exit 1
+# run_python raval_test.py "${LOGFILE}" || exit 1
+# run_python klms_analysis.py "${LOGFILE}" || exit 1
+# run_R fect_estimation.R "${LOGFILE}" || exit 1
+# run_python favoritism_decomposition.py "${LOGFILE}" || exit 1
+# run_python orbis_acf_estimation.py "${LOGFILE}" || exit 1
+# run_python strong_exclusion_diagnostic.py "${LOGFILE}" || exit 1
+# run_python acf_strong_exclusion.py "${LOGFILE}" || exit 1
+# run_python borusyak_hull_randomization.py "${LOGFILE}" || exit 1
+# run_python ags_twostep_identification.py "${LOGFILE}" || exit 1
+# run_python misspecification_diagnostics.py "${LOGFILE}" || exit 1
+# run_R lalonde_estimation.R "${LOGFILE}" || exit 1
+# run_R kitagawa_iv_test.R "${LOGFILE}" || exit 1
+# run_python specification_curve.py "${LOGFILE}" || exit 1
+# (cd source/stata && stata-mp -e do launcher.do)  # Stata replication pipeline
 ) || false
 
 echo -e "\nmake.sh finished at $(date '+%Y-%m-%d %H:%M:%S')" | tee -a "${LOGFILE}"
