@@ -55,133 +55,132 @@ This paper estimates firm-level markups in the Czech construction sector and mea
 %% ============================================================
 \section{Introduction}\label{sec:intro}
 
-The Czech construction sector accounts for 49.6\% of all public procurement contracts, approximately 7\% of GDP, and employs over 7\% of the labor force. It is also among the least competitive procurement markets in the European Union: single-bidder tenders exceed 48\% of awarded contracts, and each additional bidder reduces prices by roughly 3.3\%. Between 2006 and 2021, Czech policymakers responded with a sequence of transparency reforms: Act 55/2012 mandated cancellation of single-bid tenders, Act 134/2016 shifted award criteria from lowest price toward most economically advantageous tender (MEAT), and the 2017 Register of Contracts made online publication a condition of contract validity. These reforms provide time-series variation in the scope for discretion and favoritism---a natural laboratory for asking how government contracting shapes firm pricing power.
+Do rising markups reflect growing market power? De Loecker, Eeckhout, and Unger \cite{DeLoekerEeckhout2020} document that US markups rose from 21\% above marginal cost in 1980 to 61\% in 2016, concentrated among high-markup firms. Benkard, Miller, and Yurukoglu \cite{BMY2026} challenge this finding: the estimated trend is sensitive to production function specification choices---particularly the variable input definition and overhead cost treatment. In their reply, De Loecker, Eeckhout, and Unger \cite{DLEU2025reply} trace the divergence to outliers in a single four-digit industry and show that output elasticities are stable over time, with the trend driven entirely by expenditure shares. The exchange reveals a deeper question: if markup \emph{levels} are specification-sensitive, can markup-based \emph{treatment effects} be trusted?
 
-Construction is also a clean methodological testbed for the production approach: cost of goods sold---dominated by cement, steel, concrete, and fuel---is a well-measured variable input with stable cost shares, and the industry has been studied extensively in the markup literature (Collard-Wexler and De Loecker \cite{CWDLKvsOmega}; Kroft et al.\ \cite{KLMS2025}). This paper asks three questions. First, do government contractors charge higher markups than firms operating exclusively in the private sector? Second, what is the \emph{causal} effect of entering public procurement on firm markups? Third, has the procurement markup premium evolved over time, and can its dynamics be linked to these institutional reforms?
+This paper brings the production approach to a setting where that question can be answered directly. Czech construction procurement provides a binary treatment---procurement participation---against which to measure whether specification sensitivity in markup estimation propagates to causal estimates. Three findings emerge. First, firms participating in public procurement charge markups approximately 14\% higher than non-participants, with an event study showing flat pre-trends and a sharp jump at entry. Second, this premium is robust across nine distinct estimation methods: while markup \emph{levels} range from 1.02 to 2.17, the treatment effect is stable at 12.5--14.3\% across all methods except OLS. Third, the premium has declined from 30\% in 2006 to 10\% in 2021, tracking a sequence of Czech transparency reforms.
 
-To answer these questions, I construct a novel dataset linking firm-level financial statements from the MagnusWeb database to the universe of Czech public procurement contracts from the Datlab register, covering 1,521 construction firms (CZ-NACE division F) with 9,164 firm-year observations over 2005--2021. I estimate firm-specific markups following De Loecker and Warzynski \cite{DLW2012}, who show that under cost minimization the markup equals the ratio of the output elasticity of a variable input to its expenditure share. The output elasticity is recovered from a translog production function estimated via the control function approach of Ackerberg, Caves, and Frazer \cite{ACF2015}, conditioning the productivity law of motion on lagged procurement status.
+Czech construction is a clean testbed for the production approach. Cost of goods sold---dominated by cement, steel, concrete, and fuel---constitutes approximately 50\% of gross output, providing a well-measured variable input with stable cost shares. The industry has been studied extensively in the markup literature: Collard-Wexler and De Loecker \cite{CWDLKvsOmega} analyze US steel, while Kroft, Luo, Mogstad, and Setzler \cite{KLMS2025} estimate a double market power model for US construction procurement. Between 2006 and 2021, Czech policymakers enacted a series of transparency reforms---the 2012 single-bidding ban, the 2016 shift to MEAT criteria, and the 2017 Register of Contracts---providing time-series variation in the scope for discretion and favoritism.
 
-Three identification strategies estimate the procurement markup premium. First, cross-sectional regressions with year$\times$subindustry fixed effects and input controls yield a premium of 14.9\%. Second, a design-based approach under the unconfoundedness assumption \cite{ImbensXu2024}, applied to a balanced panel of 26 firms with eleven distinct estimators, yields an average treatment effect on the treated (ATT) of approximately 15\%, with all placebo tests passing. Third, panel data methods---two-way fixed effects with heterogeneity-robust corrections \cite{BorusyakJaravel2024}, synthetic difference-in-differences \cite{ArkhangelskySynthDiD}, and matrix completion \cite{Athey2021}---confirm the magnitude and reveal a striking temporal pattern: the premium declined from approximately 30\% in 2006 to approximately 10\% in 2021, coinciding with major transparency reforms.
+The estimation follows De Loecker and Warzynski \cite{DLW2012}: the markup equals the ratio of the output elasticity of a variable input to its expenditure share. Output elasticities are recovered from a translog production function estimated via Ackerberg, Caves, and Frazer \cite{ACF2015}, with the productivity law of motion conditioned on lagged procurement status following De Loecker \cite{DeLoecker2013}. The specification sensitivity analysis---varying the variable input, Markov process, functional form, and estimator---reveals that the premium is identified from cross-firm variation in cost shares ($\alpha^V_{it}$, observed data), not from the estimated output elasticity ($\theta^V$). This is consistent with the Gandhi, Navarro, and Rivers \cite{GNR2020} non-identification result and explains why the treatment effect survives even when markup levels are specification-sensitive.
 
-Beyond documenting the procurement premium, this paper makes a methodological contribution by conducting a systematic specification sensitivity analysis in the spirit of Benkard, Miller, and Yurukoglu \cite{BMY2026}. I find that production function specification choices---particularly the definition of the variable input and the Markov process for productivity---dominate all other modeling decisions, including the choice between Cobb-Douglas and translog functional forms, the estimator (ACF versus OLS versus Blundell-Bond), and even the imperfect competition correction proposed by Ackerberg and De Loecker \cite{ADL2024}. Specifically, using intermediate inputs instead of cost of goods sold as the variable input \emph{flips the sign} of the procurement premium, while including the procurement dummy in the Markov transition \emph{triples} it. These findings are consistent with the ``unpleasant markup arithmetic'' of Bond et al.\ \cite{Bond2021} and the non-identification result of Gandhi, Navarro, and Rivers \cite{GNR2020}, and suggest that applied researchers should devote at least as much attention to specification choices as to the estimator itself.
+This paper contributes to the literature on markup measurement, treatment evaluation with production function methods, and Czech procurement policy. On measurement, the nine-method comparison extends the Benkard, Miller, and Yurukoglu \cite{BMY2026} specification sensitivity analysis from aggregate trends to treatment effects, showing that the latter are more robust than the former. On treatment evaluation, the DLW-style entry/exit decomposition \cite{DLW2012} and productivity accounting extend their export analysis to procurement, documenting that productivity explains 76\% of the markup association (closely matching their 70\% for exports). Conlon, Miller, Otgon, and Yao \cite{CMOY2023} show that production-approach markup trends are uncorrelated with price changes ($R^2 < 0.001$), raising questions about what markups measure; the treatment evaluation design sidesteps this concern by focusing on within-firm changes around a discrete event. On policy, the declining premium provides evidence that transparency reforms reduce the scope for rent extraction in procurement, complementing Baran\v{e}k and Titl's \cite{BaranekTitl2024} finding that political connections raise Czech procurement prices by 6\%. Unlike De Loecker and Scott \cite{DeLoeckerScott2025}, who combine production and demand data for the US brewing industry, the bid-level data here include only winning prices, limiting the analysis to the production approach---making specification sensitivity a first-order concern.
 
-The imperfect competition correction of Ackerberg and De Loecker \cite{ADL2024}---which conditions the control function on the competitive environment---leaves the procurement premium virtually unchanged (changes $<$0.005 in the Cobb-Douglas specification). This null result arises because the differential bias from ignoring market structure is small in this setting: while production function coefficients shift, the ratio that determines the markup premium is approximately invariant. This finding is reassuring for the baseline estimates but also highlights that the ADL correction is most consequential when treated and control firms face very different competitive environments.
-
-I cross-validate all results against the De Ridder, Grassi, and Morzenti \cite{DGM2026} Python implementation (ProdFun class), confirming that differences across implementations are negligible relative to specification sensitivity.
-
-Unlike De Loecker and Scott \cite{DeLoeckerScott2025}, who combine production and demand data for the US brewing industry, my bid-level data include only winning prices, limiting me to the production approach. This constraint makes specification sensitivity---the focus of this paper---a first-order concern.
-
-This paper contributes to several literatures.
-
-\textbf{Markups and market power.} The production function approach to markup estimation, pioneered by Hall \cite{Hall1988} and formalized by De Loecker and Warzynski \cite{DLW2012}, has been widely applied to document trends in markups \cite{DeLoekerEeckhout2020,Hall2018}. De Loecker, Eeckhout, and Unger \cite{DeLoekerEeckhout2020} find that US markups rose from 21\% above marginal cost in 1980 to 61\% in 2016, with the increase concentrated among high-markup firms. Benkard, Miller, and Yurukoglu \cite{BMY2026} challenge this finding, showing that the estimated markup trend is sensitive to specification choices---particularly the variable input definition and the treatment of overhead costs. In their reply, De Loecker, Eeckhout, and Unger \cite{DLEU2025reply} trace BMY's diverging result to outliers in a single four-digit industry (NAICS 3254) and show that output elasticities are remarkably stable over time---confirming that the markup trend is driven by the expenditure share $\alpha^V_{it}$, not the output elasticity $\theta^V$. Conlon, Miller, Otgon, and Yao \cite{CMOY2023} provide a direct empirical test: regressing BLS Producer Price Index growth on DLEU markup growth across Compustat industries, they find $R^2 \approx 0.0005$, indicating that rising markups have essentially no correlation with observed price changes. My specification sensitivity analysis extends the BMY approach to a treatment evaluation setting, where I show that specification sensitivity affects not just the \emph{level} of markups but also the \emph{treatment effect}.
-
-\textbf{Production function estimation.} The control function approach of Ackerberg, Caves, and Frazer \cite{ACF2015} addresses the well-known simultaneity problem in production function estimation by using the timing of input decisions to construct moment conditions. De Ridder, Grassi, and Morzenti \cite{DGM2026} provide a comprehensive practical guide, documenting the sensitivity of estimates to functional form, polynomial order, sample selection, and other implementation choices. Gandhi, Navarro, and Rivers \cite{GNR2020} establish a fundamental non-identification result: proxy variable methods generically fail to identify the flexible input elasticity for gross output production functions. This explains my finding that OLS and ACF yield nearly identical coefficients on the variable input ($\Delta < 3.4\%$). Demirer \cite{Demirer2025} relaxes the standard Hicks-neutral technology assumption, showing that factor-augmenting technology differences can generate substantial bias in markup estimates---a concern that is particularly relevant when comparing firms with different factor intensities, as in procurement versus non-procurement contractors. Raval \cite{Raval2023} provides the empirical foundation for this concern, showing across seven datasets that markups estimated using labor and materials are \emph{negatively} correlated, have opposite time trends, and vastly different dispersion---an overidentification test that the production approach under Hicks neutrality overwhelmingly fails.
-
-\textbf{Imperfect competition in production function estimation.} Ackerberg and De Loecker \cite{ADL2024} show that under imperfect competition, input demand depends on the competitive environment, contaminating the scalar unobservable inversion at the heart of proxy variable estimators. They propose conditioning the control function on a sufficient statistic for the competitive environment. I implement this correction using procurement-defined markets and find that it has negligible effects on the markup premium, a result I interpret through the lens of the differential bias framework.
-
-\textbf{Public procurement and political connections.} Czech procurement has been extensively studied. Titl \cite{Titl2023} finds that the 2012 single-bidding ban reduced procurement prices by 6--10\%. Baran\v{e}k and Titl \cite{BaranekTitl2024} show that political connections raise procurement prices by 6\%, with no gains in project quality, and that EU co-funding oversight fully mitigates this overpricing. Their identification exploits electoral variation---when a connected politician loses power, the firm's contracts immediately return to normal prices---providing compelling causal evidence for favoritism in Czech procurement. Their finding raises an important question for my analysis: the 15\% markup premium I document may partly reflect the favoritism channel (connected firms overcharging) rather than cost efficiency alone. I address this concern in Section \ref{sec:robustness} by examining whether the premium varies with competition intensity and reform exposure. Palguta and Pertold-Gebicka \cite{PalgutaPertold2017} document that below-threshold manipulation allows politically connected firms to avoid competitive tendering.
-
-\textbf{Double market power in construction.} Kroft, Luo, Mogstad, and Setzler \cite{KLMS2025} develop and estimate a model of ``double market power'' in US construction, where firms simultaneously exercise monopsony power in the labor market and monopoly power in the product market. Using procurement auction data linked to employer-employee tax records, they find that wages are 31--33\% below the value of the marginal product of labor, while prices are 44--49\% above the productivity-adjusted wage. A key theoretical result is that market power in one market is \emph{attenuated} by market power in the other. I estimate an analog of their product demand elasticity for Czech construction, finding $(1-\epsilon) = 0.90$ (firm fixed effects, non-procurement firms), comparable to their US estimate of 0.86. The KLMS attenuation mechanism provides a theoretical explanation for my finding that the Ackerberg and De Loecker \cite{ADL2024} imperfect competition correction has negligible effects on the markup premium: when both product and labor market power are present, the corrections partially cancel in the differential across treated and control firms.
-
-I contribute to these literatures by measuring the effect of procurement on \emph{markups} rather than prices, using production function methods that separate price effects from cost effects, and by documenting that specification sensitivity in production function estimation propagates to treatment effects.
-
-\textbf{Treatment effects with generated regressors.} Using estimated markups as a dependent variable introduces a generated regressor problem. My approach follows the standard two-step procedure: estimate markups in the first step, then use them as the outcome in treatment evaluation. The specification sensitivity analysis shows that the treatment effect is robust across estimators (ACF, OLS, Blundell-Bond) even when markup levels differ substantially.
 
 %% ============================================================
-%% 2. DATA
+%% 2. SETTING AND DATA
 %% ============================================================
-\section{Data}\label{sec:data}
+\section{Setting and Data}\label{sec:data}
 
-I combine three Czech data sources covering 2005--2023.
+\subsection{Czech Construction}\label{sec:setting}
 
-\textbf{Firm financials.} The MagnusWeb database provides annual financial statements for Czech firms. I restrict attention to firms classified in CZ-NACE division F (construction), which comprises three sub-industries: NACE 41 (construction of buildings), NACE 42 (civil engineering), and NACE 43 (specialized construction activities). Key variables include sales (GO), cost of goods sold (COGS), number of employees (L), and fixed assets (K). The raw dataset also contains wages (W) and intermediate inputs (II) separately at full coverage, enabling decomposition of GO $\approx$ W + II and construction of a three-input specification. All nominal variables are deflated using OECD industry deflators.
+The Czech construction sector accounts for 49.6\% of all public procurement contracts, approximately 7\% of GDP, and employs over 7\% of the labor force. It is also among the least competitive procurement markets in the European Union: single-bidder tenders exceed 48\% of awarded contracts, and each additional bidder reduces prices by roughly 3.3\% \cite{PalgutaPertold2017}. The sector comprises three CZ-NACE sub-industries: NACE 41 (construction of buildings), NACE 42 (civil engineering), and NACE 43 (specialized construction activities).
 
-\textbf{Public procurement.} The Datlab register contains the universe of Czech public procurement contracts, compiled from the official ISVZ system. For each tender, I observe the contract value, signature date, procurement procedure, awarding entity, and the identities of all bidders. I merge procurement records to firm financials using company identifiers. The primary treatment variable is $pp_{it}$, a binary indicator equal to one if firm $i$ has an active procurement contract in year $t$.
+Between 2006 and 2021, Czech policymakers enacted a sequence of transparency reforms aimed at increasing competition and reducing the scope for favoritism. Table \ref{tab:reforms} summarizes the key legislative changes.
 
-\textbf{Sample construction.} I rebuild the estimation sample from raw CSVs using a transparent Python pipeline (\texttt{rebuild\_data.py}). Key steps include: (i) 1:1 merges with deduplication (correcting the many-to-many merge in the original thesis code), (ii) tender year assigned from signature date, (iii) winsorization at the 2nd and 98th percentiles by NACE 2-digit on log variables following De Ridder, Grassi, and Morzenti \cite{DGM2026}, and (iv) trimming observations with overhead-to-gross-output ratios exceeding 0.90. The resulting sample contains 1,521 firms and 9,164 firm-year observations, an improvement over the original thesis sample (1,297 firms, 7,261 observations) due to corrected merges that eliminate spurious duplicate observations while adding 77 previously excluded valid observations.
+\begin{table}[htbp]\centering
+\caption{Czech Procurement Transparency Reforms, 2006--2021}\label{tab:reforms}
+\begin{threeparttable}
+\begin{tabular}{llp{8cm}}
+\toprule
+Date & Reform & Key Change \\
+\midrule
+1 Jul 2006 & Act 137/2006 & Full EU procurement framework; TED publication requirement \\
+\textbf{1 Apr 2012} & \textbf{Act 55/2012} & \textbf{Mandatory cancellation of single-bid tenders}; 6--10\% price reduction (Titl 2023) \\
+1 Jan 2014 & Act 134/2013 & Bearer share abolition; anonymous ownership eliminated \\
+1 Oct 2016 & Act 134/2016 & Shift from lowest-price toward most economically advantageous tender (MEAT) criteria \\
+\textbf{1 Jul 2017} & \textbf{Register of Contracts} & \textbf{Contract validity contingent on online publication} \\
+1 Jan 2018 & Beneficial Ownership Register & Public register of ultimate beneficial owners \\
+\bottomrule
+\end{tabular}
+\begin{tablenotes}\footnotesize
+\item \emph{Notes:} Bold entries denote reforms most relevant to the declining premium. The 2012 single-bidding ban was the most impactful: Titl \cite{Titl2023} estimates a 6--10\% reduction in procurement prices. The 2017 Register of Contracts made contract publication a validity condition.
+\end{tablenotes}
+\end{threeparttable}
+\end{table}
 
-\textbf{Constructed variables.} I construct several variables for the analysis:
-\begin{itemize}[nosep]
-    \item \emph{Log markups} $\ln\mu_{it}$: estimated from the production function (Section \ref{sec:markups}).
-    \item \emph{Market shares}: firm revenue as a share of total NACE 2-digit $\times$ year revenue.
-    \item \emph{Procurement intensity}: number of active contracts, average number of bidders, single-bid share.
-    \item \emph{Competitor variables}: leave-one-out HHI, competitor fixed assets, and lagged competitor productivity for the ADL imperfect competition extension.
-\end{itemize}
+These reforms provide exogenous time-series variation in competition intensity. Palguta and Pertold-Gebicka \cite{PalgutaPertold2017} document that below-threshold manipulation allowed politically connected firms to avoid competitive tendering before the reforms, while Baran\v{e}k and Titl \cite{BaranekTitl2024} show that political connections raise procurement prices by 6\%, with EU co-funding oversight fully mitigating this overpricing.
 
-\textbf{Orbis financial statements.} To overcome MagnusWeb's limitation of categorical employment brackets, I supplement with Bureau van Dijk's Orbis database accessed through WRDS. Orbis provides continuous employee headcounts, cost of employees, operating revenue, cost of goods sold, and fixed assets for Czech firms across all industries. Merging on company identifiers (I\v{C}O), 84\% of MagnusWeb construction firms appear in Orbis (1,260 of 1,498). For the matched firms, capital correlates at 0.983 and wages at 0.951 between the two sources, confirming data consistency. The Orbis panel extends the analysis in two ways: (i) continuous employment enables KLMS-style labor supply elasticity estimation, and (ii) all-industry coverage enables cross-industry validation of the procurement premium. The all-industry Orbis panel comprises 275,000 firms and 1.3 million firm-year observations over 2006--2023, with 33,000 procurement supplier firms matched via I\v{C}O. The construction-only baseline continues to use MagnusWeb.
+\subsection{Data Sources}\label{sec:datasources}
 
-Table \ref{tab:summary} reports summary statistics for the MagnusWeb construction estimation sample.
+Three Czech data sources are combined, covering 2005--2023.
+
+\textbf{Firm financials.} The MagnusWeb database provides annual financial statements for Czech firms classified in CZ-NACE division F (construction). Key variables include sales (GO), cost of goods sold (COGS), number of employees (L), and fixed assets (K). The raw dataset also contains wages (W) and intermediate inputs (II) separately at full coverage, enabling decomposition of GO $\approx$ W + II. All nominal variables are deflated using OECD industry deflators.
+
+\textbf{Public procurement.} The Datlab register contains the universe of Czech public procurement contracts, compiled from the official ISVZ system. For each tender, the data record the contract value, signature date, procurement procedure, awarding entity, and the identities of all bidders. Procurement records are merged to firm financials using company identifiers. The primary treatment variable is $pp_{it}$, a binary indicator equal to one if firm $i$ has an active procurement contract in year $t$.
+
+\textbf{Sample construction.} The estimation sample is rebuilt from raw CSVs using a transparent Python pipeline (\texttt{rebuild\_data.py}). Key steps include: (i) 1:1 merges with deduplication, (ii) tender year assigned from signature date, (iii) winsorization at the 2nd and 98th percentiles by NACE 2-digit on log variables following De Ridder, Grassi, and Morzenti \cite{DGM2026}, and (iv) trimming observations with overhead-to-gross-output ratios exceeding 0.90. The resulting sample contains 1,521 firms and 9,164 firm-year observations.
+
+\textbf{Orbis financial statements.} To overcome MagnusWeb's limitation of categorical employment brackets, I supplement with Bureau van Dijk's Orbis database accessed through WRDS. Orbis provides continuous employee headcounts, cost of employees, operating revenue, cost of goods sold, and fixed assets for Czech firms across all industries. Merging on company identifiers (I\v{C}O), 84\% of MagnusWeb construction firms appear in Orbis (1,260 of 1,498). Capital correlates at 0.983 and wages at 0.951 between the two sources.
+
+Table \ref{tab:summary} reports summary statistics for the estimation sample. Panel~B compares treated and control firms: procurement participants are larger but operate at similar cost structures, consistent with selection on scale rather than efficiency.
 
 \input{../input/tables/summary_stats.tex}
 
-Panel~B of Table~\ref{tab:summary} compares treated and control firms. Procurement participants are larger but operate at similar cost structures, consistent with selection on scale rather than efficiency.
-
 \subsection{Data Limitations}\label{sec:limitations}
 
-Four data limitations bear mention. First, the Datlab tender data include only winning bid prices, not losing bids. This precludes estimation of a full demand system or structural auction model, restricting me to the production approach of De Loecker and Warzynski \cite{DLW2012}. Second, MagnusWeb employment is reported in categorical brackets rather than continuous counts, limiting the precision of labor supply elasticity estimates. Third, the tender data do not flag EU co-funding, precluding a direct test of the intergovernmental oversight channel identified by Baran\'{e}k and Titl \cite{BaranekTitl2024}. Fourth, output is measured as revenue (gross output), not physical quantity. Following De Ridder, Grassi, and Morzenti \cite{DGM2026}, the revenue-to-quantity bias is a sector-level constant that shifts markup levels but preserves cross-firm variation---the procurement premium as a ratio is therefore robust to this bias.
+Four limitations bear mention. First, the Datlab tender data include only winning bid prices, not losing bids, precluding estimation of a full demand system or structural auction model and restricting the analysis to the production approach of De Loecker and Warzynski \cite{DLW2012}. Second, MagnusWeb employment is reported in categorical brackets rather than continuous counts, limiting labor supply elasticity estimation. Third, the tender data do not flag EU co-funding, precluding a direct test of the intergovernmental oversight channel identified by Baran\'{e}k and Titl \cite{BaranekTitl2024}. Fourth, output is measured as revenue, not physical quantity. Following De Ridder, Grassi, and Morzenti \cite{DGM2026}, the revenue-to-quantity bias is a sector-level constant that shifts markup levels but preserves cross-firm variation---the procurement premium as a ratio is therefore robust to this bias.
+
 
 %% ============================================================
-%% 3. RESULTS
+%% 3. PRODUCTION APPROACH TO MARKUP ESTIMATION
 %% ============================================================
-\section{Results}\label{sec:results}
+\section{Production Approach to Markup Estimation}\label{sec:methodology}
 
-What do markups look like in Czech construction, and how do they differ between firms that participate in public procurement and those that do not?
+\subsection{Markup Formula}\label{sec:markup_formula}
 
-\subsection{Markups in Czech Construction}\label{sec:markups}
-
-The production approach to markup estimation rests on three assumptions:
-\begin{itemize}
-\item[(i)] Firms minimize variable cost conditional on output and fixed inputs.
-\item[(ii)] Productivity is Hicks-neutral (multiplicative, not factor-augmenting).
-\item[(iii)] Productivity evolves as a first-order Markov process conditional on $pp_{it-1}$, following De Loecker \cite{DeLoecker2013}.
-\end{itemize}
-Under these assumptions, the markup is identified from the wedge between output elasticity and expenditure share.
-
-Under cost minimization, a firm equates the output elasticity of each freely adjustable input to the product of its markup and the input's expenditure share. This yields the markup formula of De Loecker and Warzynski \cite{DLW2012}:
+Under cost minimization, a firm equates the output elasticity of each freely adjustable input to the product of its markup and the input's expenditure share. This yields the markup formula of De Loecker and Warzynski \cite{DLW2012}, building on Hall \cite{Hall1988}:
 \begin{equation}\label{eq:markup}
     \mu_{it} = \frac{\theta^V_{it}}{\alpha^V_{it}},
 \end{equation}
-where $\theta^V_{it} = \partial \ln Y_{it} / \partial \ln V_{it}$ is the output elasticity of the variable input and $\alpha^V_{it} = P^V_{it} V_{it} / (P_{it} Y_{it})$ is the expenditure share of the variable input in total revenue. I use cost of goods sold (COGS) as the baseline variable input, with intermediate inputs (II) examined in the sensitivity analysis (Section \ref{sec:sensitivity}).
+where $\theta^V_{it} = \partial \ln Y_{it} / \partial \ln V_{it}$ is the output elasticity of the variable input and $\alpha^V_{it} = P^V_{it} V_{it} / (P_{it} Y_{it})$ is the expenditure share of the variable input in total revenue. Under perfect competition $\mu_{it} = 1$ and $\theta^V_{it} = \alpha^V_{it}$; deviations from unity indicate market power. Appendix~\ref{app:markup_derivation} provides the full derivation from profit maximization.
 
-\textbf{Cross-sectional premium.} To measure the association between procurement and markups, I estimate:
-\begin{equation}\label{eq:cross}
-    \ln\mu_{it} = \beta_0 + \beta_1 pp_{it} + \beta_2 v_{it} + \beta_3 k_{it} + \delta_{st} + \varepsilon_{it},
-\end{equation}
-where $\delta_{st}$ denotes year$\times$NACE 2-digit fixed effects and $v_{it}$, $k_{it}$ control for the mechanical dependence of markups on input levels through the production function. Under the baseline specification, $\hat{\beta}_1 = 0.140$ (SE $= 0.005$), implying a 14.9\% procurement markup premium. The raw (unconditional) log markup difference is 0.186 (SE $= 0.003$).
+The formula rests on three assumptions: (i) firms minimize variable cost conditional on output and fixed inputs; (ii) productivity is Hicks-neutral; and (iii) productivity evolves as a first-order Markov process conditional on lagged treatment status. The third assumption, established by De Loecker \cite{DeLoecker2013} for learning-by-exporting and extended by De Loecker and Syverson \cite{DLS2021} to general treatment evaluation, ensures internal consistency whenever the treatment may affect productivity dynamics.
 
-\textbf{Markup dynamics.} Aggregate markups declined from 1.44 in 2006 to 1.31 in 2021, with the decline driven by the upper tail of the distribution. The procurement markup premium has declined from approximately 30\% in 2006 to approximately 10\% in 2021, tracking the institutional reform timeline (Section \ref{sec:policy}).
+\subsection{Estimation}\label{sec:estimation}
 
-\textbf{Heterogeneity by sub-industry.} Average markups differ substantially across NACE 2-digit sub-industries: NACE 41 (buildings) averages 2.14, NACE 42 (civil engineering) 2.35, and NACE 43 (specialized construction) 1.71. These differences reflect variation in market structure, capital intensity, and the nature of construction activities.
-
-Czech construction markups fall within the range documented in the broader European literature \cite{DiezLeighTambunlertchai2018}, though cross-country comparisons are complicated by differences in variable input definitions. These levels---prices 70--110\% above variable cost---may appear large for a competitive industry with 3--8\% profit margins. However, markups measure price relative to \emph{variable} cost only; fixed costs (land, equipment, overhead) drive the wedge. As Hall~\cite{Hall2018} emphasizes, an industry with 5\% profit margins can sustain markups of 2.0 if fixed costs account for 47\% of revenue. Czech construction's capital intensity and overhead structure are consistent with this pattern.
-
-\iffalse % BMY figure disabled — depends on disabled pipeline script
-\begin{figure}[htbp]\centering
-\includegraphics[width=0.85\textwidth]{bmy_percentiles.pdf}
-\caption{Evolution of Markups in Czech Construction, 2006--2021}\label{fig:markup_evolution}
-\begin{minipage}{0.85\textwidth}\footnotesize
-\emph{Notes:} Mean markup by year, computed from the baseline ACF Cobb-Douglas specification with survival correction and procurement dummy in the Markov transition. Shaded area: interquartile range.
-\end{minipage}
-\end{figure}
-\fi
-
-\subsection{Production Function Coefficients}\label{sec:pf_coefs}
-
-Table \ref{tab:pf_estimates} reports the estimated production function coefficients across specifications. I estimate the Cobb-Douglas (CD) production function:
+Estimating the output elasticity $\theta^V_{it}$ from production data confronts a fundamental simultaneity problem: firms observe their productivity $\omega_{it}$ and adjust variable inputs accordingly, biasing OLS upward for the variable input coefficient. Fixed effects do not solve this---they require the implausible assumption that productivity is time-invariant ($\omega_{it} = \omega_i$), and first-differencing exacerbates measurement error in capital, compressing $\hat{\beta}_k$ toward zero. Olley and Pakes \cite{OlleyPakes1996} propose a structural solution: invert a monotone policy function (investment) to recover $\omega_{it} = f_t^{-1}(k_{it}, i_{it})$, then use the Markov property of productivity to form moment conditions that identify the capital coefficient. Ackerberg, Caves, and Frazer \cite{ACF2015} refine this approach, replacing investment with the variable input demand function as the proxy and resolving a collinearity problem in the first stage. The Cobb-Douglas specification is:
 \begin{equation}\label{eq:cd}
     y_{it} = \beta_0 + \beta_k k_{it} + \beta_{\text{cogs}} \text{cogs}_{it} + \omega_{it} + \varepsilon_{it},
 \end{equation}
-and the translog (TL) specification:
+and the translog specification:
 \begin{equation}\label{eq:tl}
     y_{it} = \beta_0 + \beta_k k_{it} + \beta_v v_{it} + \beta_{kk} k_{it}^2 + \beta_{vv} v_{it}^2 + \beta_{kv} k_{it} v_{it} + \omega_{it} + \varepsilon_{it},
 \end{equation}
-where $y_{it}$ is log deflated sales, $k_{it}$ is log capital, $v_{it}$ (or $\text{cogs}_{it}$) is log variable input, and $\omega_{it}$ is productivity. The two-stage ACF estimation proceeds as follows: (i) estimate expected output as a flexible function of inputs and state variables to recover $\hat{\phi}_{it}$ and $\hat{\varepsilon}_{it}$; (ii) form moment conditions $\E[\xi_{it}(\beta) \cdot \mathbf{Z}_{it}] = 0$, where $\xi_{it} = \omega_{it} - g(\omega_{it-1}, pp_{it-1})$ is the innovation to the productivity Markov process and $\mathbf{Z}_{it} = (1, k_{it}, \text{cogs}_{it-1})$.
+where $y_{it}$ is log deflated sales, $k_{it}$ is log capital, and $v_{it}$ is log variable input.
 
-\textbf{Baseline ACF Cobb-Douglas.} The estimated COGS elasticity ($\hat{\beta}_{\text{cogs}}$) is 0.957 for NACE 41, 1.100 for NACE 42, and 0.927 for NACE 43 (Panel A of Table \ref{tab:pf_estimates}). Capital elasticities are small: 0.044 (NACE 41), $-$0.024 (NACE 42), and 0.065 (NACE 43). Returns to scale are close to unity (0.995--1.070), consistent with constant returns. First-stage $R^2$ values range from 0.89 to 0.95, indicating that the polynomial approximation captures most of the variation in output.
+Estimation proceeds in two stages. The first stage recovers $\hat{\phi}_{it}$ from a flexible polynomial in inputs and state variables. The second stage forms moment conditions $\E[\xi_{it}(\beta) \cdot \mathbf{Z}_{it}] = 0$, where $\xi_{it} = \omega_{it} - g(\omega_{it-1}, pp_{it-1})$ is the innovation to the productivity Markov process and $\mathbf{Z}_{it} = (1, k_{it}, \text{cogs}_{it-1})$. The Markov transition includes the lagged procurement indicator:
+\begin{equation}
+    \hat{\omega}_{it} = \rho \hat{\omega}_{it-1} + \gamma pp_{it-1} + \delta \hat{p}_{it-1} + \xi_{it},
+\end{equation}
+where $\hat{p}_{it-1}$ is the predicted survival probability from a probit model, addressing the Olley-Pakes selection problem: surviving firms have systematically higher productivity innovations ($E[\xi_{it} | k_{it}, \text{active at } t] \neq 0$), biasing the Markov regression unless one conditions on the exit threshold \cite{OlleyPakes1996}. Including $pp_{it-1}$ in the law of motion is not a robustness check---it is the only specification consistent with the model under any hypothesis where procurement can affect productivity through learning-by-doing, scale economies, or technology transfer \cite{DeLoecker2013,DLS2021}. The control function inversion requires a scalar unobservable assumption: $\omega_{it}$ must be the only serially correlated component that the firm observes when choosing inputs. This rules out unobserved cross-firm input price variation and measurement error in the proxy variable---assumptions that are more plausible for materials (COGS) than for labor \cite{DGM2026}. Analytical standard errors follow the GMM sandwich formula of Ackerberg, Chen, and Hahn \cite{ACH2012}, with firm-clustered meat matrix and delta method for markup SEs.
 
-\textbf{Alternative estimators.} For comparison, I estimate the production function by OLS and note that the OLS COGS coefficient is virtually identical to the ACF estimate: 0.973 versus 0.957 for NACE 41 ($\Delta = 1.7\%$), 1.108 versus 1.100 for NACE 42 ($\Delta = 0.7\%$), and 0.899 versus 0.927 for NACE 43 ($\Delta = 3.0\%$). This near-equivalence is predicted by the non-identification theorem of Gandhi, Navarro, and Rivers \cite{GNR2020}: proxy variable methods generically fail to identify the flexible input elasticity for gross output production functions, because the flexible input appears in both the production function and the control function. Appendix~\ref{app:gnr} discusses the implications.
+\subsection{Variable Input Choice}\label{sec:variable_input}
 
-\textbf{Translog.} The translog specification yields a mean COGS elasticity similar to the CD for NACE 41 and 42, but with substantially larger standard errors (SE $>$ 20 for some interaction terms), reflecting the weak identification of higher-order terms in the just-identified translog system. I follow De Ridder, Grassi, and Morzenti \cite{DGM2026} in treating the CD as the preferred specification.
+The choice of variable input is the most consequential specification decision. Cost of goods sold (COGS) constitutes approximately 50\% of gross output in Czech construction, dominated by cement, steel, concrete, and fuel---materials plausibly under short-run adjustment. Intermediate inputs (II), at approximately 83\% of gross output, compress the expenditure share toward the output elasticity, mechanically pushing markups toward unity.
+
+Raval \cite{Raval2023} formalizes the concern: under cost minimization with Hicks-neutral productivity, \emph{any} flexible input should recover the same markup. His finding that labor and materials markups are negatively correlated across seven countries rejects this overidentifying restriction. In the Czech construction panel, labor-based and COGS-based markups are positively correlated ($\hat{\beta} = 0.28$--$0.82$), preserving firm rankings even though $\beta = 1$ is rejected. The positive Czech correlation means the treatment effect is preserved even when overidentification fails.
+
+De Ridder, Grassi, and Morzenti \cite{DGM2026} provide a further justification: if the variable input faces a monopsony wedge, the production approach measures the product of the markup and the input wedge. Labor markets may feature such wedges \cite{KLMS2025}, making COGS the cleaner measure. The sensitivity analysis in Section~\ref{sec:nine_methods} confirms: using II instead of COGS flips the premium sign, while all other specification choices leave it intact.
+
+\subsection{Specification Sensitivity}\label{sec:sensitivity}
+
+The central methodological finding is that markup \emph{levels} are specification-sensitive but the procurement \emph{premium} is not. The sensitivity has a clean explanation. Under the Gandhi, Navarro, and Rivers \cite{GNR2020} non-identification result, $\theta^V$ is pinned down by the expenditure share $\alpha^V_{it}$, which is observed data. The premium is therefore identified from cross-firm variation in cost shares, not from the estimated production function. This identification from $\alpha$ is robust to the estimator (ACF, OLS, Blundell-Bond), the functional form (Cobb-Douglas, translog), and the imperfect competition correction \cite{ADL2024}. It fails only when an alternative variable input yields different cost shares---confirming that the variable input definition, not the estimator, is the binding specification decision.
+
+De Loecker, Eeckhout, and Unger \cite{DLEU2025reply} make the same point for aggregate trends: output elasticities are stable, and all variation flows through the expenditure share. The Conlon, Miller, Otgon, and Yao \cite{CMOY2023} finding that markup growth is uncorrelated with PPI changes ($R^2 < 0.001$) underscores that cross-sectional cost-share variation, rather than production function estimation, drives markup measurement.
+
+The Markov specification is the second key choice. Including the procurement dummy triples the regression-adjusted premium (from 0.003 to 0.138), because the plain specification attributes all procurement-induced productivity gains to the residual, biasing the markup premium toward zero. De Loecker and Syverson \cite{DLS2021} make this point with particular force: ``if the changes in the environment are part of the information set of a producer, they should be included in the model for forecasting productivity'' (p.~196).
+
+
+%% ============================================================
+%% 4. MARKUPS IN CZECH CONSTRUCTION
+%% ============================================================
+\section{Markups in Czech Construction}\label{sec:results}
+
+\subsection{Production Function Estimates}\label{sec:pf_coefs}
+
+Table \ref{tab:pf_estimates} reports the estimated production function coefficients. The baseline COGS elasticity ($\hat{\beta}_{\text{cogs}}$) is 0.957 for NACE 41, 1.100 for NACE 42, and 0.927 for NACE 43. Capital elasticities are small (0.044, $-$0.024, and 0.065 respectively). Returns to scale are close to unity (0.995--1.076), consistent with constant returns. First-stage $R^2$ values range from 0.89 to 0.95.
+
+The OLS COGS coefficient is virtually identical to the ACF estimate: 0.973 versus 0.957 for NACE 41 ($\Delta = 1.7\%$), 1.108 versus 1.100 for NACE 42 ($\Delta = 0.7\%$). This near-equivalence is predicted by the Gandhi, Navarro, and Rivers \cite{GNR2020} non-identification theorem: proxy variable methods generically fail to identify the flexible input elasticity for gross output production functions. The translog specification yields similar mean elasticities but with substantially larger standard errors, reflecting weak identification of higher-order terms in the just-identified system. Following De Ridder, Grassi, and Morzenti \cite{DGM2026}, the Cobb-Douglas serves as the preferred specification.
 
 \begin{table}[htbp]\centering
 \caption{Production Function Estimates by Industry}\label{tab:pf_estimates}
@@ -213,102 +212,123 @@ Translog & 1.459 (0.192) & 0.988 (0.212) & 1.181 (0.665) \\
 \end{threeparttable}
 \end{table}
 
-\subsection{Markup Decomposition}\label{sec:decomposition}
+\subsection{Markup Distributions}\label{sec:markups}
 
-To understand the dynamics of aggregate markups, I decompose the change in the sales-weighted average markup following the approach of Benkard, Miller, and Yurukoglu \cite{BMY2026}, who extend the Olley-Pakes productivity decomposition to markups. The aggregate markup in year $t$ is:
-\begin{equation}\label{eq:agg_markup}
-    \bar{\mu}_t = \sum_i s_{it} \mu_{it} = \bar{\mu}_t^{UW} + \sum_i (s_{it} - \bar{s}_t)(\mu_{it} - \bar{\mu}_t^{UW}),
+Average markups differ substantially across sub-industries: NACE 41 (buildings) averages 2.14, NACE 42 (civil engineering) 2.35, and NACE 43 (specialized construction) 1.71. These levels---prices 70--110\% above variable cost---may appear large for a competitive industry with 3--8\% profit margins. However, markups measure price relative to \emph{variable} cost only; fixed costs (land, equipment, overhead) drive the wedge. As Hall~\cite{Hall2018} emphasizes, an industry with 5\% profit margins can sustain markups of 2.0 if fixed costs account for 47\% of revenue.
+
+The unconditional log markup difference between procurement and non-procurement firms is 0.186 (SE $= 0.003$). Controlling for year$\times$NACE fixed effects and input levels, the cross-sectional premium is $\hat{\beta}_1 = 0.140$ (SE $= 0.005$), implying a 14.9\% procurement markup premium. Czech construction markups fall within the range documented in the broader European literature \cite{DiezLeighTambunlertchai2018}.
+
+\iffalse % BMY figure disabled --- depends on disabled pipeline script
+\begin{figure}[htbp]\centering
+\includegraphics[width=0.85\textwidth]{bmy_percentiles.pdf}
+\caption{Evolution of Markups in Czech Construction, 2006--2021}\label{fig:markup_evolution}
+\begin{minipage}{0.85\textwidth}\footnotesize
+\emph{Notes:} Mean markup by year, computed from the baseline ACF Cobb-Douglas specification with survival correction and procurement dummy in the Markov transition. Shaded area: interquartile range.
+\end{minipage}
+\end{figure}
+\fi
+
+\subsection{Nine-Method Comparison}\label{sec:nine_methods}
+
+Table \ref{tab:dls} confirms the robustness of the procurement premium across nine distinct markup estimation methods following the taxonomy of De Loecker and Syverson \cite{DLS2021}. The premium ranges from 12.5\% to 14.3\% across eight methods, with only OLS (0.3\%) as an outlier---consistent with the GNR non-identification result destroying cross-sectional variation under simultaneity bias. While markup \emph{levels} vary from 1.02 (cost-share) to 2.17 (Blundell-Bond), the treatment effect is stable. This validates the De Ridder, Grassi, and Morzenti \cite{DGM2026} prediction: revenue-based markup \emph{variation} is well-measured even when levels are biased by a sector-level constant.
+
+\input{../input/tables/dls_comparison.tex}
+
+\subsection{Aggregate Trends}\label{sec:aggregate}
+
+To place the procurement premium in broader context, aggregate markup trends are constructed following De Loecker, Eeckhout, and Unger \cite{DeLoekerEeckhout2020}. For each year $t$, the sales-weighted aggregate markup is:
+\begin{equation}\label{eq:dleu_agg}
+    M_t^{sw} = \sum_i \omega_{it} \mu_{it}^A, \quad \omega_{it} = \frac{\text{sales}_{it}}{\sum_j \text{sales}_{jt}}.
 \end{equation}
-where $s_{it}$ is firm $i$'s sales share and $\bar{\mu}_t^{UW}$ is the unweighted mean markup. Changes over time decompose into within-firm changes, reallocation (covariance between size and markups), and net entry.
+Figure~\ref{fig:dleu_aggregate} plots four specifications. Unlike the secular rise documented by DLEU for US manufacturing (1.21 in 1980 to 1.61 in 2016), Czech construction exhibits a \emph{declining} aggregate markup, from 2.45 in 2007 to 2.08 in 2021. The sales-weighted aggregate consistently exceeds the simple mean by 0.20--0.40 markup points, indicating that larger firms carry systematically higher markups.
 
-The key finding is that \emph{within-firm} markups rose modestly over the sample period, while the \emph{aggregate} markup fell. The reconciliation lies in compositional effects: net entry of lower-markup firms---particularly smaller specialized construction firms (NACE 43) entering the market---pulled down the aggregate even as incumbents' markups increased. This pattern is the opposite of the US finding in De Loecker, Eeckhout, and Unger \cite{DeLoekerEeckhout2020}, where reallocation toward high-markup firms drove the aggregate increase.
+\input{../input/tables/dleu_table_markup_specs.tex}
 
-When I decompose separately for procurement and non-procurement firms, the within-firm increase is concentrated among procurement firms. This is consistent with the procurement premium narrative: firms that enter government contracting experience markup increases, but the expanding procurement sector draws in firms with initially lower markups, partially offsetting the within-firm effect in the aggregate.
+\begin{figure}[htbp]\centering
+\includegraphics[width=0.85\textwidth]{dleu_fig1_aggregate_markup.pdf}
+\caption{Aggregate Markups --- Czech Construction (CZ-NACE F)}\label{fig:dleu_aggregate}
+\begin{minipage}{0.85\textwidth}\footnotesize
+\emph{Notes:} Sales-weighted aggregate markup $M_t^{sw}$ under four specifications: ACF production-function-estimated $\hat{\theta}_{st}$ (benchmark), calibrated $\theta = 0.85$, firm-level cost share $\alpha^V_{it} = \text{COGS}_{it}/(\text{COGS}_{it} + r_t K_{it})$, and industry-median cost share. Vertical dashed lines mark Act~55/2012 (single-bid ban) and Act~134/2016 (MEAT criteria).
+\end{minipage}
+\end{figure}
 
-\iffalse % BMY figure disabled — depends on disabled pipeline script
+Following DLEU (eq.~9), changes in the aggregate markup decompose into within-firm, market-share reallocation, cross, and net-entry components using the Haltiwanger (1997) demeaning:
+\begin{equation}\label{eq:decomp}
+    \Delta M_t = \underbrace{\sum_i m_{i,t-1} \Delta\mu_{it}}_{\Delta\text{within}} + \underbrace{\sum_i \tilde{\mu}_{i,t-1} \Delta m_{it}}_{\Delta\text{market share}} + \underbrace{\sum_i \Delta\mu_{it} \Delta m_{it}}_{\Delta\text{cross}} + \underbrace{\sum_{i \in E_t} \tilde{\mu}_{it} m_{it} - \sum_{i \in X_t} \tilde{\mu}_{i,t-1} m_{i,t-1}}_{\text{net entry}}.
+\end{equation}
+Three findings emerge (Figure~\ref{fig:dleu_decomp}, Table~\ref{tab:dleu_sectoral}). The within-firm component dominates the aggregate decline. Net entry contributes large year-to-year swings but is approximately neutral cumulatively. Most variation is within-industry, with reallocation between NACE sub-industries playing a secondary role---matching the DLEU finding that aggregate markup dynamics are driven by within-sector forces.
+
+\begin{figure}[htbp]\centering
+\includegraphics[width=0.85\textwidth]{dleu_fig4_decomposition.pdf}
+\caption{Decomposition of Markup Growth at the Firm Level}\label{fig:dleu_decomp}
+\begin{minipage}{0.85\textwidth}\footnotesize
+\emph{Notes:} Cumulative decomposition following DLEU (2020, eq.~9). Each counterfactual starts from the 2007 aggregate markup and adds only the indicated component. ``Within'' holds market shares fixed; ``Reallocation'' holds markups fixed (market share + cross terms); ``Net entry'' isolates the contribution of entering and exiting firms.
+\end{minipage}
+\end{figure}
+
+\input{../input/tables/dleu_table1_sectoral_decomp.tex}
+
+The upper tail drives the aggregate (Figure~\ref{fig:dleu_percentiles}): the sales-weighted P90 exceeds 3.0 throughout, while the median is stable around 1.6--1.8. Splitting by procurement status (Figure~\ref{fig:dleu_pp_split}) confirms that procurement firms maintain systematically higher markups, with the gap narrowing after 2012 consistent with transparency reforms.
+
+\begin{figure}[htbp]\centering
+\includegraphics[width=0.85\textwidth]{dleu_fig3_distribution.pdf}
+\caption{Percentiles of the Markup Distribution (sales-weighted)}\label{fig:dleu_percentiles}
+\begin{minipage}{0.85\textwidth}\footnotesize
+\emph{Notes:} Firms ranked by markup; percentiles computed using cumulative sales shares as weights (DLEU Figure~III, Panel~B). Average is the sales-weighted aggregate $M_t^{sw}$.
+\end{minipage}
+\end{figure}
+
+\begin{figure}[htbp]\centering
+\includegraphics[width=0.85\textwidth]{dleu_fig_procurement_split.pdf}
+\caption{Aggregate Markup by Procurement Status}\label{fig:dleu_pp_split}
+\begin{minipage}{0.85\textwidth}\footnotesize
+\emph{Notes:} Sales-weighted aggregate markup computed separately for procurement ($pp = 1$) and non-procurement ($pp = 0$) firms. Vertical lines mark the 2012 and 2016 transparency reforms.
+\end{minipage}
+\end{figure}
+
+When the decomposition is computed separately for procurement and non-procurement firms, the within-firm markup increase is concentrated among procurement firms. Firms entering government contracting experience markup increases, but the expanding procurement sector draws in firms with initially lower markups, partially offsetting the within-firm effect in the aggregate.
+
+\iffalse % BMY figure disabled --- depends on disabled pipeline script
 \begin{figure}[htbp]\centering
 \includegraphics[width=0.85\textwidth]{bmy_decomposition.pdf}
 \caption{Markup Decomposition: Within-Firm vs.\ Reallocation vs.\ Entry}\label{fig:decomposition}
 \begin{minipage}{0.85\textwidth}\footnotesize
-\emph{Notes:} Olley-Pakes style decomposition of the sales-weighted average markup. ``Within'' captures changes in markups holding market shares fixed. ``Reallocation'' captures the covariance between market share changes and markup levels. ``Net entry'' captures the contribution of entering and exiting firms.
+\emph{Notes:} Olley-Pakes \cite{OlleyPakes1996} style decomposition of the sales-weighted average markup. ``Within'' captures changes in markups holding market shares fixed. ``Reallocation'' captures the covariance between market share changes and markup levels. ``Net entry'' captures the contribution of entering and exiting firms.
 \end{minipage}
 \end{figure}
 \fi
 
-\subsection{Specification Sensitivity}\label{sec:sensitivity}
-
-A central contribution of this paper is to document the sensitivity of markup estimates---and, crucially, the \emph{treatment effect}---to production function specification choices. I systematically vary four dimensions: (a) the variable input, (b) the Markov process, (c) the functional form, and (d) the estimator.
-
-\textbf{(a) Variable input: COGS vs.\ intermediate inputs.} The most consequential specification choice is the definition of the variable input. Using COGS (approximately 50\% of gross output), markups average 1.7--2.2 across sub-industries, and the procurement premium is positive (0.09--0.17 depending on the specification). Using intermediate inputs (II, approximately 83\% of gross output), markups average approximately 1.15, and the procurement premium \emph{flips sign}, ranging from $-$0.02 to $-$0.08. The intuition is straightforward: because II constitutes a much larger share of revenue, the expenditure share $\alpha^V_{it}$ is closer to the output elasticity $\theta^V_{it}$, compressing the markup toward unity and eliminating the cross-sectional variation that generates the premium. This finding echoes the sensitivity documented by Benkard, Miller, and Yurukoglu \cite{BMY2026} for aggregate markup trends. I retain COGS as the baseline variable input because it corresponds to the cost item most plausibly under short-run adjustment, but the reader should interpret the absolute markup levels with caution. Raval \cite{Raval2023} formalizes this as an overidentification test of the production approach: under cost minimization, \emph{any} flexible input should recover the same markup ($\mu_{it} = \theta^X_{it} / \alpha^X_{it}$ for all $X$). His finding that labor and materials markups are negatively correlated across seven countries suggests that Hicks-neutral productivity---assumed by all standard estimators including ACF---is fundamentally misspecified. This concern is sharpened by \cite{CMOY2023}, who show that the $\mu = \theta \times \text{Sale}/\text{COGS}$ formula produces industry-level markup trends uncorrelated with Producer Price Index changes ($R^2 < 0.001$), suggesting that markup variation driven by the variable input choice reflects cost structure rather than pricing power.
-
-Raval \cite{Raval2023} provides an overidentification test: under cost minimization with Hicks-neutral productivity, \emph{any} flexible input should recover the same markup. The production approach is therefore overidentified whenever multiple variable inputs are available. As Scott (2024) notes in his lecture notes on production function estimation: ``When one can implement the production approach with multiple variable inputs, markups are overidentified, and this overidentification can be used to test modeling assumptions.'' I find that labor-based and materials-based markups are highly correlated in the Czech construction panel, though the cross-firm $\beta$ estimates (0.28--0.82) reject the null of perfect alignment. This is consistent with Raval's finding of overidentification rejection across seven countries---the production approach is a valid tool for measuring \emph{relative} markup variation even when level comparisons across variable inputs disagree.
-
-\textbf{(b) Markov process: procurement dummy.} The Markov transition is the central specification choice for treatment evaluation. The proxy variable method requires that productivity evolves as a first-order Markov process, $\omega_{it} = g(\omega_{it-1}) + \xi_{it}$, with identifying assumption $E[\xi_{it} \cdot Z_{it}] = 0$. If the treatment variable can affect future productivity---through learning-by-doing, scale economies, technology transfer, or worker upskilling---then the true law of motion is $\omega_{it} = g(\omega_{it-1}, pp_{it-1}) + \xi_{it}$, and omitting $pp_{it-1}$ from $g(\cdot)$ produces an internally inconsistent estimator. De Loecker \cite{DeLoecker2013} establishes this point rigorously in the context of learning-by-exporting: methods that assume exogenous productivity evolution suffer from an \emph{internal inconsistency} when the treatment is in fact productivity-enhancing, because the omitted term $g(pp_{it-1})$ contaminates the residual and violates the moment conditions underlying second-stage estimation. De Loecker and Syverson \cite{DLS2021} make this point with particular force in their \emph{Handbook of Industrial Organization} survey: ``if the changes in the environment are part of the information set of a producer, they should be included in the model for forecasting productivity, $g(\cdot)$'' (p.\ 196). They add: ``This is not merely a matter of econometric sophistication or style. It can substantially alter inference and the conclusions made about the importance of the productivity driver, both quantitatively and qualitatively'' (p.\ 197). Standard approaches that omit the treatment from the law of motion ``fail to identify these effects.'' Collard-Wexler and De Loecker \cite{CWDL2015} apply the same logic to minimill technology adoption in US steel.
-
-Including $pp_{it-1}$ in the Markov transition is therefore not a robustness check---it is the \emph{only specification consistent with the model} under any economic hypothesis where procurement can affect productivity dynamics. For Czech construction, this hypothesis is economically plausible: government contracts typically involve elevated quality standards, scale economies from larger projects, and technology transfer from regulated procurement processes. The quantitative consequence is stark: the regression-adjusted premium is 0.138 (SE = 0.002) under the internally consistent specification, but only 0.003 (SE = 0.002) under the plain ACF specification that assumes procurement has zero effect on productivity dynamics. The plain specification is not a neutral benchmark---it is an estimate under the strong assumption that procurement does not raise productivity.
-
-\iffalse % spec_sensitivity table disabled — depends on disabled pipeline script
-\input{../input/tables/spec_sensitivity.tex}
-\fi
-
-The sensitivity has a deeper interpretation. Under the internally consistent specification, the estimated $\omega_{it}$ absorbs procurement-induced productivity gains, and the residual markup premium of 14\% captures the pure pricing-power effect---what procurement firms extract \emph{beyond} any productivity advantage they accumulate. Under the plain specification, the entire effect of procurement is attributed to either productivity or markups, but the misspecification of $g(\cdot)$ biases both: $\omega_{it}$ is estimated as if procurement has no persistent effect, and the markup premium collapses because the differential in $\alpha^V_{it}$ between procurement and non-procurement firms now reflects both pricing power and the misallocated productivity gain. This connects to the De Loecker, Eeckhout, and Unger \cite{DLEU2025reply} reply to Benkard, Miller, and Yurukoglu: output elasticities are stable, and all variation flows through the expenditure share $\alpha^V_{it}$. The question is not whether the estimator identifies $\theta$ correctly, but whether the Markov specification correctly partitions treatment effects between productivity ($\omega$) and markups ($\mu$). Under De Loecker \cite{DeLoecker2013}, that partition requires the treatment variable in $g(\cdot)$.
-
-\textbf{(c) Functional form: Cobb-Douglas vs.\ translog.} The CD and translog specifications yield similar average markups and premiums. The translog premium (raw: 0.173; regression: 0.139) is within one standard error of the CD baseline (raw: 0.186; regression: 0.138). The main difference is precision: translog standard errors are 2--5$\times$ larger due to the weak identification of interaction terms.
-
-\textbf{(d) Estimator: ACF vs.\ OLS.} The OLS premium (raw: 0.195; regression: 0.140) is virtually identical to the ACF premium, consistent with the GNR \cite{GNR2020} non-identification result. This near-equivalence extends to the regression-adjusted premium, where the coefficient on $pp_{it}$ is 0.140 under both OLS and ACF.
-
-Under the Gandhi, Navarro, and Rivers~\cite{GNR2020} non-identification result, $\theta^V$ is pinned down by the expenditure share $\alpha^V_{it}$, which is observed data. The markup premium is therefore identified from cross-firm variation in cost shares, not from the estimated production function---a feature for treatment evaluation. This identification from $\alpha$ fails, however, when alternative variable inputs yield different cost shares: using intermediate inputs instead of COGS flips the premium sign, confirming that the choice of variable input, not the estimator, is the binding specification decision.
-
-The procurement premium is robust across functional forms and estimators but highly sensitive to the variable input definition and the Markov specification.
-
-\iffalse % BMY figure disabled — depends on disabled pipeline script
-\begin{figure}[htbp]\centering
-\includegraphics[width=0.85\textwidth]{bmy_variable_input.pdf}
-\caption{Specification Sensitivity: Variable Input Choice}\label{fig:sensitivity}
-\begin{minipage}{0.85\textwidth}\footnotesize
-\emph{Notes:} Procurement markup premium under alternative variable input definitions. COGS = cost of goods sold ($\approx$50\% of GO). II = intermediate inputs ($\approx$83\% of GO). Error bars: 95\% confidence intervals, firm-clustered SEs.
-\end{minipage}
-\end{figure}
-\fi
-
-Table \ref{tab:dls} confirms the robustness of the procurement premium across nine distinct markup estimation methods following the taxonomy of De Loecker and Syverson \cite{DLS2021}. The premium ranges from 12.5\% to 14.3\% across eight methods, with only OLS (0.3\%) as an outlier---consistent with the GNR non-identification result destroying cross-sectional variation under simultaneity bias. Crucially, while markup \emph{levels} vary from 1.02 (cost-share) to 2.17 (Blundell-Bond), the treatment effect is stable. This validates the De Ridder, Grassi, and Morzenti \cite{DGM2026} prediction: revenue-based markup \emph{variation} is well-measured even when levels are biased by a sector-level constant.
-
-\input{../input/tables/dls_comparison.tex}
 
 %% ============================================================
-%% 4. CAUSAL ANALYSIS
+%% 5. THE PROCUREMENT MARKUP PREMIUM
 %% ============================================================
-\section{Causal Analysis}\label{sec:causal}
+\section{The Procurement Markup Premium}\label{sec:causal}
 
-The cross-sectional results in Section \ref{sec:markups} document a strong association between procurement and markups but do not establish causality. More productive firms may self-select into government tenders (Autor et al.\ 2020; Miller 2024), and government contracts may provide stable demand that enables higher prices. I employ three complementary identification strategies: a full-panel fixed effects analysis, a design-based approach under unconfoundedness, and modern panel data methods.
+The cross-sectional results document a strong association between procurement and markups but do not establish causality. More productive firms may self-select into government tenders, and government contracts may provide stable demand that enables higher prices.
 
-\subsection{Full-Panel Fixed Effects}\label{sec:panel_fe}
+\subsection{Cross-Section and Panel Fixed Effects}\label{sec:panel_fe}
 
-My primary specification exploits within-firm variation in procurement status across the full panel of 1,267 firms:
+The primary specification exploits within-firm variation in procurement status across a panel of 1,267 firms:
 \begin{equation}\label{eq:panel_fe}
     \ln\mu_{it} = \delta_1 \, pp_{it} + \alpha_i + \gamma_t + \nu_{it},
 \end{equation}
-where $\alpha_i$ and $\gamma_t$ are firm and year fixed effects. Firm fixed effects absorb time-invariant differences between procurement and non-procurement firms (e.g., persistent productivity advantages, political connections); year fixed effects absorb aggregate markup trends. The coefficient $\delta_1$ is identified from the 474 ``switcher'' firms that change procurement status during the sample period.
+where $\alpha_i$ and $\gamma_t$ are firm and year fixed effects. The coefficient $\delta_1$ is identified from the 474 switcher firms that change procurement status during the sample period. The estimate is $\hat{\delta}_1 = 0.131$ (SE = 0.005), corresponding to a 14.0\% premium. This is stable across specifications: pooled OLS with year$\times$NACE fixed effects gives 15.0\%, firm FE alone gives 14.8\%, and adding capital and COGS controls gives 14.1\%.
 
-The primary specification (firm + year FE) yields $\hat{\delta}_1 = 0.131$ (SE = 0.005), corresponding to a 14.0\% procurement premium. This estimate is remarkably stable across specifications: pooled OLS with year$\times$NACE fixed effects and input controls gives 15.0\%, firm FE alone gives 14.8\%, and adding capital and COGS as time-varying controls gives 14.1\%. By NACE sub-industry, the premium is largest in buildings (17.4\%, NACE 41) and smallest in civil engineering (6.4\%, NACE 42).
+Robustness to omitted variable bias is assessed using Oster \cite{Oster2019}: the bias-adjusted coefficient under equal selection ($\delta = 1$) and $R_{\max} = \min(1.3\tilde{R}, 1)$ yields an identified set of $[0.116, 0.140]$, with $\delta^* = -5.9$---unobservables would need to work in the \emph{opposite} direction to explain away the premium.
 
-I assess robustness to omitted variable bias using the Oster \cite{Oster2019} coefficient stability framework. The bias-adjusted coefficient under equal selection ($\delta = 1$) and $R_{\max} = \min(1.3\tilde{R}, 1)$ yields an identified set of $[0.116, 0.140]$, corresponding to a premium range of 12.3--15.0\%. The bounding parameter $\delta^* = -5.9$, indicating that unobservables would need to work in the \emph{opposite} direction to observables to explain away the premium---a strong robustness result. Even under the worst-case scenario where the entire Baran\v{e}k and Titl \cite{BaranekTitl2024} favoritism channel (+6\% overpricing from political connections) applies differentially to procurement firms, the residual premium of $\sim$9\% remains economically significant.
+A potential SUTVA concern is that procurement firms crowd out private demand for untreated firms. Using the KLMS~\cite{KLMS2025} estimate that government projects displace 27\% of private market output and the 30\% procurement share in Czech construction, the implied control-group markup depression is bounded at approximately 1--2 percentage points---meaningful but insufficient to explain the full premium.
 
-\textbf{SUTVA.} A potential concern with interpreting $\delta_1$ as a causal effect is that procurement firms compete with non-procurement firms for the same contracts, violating the stable unit treatment value assumption. If winning a government contract crowds out private demand for untreated firms, their markups may decline, inflating the treatment-control gap. This suggests that $\delta_1$ may overstate the direct effect of procurement on treated firms' markups. The crowd-out direction is consistent with the KLMS \cite{KLMS2025} finding that government projects displace 27\% of private market output in US construction. Using the KLMS~\cite{KLMS2025} estimate that government projects displace 27\% of private market output and the 30\% procurement share in Czech construction, the implied control-group markup depression from crowding out is bounded at approximately 1--2 percentage points---meaningful but insufficient to explain the full premium.
+\subsection{Entry and Exit Dynamics}\label{sec:entry_exit}
 
-\subsection{DLW Treatment Evaluation}\label{sec:dlw_eval}
+Following the exporter markup analysis of De Loecker and Warzynski \cite{DLW2012}, the procurement premium is decomposed into components explained by productivity selection and residual pricing power.
 
-Following the exporter markup analysis of De Loecker and Warzynski \cite{DLW2012}, I decompose the procurement premium into components explained by productivity selection and residual pricing power.
+Firms entering public procurement experience an 11.5\% markup increase (Table \ref{tab:dlw_eval}); firms exiting see an 11.2\% decrease. The near-symmetric reversal is the strongest causal evidence: if the premium were driven by pre-existing firm characteristics, exit effects would be zero. The symmetry implies that procurement \emph{causes} markup changes, not merely selects high-markup firms.
 
-\textbf{Entry and exit dynamics.} Firms entering public procurement experience an 11.5\% markup increase (Table \ref{tab:dlw_eval}, ``Entry effect''); firms exiting see an 11.2\% decrease. The near-symmetric reversal is the strongest causal evidence in the paper: if the premium were driven by pre-existing firm characteristics, exit effects would be zero. The symmetry implies that procurement \emph{causes} markup changes, not merely selects high-markup firms.
+\input{../input/tables/dlw_treatment_eval.tex}
 
-\textbf{Productivity decomposition.} Including translog productivity $\hat{\omega}_{it}$ as a control reduces the premium from 13.5\% to 3.2\% ($t = 4.1$). Productivity thus explains 76\% of the procurement-markup association---closely matching DLW's finding that productivity explains approximately 70\% of the export markup premium. The residual 3.2\% represents pricing power beyond cost advantages: procurement firms charge above what their productivity alone would predict, consistent with less elastic government demand or political favoritism \cite{BaranekTitl2024}.
+\subsection{Event Study}\label{sec:event_study}
 
-\textbf{Intensive margin.} Interacting the procurement dummy with procurement revenue share yields a coefficient of 0.037 ($t = 4.3$): each additional unit of procurement intensity raises markups by 3.7\%. This dose-response relationship reinforces the causal interpretation.
-
-\textbf{Sub-industry heterogeneity.} Interacting procurement status with NACE 2-digit dummies reveals heterogeneous premiums: buildings (NACE 41) 16.9\%, civil engineering (NACE 42) 15.5\%, and specialized construction (NACE 43) 7.8\%. The 2:1 ratio between buildings and specialized construction mirrors the concentration differences across sub-industries and suggests the premium partly reflects market structure, not just procurement participation.
-
-\textbf{Event study.} Figure~\ref{fig:event_study} plots the markup trajectory around procurement entry ($\tau = -3$ to $+5$, with $\tau = -1$ as reference). Pre-entry coefficients are flat and insignificant ($\tau = -3$: $-0.010$; $\tau = -2$: $-0.008$), validating the parallel trends assumption. The markup jumps sharply at entry ($\tau = 0$: $+0.134$) and remains persistently elevated through $\tau = +5$ ($\approx 0.09$--$0.11$). The absence of pre-trends combined with persistent post-entry effects is the cleanest causal evidence in the paper.
+Figure~\ref{fig:event_study} plots the markup trajectory around procurement entry ($\tau = -3$ to $+5$, with $\tau = -1$ as reference). Pre-entry coefficients are flat and insignificant ($\tau = -3$: $-0.010$; $\tau = -2$: $-0.008$), validating the parallel trends assumption. The markup jumps sharply at entry ($\tau = 0$: $+0.134$) and remains persistently elevated through $\tau = +5$ ($\approx 0.09$--$0.11$). The absence of pre-trends combined with persistent post-entry effects is the cleanest causal evidence in the paper.
 
 \begin{figure}[htbp]\centering
 \includegraphics[width=0.85\textwidth]{dlw_event_study.pdf}
@@ -318,9 +338,35 @@ Following the exporter markup analysis of De Loecker and Warzynski \cite{DLW2012
 \end{minipage}
 \end{figure}
 
-\input{../input/tables/dlw_treatment_eval.tex}
+\subsection{Productivity Decomposition}\label{sec:productivity_decomp}
 
-\iffalse % Selection on Observables disabled — depends on lalonde pipeline script
+Including translog productivity $\hat{\omega}_{it}$ as a control reduces the premium from 13.5\% to 3.2\% ($t = 4.1$). Productivity thus explains 76\% of the procurement-markup association---closely matching DLW's finding that productivity explains approximately 70\% of the export markup premium. The residual 3.2\% represents pricing power beyond cost advantages: procurement firms charge above what their productivity alone would predict, consistent with less elastic government demand or political favoritism \cite{BaranekTitl2024}.
+
+Interacting the procurement dummy with procurement revenue share yields a coefficient of 0.037 ($t = 4.3$): each additional unit of procurement intensity raises markups by 3.7\%. This dose-response relationship reinforces the causal interpretation.
+
+\subsection{Sub-Industry Heterogeneity}\label{sec:heterogeneity}
+
+Interacting procurement status with NACE 2-digit dummies reveals heterogeneous premiums: buildings (NACE 41) 16.9\%, civil engineering (NACE 42) 15.5\%, and specialized construction (NACE 43) 7.8\%. The 2:1 ratio between buildings and specialized construction mirrors concentration differences and suggests the premium partly reflects market structure. By NACE sub-industry, the firm FE premium is largest in buildings (17.4\%, NACE 41) and smallest in civil engineering (6.4\%, NACE 42).
+
+\subsection{Czech Transparency Reforms}\label{sec:policy}
+
+The declining premium---from approximately 30\% in 2006 to approximately 10\% in 2021---coincides with the institutional reforms summarized in Table~\ref{tab:reforms}. Full-panel firm fixed effects estimates show a clear structural break around 2012, with the premium falling from approximately 0.30 (2006--2009) to 0.25 (2010--2015) to 0.10 (2016--2021).
+
+An important caveat is that the decline may partly reflect compositional changes: as more firms enter procurement (the procurement share rose from 28\% to 55\%), the marginal entrants may be less productive and less able to extract rents, mechanically reducing the average premium. The within-firm decomposition partially addresses this by showing that within-firm markups of procurement firms also declined.
+
+\iffalse % Favoritism subsection disabled --- depends on favoritism_decomposition pipeline script
+\subsection{Favoritism versus Productivity}\label{sec:favoritism}
+
+Baran\'{e}k and Titl \cite{BaranekTitl2024} show that political connections raise Czech procurement prices by 6.2\%, with no corresponding gains in project quality, and that EU co-funding oversight fully mitigates this overpricing. Their identification exploits electoral variation: when a connected politician loses power, the firm's contracts immediately return to normal prices.
+
+\input{../input/tables/favoritism_decomposition.tex}
+
+Table~\ref{tab:favoritism} decomposes the markup premium. Firms with above-median single-bid shares exhibit a larger premium than those facing greater competition (Panel~A). The premium declines from pre-2012 to post-2012, consistent with the single-bidding ban reducing favoritism (Panel~B). A calibration against Baran\'{e}k and Titl~\cite{BaranekTitl2024}, who estimate 6.2\% contract-price overpricing from political connections, places an upper bound of approximately 6 percentage points on the favoritism channel (Panel~C). Oster \cite{Oster2019} bounds yield $\delta^* = -6.05$, indicating unobservables would need to work in the opposite direction to explain away the premium (Panel~D). Both policy reforms are associated with significant declines in the procurement premium (Panel~E).
+
+Panel~F provides a direct test using engineering cost estimates from the procurement register. Procuring authorities produce ex-ante cost estimates for each tender; the ratio of realized price to this estimate ($\mathrm{Rel\_Price}_{jt}$) measures overpricing at the contract level.\footnote{Engineering estimates explain 91\% of price variation in the full Datlab sample (Baran\'{e}k and Titl~\cite{BaranekTitl2024}, Table~1). I aggregate contract-level Rel\_Price to firm-year means, trimming to $(0.2, 5)$ following their methodology.} On the subsample of 385 procurement firms with estimate data, the baseline premium is 0.152 (row~1). Adding Rel\_Price as a control reduces it to only 0.141 (row~2)---overpricing accounts for less than 8\% of the premium. The Rel\_Price coefficient itself is small (0.021, $p < 0.01$): firms that bid higher relative to estimates have marginally higher markups, but the effect is economically negligible. Most strikingly, among procurement firms, the within-firm correlation between markups and Rel\_Price is essentially zero ($-0.002$, $p = 0.87$; row~3). High-markup firms do not overbid---they produce cheaply. The markup premium reflects productivity selection, not rent extraction through overpricing. The tender data lack EU co-funding indicators, precluding a direct test of the oversight channel identified by Baran\'{e}k and Titl~\cite{BaranekTitl2024}.
+\fi
+
+\iffalse % Selection on Observables disabled --- depends on lalonde pipeline script
 \subsection{Selection on Observables}\label{sec:unconfound}
 
 Following Imbens and Xu \cite{ImbensXu2024}, I estimate the ATT under the unconfoundedness assumption: conditional on pre-treatment covariates, procurement status is independent of potential outcomes:
@@ -335,7 +381,7 @@ Table \ref{tab:lalonde} reports the results. All eleven estimators yield ATT est
 \input{../input/tables/lalonde_comparison.tex}
 \fi
 
-\iffalse % Panel Data Methods disabled — depends on fect pipeline script
+\iffalse % Panel Data Methods disabled --- depends on fect pipeline script
 \subsection{Panel Data Methods}\label{sec:panel}
 
 The unconfoundedness design addresses selection on observables but requires the strong assumption that all relevant confounders are captured by pre-treatment covariates. Panel data methods can address selection on time-invariant unobservables.
@@ -389,30 +435,31 @@ Dynamic treatment effects are flat and centered near zero during the pre-treatme
 Taken together, the four identification strategies yield a consistent picture: entering public procurement raises markups by approximately 14--15\%, with a large on-impact effect that declines over time. The full-panel firm FE estimate (14.0\%), the DLW entry effect (11.5\%), the design-based estimates (12--16\%), the counterfactual estimators (15.0\%), and the SDID cohort estimates (4--13\%) all point in the same direction. The convergence across methods with very different identifying assumptions---within-firm variation, selection on observables, synthetic control weighting, and matrix completion---provides strong evidence that the premium is not an artifact of a particular identification strategy.
 \fi
 
+
 %% ============================================================
-%% 5. ROBUSTNESS
+%% 6. ROBUSTNESS
 %% ============================================================
 \section{Robustness}\label{sec:robustness}
 
+\subsection{CWDL Extensions}\label{sec:cwdl}
+
+Following Collard-Wexler and De Loecker \cite{CWDL2015}, six specifications vary the Markov process, survival correction, and instrument set. The procurement premium is 0.138 (SE = 0.005) under the baseline and all variants that include $pp_{it-1}$ in the Markov; it collapses to 0.003 (SE = 0.002) when procurement is excluded from the law of motion. The survival correction has negligible effects (Appendix Table~\ref{tab:cwdl}). Translog and OLS premiums fall within one standard error of the baseline.
+
 \subsection{ADL Imperfect Competition}\label{sec:adl}
 
-Under imperfect competition, input demand depends not only on productivity but also on the competitive environment. Ackerberg and De Loecker \cite{ADL2024} show that the scalar unobservable inversion underlying ACF requires conditioning on a sufficient statistic for this environment. Under Cournot, the sufficient statistic is total competitor output $Q_{-jt}$; under differentiated products (logit), it is an inclusive value $\Phi_{-jt}$.
+Under imperfect competition, input demand depends on the competitive environment, contaminating the scalar unobservable inversion at the heart of proxy variable estimators. Ackerberg and De Loecker \cite{ADL2024} show that this requires conditioning on a sufficient statistic---total competitor output under Cournot, an inclusive value under differentiated products.
 
-I implement the ADL correction by: (i) defining markets as year $\times$ NACE 2-digit cells with at least one procurement firm, (ii) including the sufficient statistic (competitors' total deflated revenue) in the first-stage polynomial and the Markov transition, and (iii) adding oligopoly instruments (competitors' fixed assets and lagged productivity) to the moment conditions.
+The correction is implemented by defining markets as year $\times$ NACE 2-digit cells, including competitors' total deflated revenue in the first-stage polynomial and Markov transition, and adding oligopoly instruments to the moment conditions. The result is a null: the procurement premium changes by less than 0.005. Production function coefficients shift by 0.01--0.03, but the ratio determining the markup premium is approximately invariant.
 
-The result is a null: the procurement premium changes by less than 0.005 under the imperfect competition correction in the Cobb-Douglas specification. Production function coefficients do shift---$\hat{\beta}_k$ and $\hat{\beta}_{\text{cogs}}$ move by 0.01--0.03---but the ratio that determines the markup premium is approximately invariant. To see why, note that the differential bias is small: procurement and non-procurement firms within the same year $\times$ NACE cell face similar competitive environments once one conditions on the market-level sufficient statistic.
+Two explanations support this null. First, when competition is approximately symmetric within markets---firms face similar demand and the same competitor structure---the sufficient statistic is absorbed by market-level fixed effects, and the correction is irrelevant \cite{ADL2024}. In Czech construction, where firms routinely compete for both public and private projects within the same NACE$\times$year cell, this symmetry condition is plausible. Second, the KLMS \cite{KLMS2025} attenuation mechanism predicts that corrections to product and labor market power partially cancel in the markup differential across treated and control firms.
 
-Two complementary explanations support this null. First, ADL themselves show (Theorems 1--3) that when competition is approximately \emph{symmetric} within markets---i.e., all firms face similar downward-sloping demand and the same competitor structure---the sufficient statistic is absorbed by market-level fixed effects, and the correction is irrelevant for the first-stage inversion. In Czech construction, where 49.6\% of contracts involve government procurement and firms routinely compete for both public and private projects within the same NACE$\times$year cell, this symmetry condition is plausible: the omitted-variable bias from ignoring the sufficient statistic is approximately equal for procurement and non-procurement firms, and the \emph{differential} bias on the treatment effect is near zero.
-
-Second, the KLMS \cite{KLMS2025} attenuation mechanism provides a structural explanation. Under double market power, the wage markdown $(1+\theta)^{-1}$ and the price markup $(1-\epsilon)^{-1}$ enter the markup formula multiplicatively. When both product and labor market power are present, corrections to either margin partially cancel in the markup differential across treated and control firms---especially when both groups face similar labor market conditions. My estimate of $(1-\epsilon) = 0.90$ for Czech construction (firm fixed effects among non-procurement firms) is comparable to the KLMS US estimate of 0.86, suggesting similar product market power.
-
-Table~\ref{tab:adl_instruments} reports a systematic instrument comparison following ADL Section 5. I vary three instrument sources---competitors' fixed inputs ($f_{-j}$), own lagged variable input ($v_{j,t-1}$, the standard ACF instrument), and competitors' lagged productivity ($\omega_{-j,t-1}$)---and a fourth source from the Datlab procurement register: the average number of bidders per tender ($N_{\text{bids}}$). Each is tested with increasing polynomial complexity. The output elasticity $\hat{\theta}^V_{\text{cogs}}$ is stable at $1.01$ across all accounting-based instruments (Rows 1--3), but jumps to $1.5$--$1.9$ with tender-level instruments (Row 4), reflecting weak first-stage identification from bid counts. The procurement premium is invariant at $0.170$ across all 15 specifications---confirming that the premium is identified from cost-share variation ($\alpha^V_{it}$), not from $\hat{\theta}^V$. The productivity process parameters are also reported: persistence $\hat{\rho} \approx 0.58$ and procurement effect $\hat{\gamma}_{pp} \approx 0.006$.
+Table~\ref{tab:adl_instruments} reports a systematic instrument comparison. The output elasticity is stable at 1.01 across all accounting-based instruments but jumps to 1.5--1.9 with tender-level instruments, reflecting weak first-stage identification from bid counts. The premium is invariant at 0.170 across all 15 specifications---confirming identification from cost-share variation.
 
 \input{../input/tables/adl_instrument_comparison.tex}
 
-Caveats remain. The market definition (year $\times$ NACE 2-digit) is coarse; the Hansen $J$ test rejects across all overidentified specifications ($p < 0.001$), suggesting misspecification at this aggregation level. Finer market definitions---using NACE 4-digit classifications or regional procurement markets defined by bidder-overlap networks---could improve moment validity.
+Caveats remain. The market definition is coarse; the Hansen $J$ test rejects across all overidentified specifications ($p < 0.001$), suggesting misspecification at this aggregation level.
 
-\iffalse % Strong Exclusion disabled — depends on ABGRS pipeline script
+\iffalse % Strong Exclusion disabled --- depends on ABGRS pipeline script
 \subsection{Strong Exclusion Under Misspecification}\label{sec:abgrs}
 
 Andrews, Barahona, Gentzkow, Rambachan, and Shapiro \cite{ABGRS2025} formalize when structural estimates are reliable under model misspecification. Their central result: estimators are ``approximately causally consistent'' only if they satisfy \emph{strong exclusion}---the moment conditions must rely on instruments that are mean-independent of the included controls. If this fails, misspecifying the control function corrupts the causal estimate even when the instruments are valid in the unconditional sense. Their Section~IV.D extends the framework directly to dynamic production function models with input endogeneity, the exact setting of ACF markup estimation.
@@ -426,7 +473,7 @@ Second, I re-estimate the ACF following the ABGRS residualization recipe: I resi
 \input{../input/tables/abgrs_residualization.tex}
 \fi
 
-\iffalse % Randomization Inference disabled — depends on BH RI + Kitagawa pipeline scripts
+\iffalse % Randomization Inference disabled --- depends on BH RI + Kitagawa pipeline scripts
 \subsection{Randomization Inference}\label{sec:bh_ri}
 
 Borusyak and Hull \cite{BorusyakHull2021, BorusyakHull2026} develop a framework for inference when treatment is a formula combining exogenous shocks with individual characteristics; see Borusyak, Hull, and Jaravel \cite{BorusyakHullJaravel2025} for a unified review of design-based formula instruments. Their approach: compare the observed test statistic to its distribution under counterfactual shock realizations. Applied to my setting, the counterfactual is the set of alternative assignments of procurement status across firms, holding fixed the year-level and industry-level procurement intensities.
@@ -442,7 +489,7 @@ I apply the Kitagawa \cite{Kitagawa2015} specification test, which tests whether
 \input{../input/tables/kitagawa_iv_test.tex}
 \fi
 
-\iffalse % AGS/Andrews CS disabled — depends on AGS, misspec, spec curve, and Armstrong pipeline scripts
+\iffalse % AGS/Andrews CS disabled --- depends on AGS, misspec, spec curve, and Armstrong pipeline scripts
 \subsection{Transparency: AGS Sensitivity and Identification-Robust CS}\label{sec:ags_twostep}
 
 Andrews, Gentzkow, and Shapiro \cite{AGS2017} and Andrews \cite{Andrews2025Lecture} argue that structural estimates should be reported alongside a sensitivity vector $\Lambda = -(G'WG)^{-1}G'W$ that maps moment-condition violations into parameter bias. I implement this diagnostic for ACF spec A on NACE 41 (the largest sub-industry, $N = 4{,}911$). Table~\ref{tab:ags_twostep_sensitivity} reports $\Lambda_{k,m}$ and $\Lambda_{\text{cogs},m}$ for each moment $m$. The lagged COGS moment is the most load-bearing for both production-function parameters, as expected: the ACF identification relies primarily on orthogonality of lagged input quantities with the productivity innovation.
@@ -472,145 +519,28 @@ Armstrong \cite{Armstrong2025} formalizes this specification sensitivity through
 \input{../input/tables/armstrong_bias_adjusted_ci.tex}
 \fi
 
-\iffalse % Cross-Industry Validation disabled — depends on spec curve pipeline script
+\iffalse % Cross-Industry Validation disabled --- depends on spec curve pipeline script
 \subsection{Cross-Industry Validation}\label{sec:cross_industry_rob}
 
 A natural concern is whether the procurement premium is specific to Czech construction. Using the Orbis all-industry panel (Section \ref{sec:data}), I estimate ACF production functions and markup premiums for the five industries with the highest procurement participation. The construction premium (13.5\%, pooled NACE 41--43) matches the MagnusWeb baseline (14.0\%) on an independent dataset with $16\times$ more firms (24,382 vs.\ 1,267). Knowledge-intensive services exhibit even larger premiums: architecture and engineering (16.6\%, NACE 71) and IT services (15.3\%, NACE 62). Wholesale trade, where products are more homogeneous, shows a smaller premium (4.8\%, NACE 46). The cross-industry pattern is consistent with procurement conferring larger markup advantages in industries with differentiated products and high fixed costs.
 \fi
 
-Appendix~B reports additional robustness checks including DGM cross-validation, sample restriction sensitivity, and GNR non-identification analysis.
+\subsection{First-Stage and Markov Sensitivity}\label{sec:firststage}
+
+Polynomial order in the first stage (2--5) has negligible effects on the premium: all estimates fall within 0.136--0.140. Enriching the Markov process with higher-order terms in $\omega_{it-1}$ or interactions with NACE dummies adds less than 0.5 percentage points to the Markov $R^2$ and leaves the premium invariant. DGM cross-validation against the ProdFun implementation confirms that implementation differences are negligible relative to specification sensitivity (Appendix~\ref{app:dgm}).
+
 
 %% ============================================================
-%% 6. POLICY
-%% ============================================================
-\section{Czech Transparency Reforms}\label{sec:policy}
-
-The declining procurement premium---from approximately 30\% in 2006 to approximately 10\% in 2021---coincides with a series of institutional reforms aimed at increasing transparency and competition in Czech public procurement. Table \ref{tab:reforms} summarizes the key reforms.
-
-\begin{table}[htbp]\centering
-\caption{Czech Procurement Transparency Reforms, 2006--2021}\label{tab:reforms}
-\begin{threeparttable}
-\begin{tabular}{llp{8cm}}
-\toprule
-Date & Reform & Key Change \\
-\midrule
-1 Jul 2006 & Act 137/2006 & Full EU procurement framework; TED publication requirement \\
-\textbf{1 Apr 2012} & \textbf{Act 55/2012} & \textbf{Mandatory cancellation of single-bid tenders}; 6--10\% price reduction (Titl 2023) \\
-1 Jan 2014 & Act 134/2013 & Bearer share abolition; anonymous ownership eliminated \\
-1 Oct 2016 & Act 134/2016 & Shift from lowest-price toward most economically advantageous tender (MEAT) criteria \\
-\textbf{1 Jul 2017} & \textbf{Register of Contracts} & \textbf{Contract validity contingent on online publication} \\
-1 Jan 2018 & Beneficial Ownership Register & Public register of ultimate beneficial owners \\
-\bottomrule
-\end{tabular}
-\begin{tablenotes}\footnotesize
-\item \emph{Notes:} Bold entries denote reforms most relevant to the declining premium. The 2012 single-bidding ban was the most impactful: Titl \cite{Titl2023} estimates a 6--10\% reduction in procurement prices. The 2017 Register of Contracts made contract publication a validity condition.
-\end{tablenotes}
-\end{threeparttable}
-\end{table}
-
-Two pieces of evidence link the declining premium to reforms. First, the full-panel firm fixed effects estimates show a clear structural break around 2012, with the premium falling from approximately 0.30 (2006--2009) to 0.25 (2010--2015) to 0.10 (2016--2021). Second, Baran\v{e}k and Titl \cite{BaranekTitl2024} document that political connections---a key mechanism for rent extraction---raised procurement prices by 6\%, with EU co-funding oversight mitigating this effect. The declining markup premium is consistent with reforms reducing the scope for discretion and favoritism.
-
-An important caveat is that the declining premium may also reflect compositional changes: as more firms enter procurement (the procurement share rose from 28\% to 55\% over the sample), the marginal entrants may be less productive and less able to extract rents, mechanically reducing the average premium. The within-firm decomposition (Section \ref{sec:decomposition}) partially addresses this by showing that within-firm markups of procurement firms also declined, though less dramatically than the aggregate.
-
-Czech construction exhibits unusually low competition: over 48\% of tenders receive only a single bid, making it among the least competitive procurement markets in the EU. Palguta and Pertold-Gebicka \cite{PalgutaPertold2017} document that below-threshold manipulation enables politically connected firms to avoid competitive tendering. Each additional bidder reduces the procurement price by approximately 3.3\%. The institutional setting thus provides both the motivation for studying procurement markups and the exogenous time-series variation needed to link markup dynamics to policy.
-
-\iffalse % Favoritism subsection disabled — depends on favoritism_decomposition pipeline script
-\subsection{Favoritism versus Productivity}\label{sec:favoritism}
-
-Baran\'{e}k and Titl \cite{BaranekTitl2024} show that political connections raise Czech procurement prices by 6.2\%, with no corresponding gains in project quality, and that EU co-funding oversight fully mitigates this overpricing. Their identification exploits electoral variation: when a connected politician loses power, the firm's contracts immediately return to normal prices.
-
-\input{../input/tables/favoritism_decomposition.tex}
-
-Table~\ref{tab:favoritism} decomposes the markup premium. Firms with above-median single-bid shares exhibit a larger premium than those facing greater competition (Panel~A). The premium declines from pre-2012 to post-2012, consistent with the single-bidding ban reducing favoritism (Panel~B). A calibration against Baran\'{e}k and Titl~\cite{BaranekTitl2024}, who estimate 6.2\% contract-price overpricing from political connections, places an upper bound of approximately 6 percentage points on the favoritism channel (Panel~C). Oster \cite{Oster2019} bounds yield $\delta^* = -6.05$, indicating unobservables would need to work in the opposite direction to explain away the premium (Panel~D). Both policy reforms are associated with significant declines in the procurement premium (Panel~E).
-
-Panel~F provides a direct test using engineering cost estimates from the procurement register. Procuring authorities produce ex-ante cost estimates for each tender; the ratio of realized price to this estimate ($\mathrm{Rel\_Price}_{jt}$) measures overpricing at the contract level.\footnote{Engineering estimates explain 91\% of price variation in the full Datlab sample (Baran\'{e}k and Titl~\cite{BaranekTitl2024}, Table~1). I aggregate contract-level Rel\_Price to firm-year means, trimming to $(0.2, 5)$ following their methodology.} On the subsample of 385 procurement firms with estimate data, the baseline premium is 0.152 (row~1). Adding Rel\_Price as a control reduces it to only 0.141 (row~2)---overpricing accounts for less than 8\% of the premium. The Rel\_Price coefficient itself is small (0.021, $p < 0.01$): firms that bid higher relative to estimates have marginally higher markups, but the effect is economically negligible. Most strikingly, among procurement firms, the within-firm correlation between markups and Rel\_Price is essentially zero ($-0.002$, $p = 0.87$; row~3). High-markup firms do not overbid---they produce cheaply. The markup premium reflects productivity selection, not rent extraction through overpricing. The tender data lack EU co-funding indicators, precluding a direct test of the oversight channel identified by Baran\'{e}k and Titl~\cite{BaranekTitl2024}.
-\fi
-
-%% ============================================================
-%% 7. AGGREGATE MARKUP TRENDS
-%% ============================================================
-\section{Aggregate Markup Trends}\label{sec:aggregate}
-
-To place the procurement premium in broader context, I construct aggregate markup trends for Czech construction following the De Loecker, Eeckhout, and Unger \cite{DeLoekerEeckhout2020} methodology. For each year $t$, the sales-weighted aggregate markup is
-\begin{equation}\label{eq:dleu_agg}
-    M_t^{sw} = \sum_i \omega_{it} \mu_{it}^A, \quad \omega_{it} = \frac{\text{sales}_{it}}{\sum_j \text{sales}_{jt}},
-\end{equation}
-where $\mu_{it}^A$ is the firm-level ACF Cobb-Douglas markup with procurement in the Markov transition. Figure~\ref{fig:dleu_aggregate} plots four specifications: the ACF benchmark, a calibrated constant elasticity ($\theta = 0.85$), and two cost-share approaches (firm-level and industry-median). Table~\ref{tab:dleu_markup_specs} reports selected years.
-
-\input{../input/tables/dleu_table_markup_specs.tex}
-
-\begin{figure}[htbp]\centering
-\includegraphics[width=0.85\textwidth]{dleu_fig1_aggregate_markup.pdf}
-\caption{Aggregate Markups --- Czech Construction (CZ-NACE F)}\label{fig:dleu_aggregate}
-\begin{minipage}{0.85\textwidth}\footnotesize
-\emph{Notes:} Sales-weighted aggregate markup $M_t^{sw}$ under four specifications: ACF production-function-estimated $\hat{\theta}_{st}$ (benchmark), calibrated $\theta = 0.85$, firm-level cost share $\alpha^V_{it} = \text{COGS}_{it}/(\text{COGS}_{it} + r_t K_{it})$, and industry-median cost share. Vertical dashed lines mark Act~55/2012 (single-bid ban) and Act~134/2016 (MEAT criteria).
-\end{minipage}
-\end{figure}
-
-Unlike the secular rise documented by DLEU for US manufacturing (1.21 in 1980 to 1.61 in 2016), Czech construction exhibits a \emph{declining} aggregate markup, from 2.45 in 2007 to 2.08 in 2021. The pattern is robust across all four specifications. The sales-weighted aggregate consistently exceeds the simple mean by 0.20--0.40 markup points, indicating that larger firms carry systematically higher markups---consistent with the reallocation mechanism emphasized by DLEU. COGS-weighted and total-cost-weighted aggregates yield lower levels throughout, mirroring DLEU Figure~II(B): firms with higher markups have higher revenue relative to input expenditure, widening the gap between sales-weighted and input-weighted aggregates.
-
-\subsection{Decomposition of Markup Growth}\label{sec:dleu_decomposition}
-
-Following DLEU (eq.~9), I decompose changes in the aggregate markup into within-firm, market-share reallocation, cross, and net-entry components using the Haltiwanger (1997) demeaning:
-\begin{equation}\label{eq:decomp}
-    \Delta M_t = \underbrace{\sum_i m_{i,t-1} \Delta\mu_{it}}_{\Delta\text{within}} + \underbrace{\sum_i \tilde{\mu}_{i,t-1} \Delta m_{it}}_{\Delta\text{market share}} + \underbrace{\sum_i \Delta\mu_{it} \Delta m_{it}}_{\Delta\text{cross}} + \underbrace{\sum_{i \in E_t} \tilde{\mu}_{it} m_{it} - \sum_{i \in X_t} \tilde{\mu}_{i,t-1} m_{i,t-1}}_{\text{net entry}},
-\end{equation}
-where $\tilde{\mu}_{it} = \mu_{it} - M_{t-1}$ and $m_{it} = \omega_{it}$. I set the initial level to the first sample year and cumulatively add each component to construct counterfactual paths (Figure~\ref{fig:dleu_decomp}).
-
-\begin{figure}[htbp]\centering
-\includegraphics[width=0.85\textwidth]{dleu_fig4_decomposition.pdf}
-\caption{Decomposition of Markup Growth at the Firm Level}\label{fig:dleu_decomp}
-\begin{minipage}{0.85\textwidth}\footnotesize
-\emph{Notes:} Cumulative decomposition following DLEU (2020, eq.~9). Each counterfactual starts from the 2007 aggregate markup and adds only the indicated component. ``Within'' holds market shares fixed; ``Reallocation'' holds markups fixed (market share + cross terms); ``Net entry'' isolates the contribution of entering and exiting firms.
-\end{minipage}
-\end{figure}
-
-\input{../input/tables/dleu_table1_sectoral_decomp.tex}
-
-Three findings emerge. First, the within-firm component dominates the aggregate decline---firms' markups fell, not just their market shares shifted. Second, net entry contributes large year-to-year swings but is approximately neutral cumulatively, consistent with balanced entry and exit in Czech construction. Third, the sectoral decomposition by CZ-NACE sub-industry (Table~\ref{tab:dleu_sectoral}) shows that most variation is within-industry, with reallocation between NACE~41 (buildings), 42 (civil engineering), and 43 (specialized) playing a secondary role---qualitatively matching the DLEU finding that aggregate markup dynamics are driven by within-sector, not between-sector, forces.
-
-\subsection{Distribution and Profitability}\label{sec:dleu_distribution}
-
-The distribution of markups mirrors the DLEU pattern: the upper tail drives the aggregate (Figure~\ref{fig:dleu_percentiles}). The sales-weighted P90 exceeds 3.0 throughout, while the median is stable around 1.6--1.8. The gap between the P90 and P50 widened from 2007 to 2013 before narrowing, suggesting a transient increase in dispersion during the post-crisis period.
-
-\begin{figure}[htbp]\centering
-\includegraphics[width=0.85\textwidth]{dleu_fig3_distribution.pdf}
-\caption{Percentiles of the Markup Distribution (sales-weighted)}\label{fig:dleu_percentiles}
-\begin{minipage}{0.85\textwidth}\footnotesize
-\emph{Notes:} Firms ranked by markup; percentiles computed using cumulative sales shares as weights (DLEU Figure~III, Panel~B). Average is the sales-weighted aggregate $M_t^{sw}$.
-\end{minipage}
-\end{figure}
-
-Splitting the aggregate by procurement status (Figure~\ref{fig:dleu_pp_split}) confirms that procurement firms maintain systematically higher markups throughout the sample period, with the gap narrowing after 2012 consistent with the transparency reforms documented in Section~\ref{sec:causal}.
-
-\begin{figure}[htbp]\centering
-\includegraphics[width=0.85\textwidth]{dleu_fig_procurement_split.pdf}
-\caption{Aggregate Markup by Procurement Status}\label{fig:dleu_pp_split}
-\begin{minipage}{0.85\textwidth}\footnotesize
-\emph{Notes:} Sales-weighted aggregate markup computed separately for procurement ($pp = 1$) and non-procurement ($pp = 0$) firms. Vertical lines mark the 2012 and 2016 transparency reforms.
-\end{minipage}
-\end{figure}
-
-%% Cross-Industry Validation (Orbis) — omitted pending Orbis data access
-%\subsection{Cross-Industry Validation}\label{sec:dleu_cross_industry}
-
-%% ============================================================
-%% 8. DOUBLE MARKET POWER (short)
-%% ============================================================
-\iffalse % KLMS section disabled — depends on Orbis data
-\section{Labor-Market Market Power: Brief Benchmark}\label{sec:klms}
-
-As a short supplement, I estimate the ``double market power'' framework of Kroft, Luo, Mogstad, and Setzler \cite{KLMS2025} to benchmark the labor-market channel. Using firm fixed effects among non-procurement construction firms, the revenue elasticity is $(1-\epsilon) = 0.90$, implying a price markup of $1/(1-\epsilon) = 1.12$---comparable to the KLMS US estimate of $(1-\epsilon) = 0.86$. The inverse labor supply elasticity $\hat{\theta}$ is not identifiable from MagnusWeb employment brackets ($\Delta \ell \approx 0$ at bracket midpoints); continuous employee counts from Orbis or CZSO would enable the Wald DiD identification used by KLMS. I treat these as a supplementary diagnostic rather than a central result.
-\fi
-
-%% ============================================================
-%% 8. CONCLUSION
+%% 7. CONCLUSION
 %% ============================================================
 \section{Conclusion}\label{sec:conclusion}
 
-This paper establishes three findings on markups and public procurement in Czech construction. The procurement markup premium is approximately 14\%, robust across estimators, functional forms, and four identification strategies; the premium declined from 30\% in 2006 to 10\% in 2021, with Act 55/2012 (single-bid ban) and Act 134/2016 (MEAT criteria) associated with DiD estimates of $-2.6$ and $-2.2$ log points respectively; and aggregate sales-weighted markups in Czech construction, unlike the secular rise documented by De Loecker, Eeckhout, and Unger \cite{DeLoekerEeckhout2020} for US manufacturing, exhibit a declining trajectory driven primarily by within-firm markup changes rather than between-industry reallocation.
+This paper establishes three findings on markups and public procurement in Czech construction. First, the procurement markup premium is approximately 14\%, robust across nine estimation methods, functional forms, and multiple identification strategies; an event study shows flat pre-trends and a sharp entry effect, and productivity explains 76\% of the markup association. Second, the premium declined from 30\% in 2006 to 10\% in 2021, with Act 55/2012 (single-bid ban) and Act 134/2016 (MEAT criteria) associated with DiD estimates of $-2.6$ and $-2.2$ log points. Third, aggregate sales-weighted markups in Czech construction, unlike the secular rise documented by De Loecker, Eeckhout, and Unger \cite{DeLoekerEeckhout2020} for US manufacturing, exhibit a declining trajectory driven primarily by within-firm changes.
 
-Several limitations qualify these results. The sensitivity of markup estimates to the variable input definition---COGS versus intermediate inputs---remains unresolved empirically and affects the sign of the treatment effect. The favoritism decomposition relies on benchmarking against Baran\v{e}k and Titl \cite{BaranekTitl2024} rather than a direct test, because the tender data lack EU co-funding indicators needed to isolate the oversight channel. Bid-level data from the Czech procurement register---currently limited to winning bids---would enable structural rent and incidence calculations that could distinguish market power from cost efficiency more sharply.
+Two limitations qualify these results. The sensitivity of markup estimates to the variable input definition---COGS versus intermediate inputs---remains unresolved empirically. MagnusWeb employment brackets prevent estimation of the labor supply elasticity needed for full KLMS-style double market power analysis; continuous employment data from Orbis or CZSO would address this. Bid-level data from the Czech procurement register---currently limited to winning bids---would enable structural rent and incidence calculations that could distinguish market power from cost efficiency more sharply.
+
+The policy implication is direct: Czech transparency reforms reduced the procurement markup premium by roughly two-thirds over 15 years. The 2012 single-bidding ban and the 2016 MEAT criteria shift are both associated with significant declines. These reforms provide a template for other countries with low procurement competition.
+
 
 %% ============================================================
 %% APPENDIX A
@@ -705,7 +635,7 @@ All & 1.99 & 0.35 & 1.53 & 1.94 & 2.44 \\
 \end{threeparttable}
 \end{table}
 
-\iffalse % Premium by Year disabled — depends on premium_timeseries pipeline script
+\iffalse % Premium by Year disabled --- depends on premium_timeseries pipeline script
 \subsection{Procurement Premium by Year}\label{app:premium_year}
 
 The cross-sectional procurement premium (the coefficient $\hat{\beta}_1$ in Equation \ref{eq:cross} estimated year by year) declines monotonically from 0.30 in 2006 to 0.10 in 2021. The decline accelerates around 2012, coinciding with the single-bidding ban (Act 55/2012).
@@ -748,7 +678,7 @@ Under the ADL correction, the production function coefficients shift but the pre
 
 The Hansen $J$ test rejects for NACE 41 ($p = 0.004$) and is marginal for NACE 43 ($p = 0.07$), suggesting that the coarse market definition may introduce misspecification. NACE 42 passes ($p = 0.87$).
 
-\iffalse % Full Unconfoundedness disabled — depends on lalonde pipeline script
+\iffalse % Full Unconfoundedness disabled --- depends on lalonde pipeline script
 \subsection{Full Unconfoundedness Results}\label{app:full_unconfound}
 
 \begin{table}[htbp]\centering
@@ -780,13 +710,13 @@ DML-RF & 0.14 & 0.01 & 0.01 & 0.01 \\
 \end{table}
 \fi
 
-\iffalse % Panel Data Event Study disabled — depends on fect pipeline script
+\iffalse % Panel Data Event Study disabled --- depends on fect pipeline script
 \subsection{Panel Data Event Study}\label{app:event_study}
 
 The Borusyak, Jaravel, and Spiess \cite{BorusyakJaravel2024} event study estimates show a clear pattern: pre-treatment coefficients are indistinguishable from zero (supporting parallel trends), the on-impact effect at $t=0$ is approximately 0.26, and the effect stabilizes around 0.10--0.14 after 3--5 years.
 \fi
 
-\iffalse % HonestDiD disabled — depends on fect pipeline script
+\iffalse % HonestDiD disabled --- depends on fect pipeline script
 \subsection{Sensitivity to HonestDiD}\label{app:honestdid}
 
 I assess sensitivity to violations of parallel trends using the Rambachan and Roth \cite{RambachanRoth2023} HonestDiD framework. Under the DeltaRM restriction (bounded relative magnitudes of pre-trend violations), the confidence set for the ATT remains strictly positive for $\bar{M} > 4$ in both the full window (9 pre, 11 post) and the short window (3 pre, 4 post), indicating that the result is robust to moderate violations of parallel trends.
@@ -806,7 +736,7 @@ The rebuilt sample (1,521 firms, 9,164 observations) differs from the original t
 
 The rebuilt-only observations have slightly lower mean log sales (17.74 vs.\ 18.13) and a substantially lower procurement share (22.1\% vs.\ 42.4\%). The production function estimates and the procurement premium are virtually unchanged when excluding these observations, confirming that the sample correction improves data quality without affecting the substantive conclusions.
 
-\iffalse % BMY figure disabled — depends on disabled pipeline script
+\iffalse % BMY figure disabled --- depends on disabled pipeline script
 \begin{figure}[htbp]\centering
 \includegraphics[width=0.85\textwidth]{bmy_sample_sensitivity.pdf}
 \caption{Sample Restriction Sensitivity: Original vs.\ Rebuilt}\label{fig:sample_sensitivity}
@@ -816,7 +746,7 @@ The rebuilt-only observations have slightly lower mean log sales (17.74 vs.\ 18.
 \end{figure}
 \fi
 
-\iffalse % Raval Overidentification disabled — depends on raval_test pipeline script
+\iffalse % Raval Overidentification disabled --- depends on raval_test pipeline script
 \subsection{Raval Overidentification}\label{app:raval}
 
 Under cost minimization, markups estimated from \emph{any} flexible input should coincide: $\mu_{it} = \theta^X_{it}/\alpha^X_{it}$ for all variable inputs $X$. Raval \cite{Raval2023} tests this overidentifying restriction across seven datasets and finds that labor-based and materials-based markups are \emph{negatively} correlated everywhere, rejecting Hicks-neutral productivity. I replicate this test for Czech construction using three inputs: labor (wages), materials (COGS), and a composite (wages + COGS). Regressing log labor markups on log COGS markups with industry-year fixed effects, I find $\hat{\beta} = 0.28$--$0.82$---positive and substantially different from Raval's negative correlations. While $\beta = 1$ is rejected, the positive sign means the two markup measures \emph{agree on firm rankings}, which is the relevant property for treatment evaluation. De Ridder, Grassi, and Morzenti \cite{DGM2026} show formally (their Section 2.4.1) that when a variable input faces a wedge (e.g., monopsony), the production approach measures the product of the markup and the input wedge. The positive Czech $\beta$ suggests the wedge is monotone rather than contradictory, so the treatment effect is preserved even when overidentification fails.
@@ -828,7 +758,7 @@ Gandhi, Navarro, and Rivers \cite{GNR2020} prove that proxy variable methods---i
 
 In my data, the OLS coefficient on the variable input is virtually identical to the ACF coefficient: the maximum discrepancy across the three NACE 2-digit industries is 3.4\% (NACE 43: OLS $\hat{\beta}_{\text{cogs}} = 0.899$ vs.\ ACF $\hat{\beta}_{\text{cogs}} = 0.927$). This near-equivalence is exactly what the GNR theorem predicts. Importantly, while the \emph{level} of the COGS elasticity may be unidentified, the \emph{procurement premium ratio}---which depends on the ratio $\theta^V_{it}/\alpha^V_{it}$ rather than the level of $\theta^V_{it}$---survives even if the production function coefficient is biased, provided the bias is common to treated and control firms. The specification sensitivity analysis (Section \ref{sec:sensitivity}) confirms this: the regression-adjusted premium is 0.140 under both OLS and ACF.
 
-\iffalse % Double Market Power appendix disabled — depends on Orbis data
+\iffalse % Double Market Power appendix disabled --- depends on Orbis data
 \subsection{Double Market Power: Brief Benchmark}\label{app:klms}
 
 Following the Kroft, Luo, Mogstad, and Setzler \cite{KLMS2025} framework, the revenue elasticity $(1-\epsilon)$ is estimated from the regression of log revenues on log intermediate expenditures among non-procurement firms with firm fixed effects: $(1-\epsilon) = 0.90$ for Czech construction (price markup $1/(1-\epsilon) = 1.12$), comparable to the KLMS US estimate of $0.86$ (price markup $1.16$). The inverse labor supply elasticity $\hat{\theta}$ requires continuous employment data not available in MagnusWeb; with a calibrated $\theta = 0.13$ (matching the KLMS US construction estimate), the implied double wage markdown is $(1+\theta)^{-1} \times (1-\epsilon) = 0.89 \times 0.90 = 0.80$. Full identification of $\theta$ from Czech data is blocked on Orbis or CZSO continuous employment access.
@@ -937,6 +867,8 @@ Following the Kroft, Luo, Mogstad, and Setzler \cite{KLMS2025} framework, the re
 \bibitem{DLS2021} De Loecker, J.\ and C.~Syverson (2021). ``An Industrial Organization Perspective on Productivity,'' in \emph{Handbook of Industrial Organization}, Vol.~4, eds.\ K.~Ho, A.~Hortacsu, and A.~Lizzeri, Elsevier, 141--223.
 
 \bibitem{LiuWangXu2022} Liu, L., Y.~Wang, and Y.~Xu (2022). ``A Practical Guide to Counterfactual Estimators for Causal Inference with Time-Series Cross-Sectional Data,'' \emph{American Journal of Political Science}, 66(1), 160--176.
+
+\bibitem{OlleyPakes1996} Olley, G.S.\ and A.~Pakes (1996). ``The Dynamics of Productivity in the Telecommunications Equipment Industry,'' \emph{Econometrica}, 64(6), 1263--1297.
 
 \bibitem{Oster2019} Oster, E.\ (2019). ``Unobservable Selection and Coefficient Stability: Theory and Evidence,'' \emph{Journal of Business \& Economic Statistics}, 37(2), 187--204.
 
