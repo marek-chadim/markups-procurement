@@ -28,7 +28,7 @@
 \begin{center}
 {\LARGE\bfseries Markups and Public Procurement:\\[4pt]
 Evidence from Czech Construction Tenders}\\[16pt]
-{\large Marek Chadim\footnote{Pre-Doctoral Fellow, Tobin Center for Economic Policy, Yale University. Email: \texttt{marek.chadim@yale.edu}. I thank Chad Syverson for invaluable guidance, Steven Berry and Jesse Shapiro for comments, and participants in ECON 601 (Graduate IO II) at Yale. Replication package: \url{https://github.com/marek-chadim/Markups-and-Public-Procurement}.}}\\[8pt]
+{\large Marek Chadim\footnote{Pre-Doctoral Fellow, Tobin Center for Economic Policy, Yale University. Email: \texttt{marek.chadim@yale.edu}. I thank Steven Berry, Philip Haile, Costas Meghir, and Jesse Shapiro for guidance, Mira Frick, Charles Hodgson, and Ilse Lindenlaub for helpful discussions, and participants in ECON 601 (Graduate IO II) at Yale for comments. Replication package: \url{https://github.com/marek-chadim/Markups-and-Public-Procurement}.}}\\[8pt]
 {\normalsize Yale University}\\[12pt]
 {\normalsize March 2026}\\[8pt]
 {\normalsize\textsc{Preliminary and Incomplete}}
@@ -118,13 +118,15 @@ Table \ref{tab:summary} reports summary statistics for the estimation sample. Pa
 
 \subsection{Data Limitations}\label{sec:limitations}
 
-Four limitations bear mention. First, the Datlab tender data include only winning bid prices, not losing bids, precluding estimation of a full demand system or structural auction model and restricting the analysis to the production approach of De Loecker and Warzynski \cite{DLW2012}. Second, MagnusWeb employment is reported in categorical brackets rather than continuous counts, limiting labor supply elasticity estimation. Third, the tender data do not flag EU co-funding, precluding a direct test of the intergovernmental oversight channel identified by Baran\'{e}k and Titl \cite{BaranekTitl2024}. Fourth, output is measured as revenue, not physical quantity. Following De Ridder, Grassi, and Morzenti \cite{DGM2026}, the revenue-to-quantity bias is a sector-level constant that shifts markup levels but preserves cross-firm variation---the procurement premium as a ratio is therefore robust to this bias.
+Four limitations bear mention. First, the Datlab tender data include only winning bid prices, not losing bids, precluding estimation of a full demand system or structural auction model and restricting the analysis to the production approach of De Loecker and Warzynski \cite{DLW2012}. Second, MagnusWeb employment is reported in categorical brackets rather than continuous counts, limiting labor supply elasticity estimation. Third, the tender data do not flag EU co-funding, precluding a direct test of the intergovernmental oversight channel identified by Baran\'{e}k and Titl \cite{BaranekTitl2024}. Fourth, output is measured as deflated revenues, not physical quantities. Foster, Haltiwanger, and Syverson \cite{FHS2008} show that revenue-based TFP confounds physical productivity with pricing power; the DLW markup formula partially addresses this by extracting the markup component, but residual price variation within deflator categories remains a source of measurement error. De Ridder, Grassi, and Morzenti \cite{DGM2026} show that this bias is modest for cross-firm markup \emph{variation} and treatment effects, even when markup \emph{levels} are affected---the procurement premium as a ratio is therefore robust.
 
 
 %% ============================================================
 %% 3. PRODUCTION APPROACH TO MARKUP ESTIMATION
 %% ============================================================
 \section{Production Approach to Markup Estimation}\label{sec:methodology}
+
+Production function estimation serves a purpose beyond TFP measurement: it recovers the cost structure needed to assess allocative efficiency. Market power causes production to shift toward higher-cost firms, generating welfare losses distinct from the standard markup triangle \cite{AskerCWDL2019}. In the procurement context, this question is first-order: does the markup premium reflect efficient selection of low-cost producers into government contracting, or misallocation of contracts to firms with pricing power?
 
 \subsection{Markup Formula}\label{sec:markup_formula}
 
@@ -138,7 +140,7 @@ The formula rests on three assumptions: (i) firms minimize variable cost conditi
 
 \subsection{Estimation}\label{sec:estimation}
 
-Estimating the output elasticity $\theta^V_{it}$ from production data confronts a fundamental simultaneity problem: firms observe their productivity $\omega_{it}$ and adjust variable inputs accordingly, biasing OLS upward for the variable input coefficient. Fixed effects do not solve this---they require the implausible assumption that productivity is time-invariant ($\omega_{it} = \omega_i$), and first-differencing exacerbates measurement error in capital, compressing $\hat{\beta}_k$ toward zero. Olley and Pakes \cite{OlleyPakes1996} propose a structural solution: invert a monotone policy function (investment) to recover $\omega_{it} = f_t^{-1}(k_{it}, i_{it})$, then use the Markov property of productivity to form moment conditions that identify the capital coefficient. Ackerberg, Caves, and Frazer \cite{ACF2015} refine this approach, replacing investment with the variable input demand function as the proxy and resolving a collinearity problem in the first stage. The Cobb-Douglas specification is:
+Estimating the output elasticity $\theta^V_{it}$ from production data confronts a fundamental simultaneity problem: firms observe their productivity $\omega_{it}$ and adjust variable inputs accordingly, biasing OLS upward for the variable input coefficient. Fixed effects do not solve this---they require the implausible assumption that productivity is time-invariant ($\omega_{it} = \omega_i$), and first-differencing exacerbates measurement error in capital, compressing $\hat{\beta}_k$ toward zero. Olley and Pakes \cite{OlleyPakes1996} propose a structural solution: invert a monotone policy function (investment) to recover $\omega_{it} = f_t^{-1}(k_{it}, i_{it})$, then use the Markov property of productivity to form moment conditions that identify the capital coefficient. Ackerberg, Caves, and Frazer \cite{ACF2015} refine this approach, replacing investment with the variable input demand function as the proxy and resolving a collinearity problem in the first stage. In construction, materials procurement (cement, steel, concrete orders) precedes labor hiring for each project, satisfying the ACF timing assumption that the proxy variable is chosen before labor adjusts to contemporaneous productivity shocks. The Cobb-Douglas specification is:
 \begin{equation}\label{eq:cd}
     y_{it} = \beta_0 + \beta_k k_{it} + \beta_{\text{cogs}} \text{cogs}_{it} + \omega_{it} + \varepsilon_{it},
 \end{equation}
@@ -537,7 +539,7 @@ Polynomial order in the first stage (2--5) has negligible effects on the premium
 
 This paper establishes three findings on markups and public procurement in Czech construction. First, the procurement markup premium is approximately 14\%, robust across nine estimation methods, functional forms, and multiple identification strategies; an event study shows flat pre-trends and a sharp entry effect, and productivity explains 76\% of the markup association. Second, the premium declined from 30\% in 2006 to 10\% in 2021, with Act 55/2012 (single-bid ban) and Act 134/2016 (MEAT criteria) associated with DiD estimates of $-2.6$ and $-2.2$ log points. Third, aggregate sales-weighted markups in Czech construction, unlike the secular rise documented by De Loecker, Eeckhout, and Unger \cite{DeLoekerEeckhout2020} for US manufacturing, exhibit a declining trajectory driven primarily by within-firm changes.
 
-Two limitations qualify these results. The sensitivity of markup estimates to the variable input definition---COGS versus intermediate inputs---remains unresolved empirically. MagnusWeb employment brackets prevent estimation of the labor supply elasticity needed for full KLMS-style double market power analysis; continuous employment data from Orbis or CZSO would address this. Bid-level data from the Czech procurement register---currently limited to winning bids---would enable structural rent and incidence calculations that could distinguish market power from cost efficiency more sharply.
+Three limitations qualify these results. First, the sensitivity of markup estimates to the variable input definition---COGS versus intermediate inputs---remains unresolved empirically. Second, the DLW markup captures product market power but not labor market power; Kroft et al.\ \cite{KLMS2025} show that construction firms exercise both, with wage markdowns of approximately 20\%. The procurement premium may therefore reflect gains in both margins, and decomposing these requires continuous employment data not available in MagnusWeb. Third, bid-level data from the Czech procurement register---currently limited to winning bids---would enable structural rent and incidence calculations that could distinguish market power from cost efficiency more sharply.
 
 The policy implication is direct: Czech transparency reforms reduced the procurement markup premium by roughly two-thirds over 15 years. The 2012 single-bidding ban and the 2016 MEAT criteria shift are both associated with significant declines. These reforms provide a template for other countries with low procurement competition.
 
@@ -792,6 +794,8 @@ Following the Kroft, Luo, Mogstad, and Setzler \cite{KLMS2025} framework, the re
 
 \bibitem{ADL2024} Ackerberg, D.\ and J.~De Loecker (2024). ``Production Function Identification Under Imperfect Competition,'' CEPR Discussion Paper No.~19640.
 
+\bibitem{AskerCWDL2019} Asker, J., A.~Collard-Wexler, and J.~De Loecker (2019). ``(Mis)Allocation, Market Power, and Global Oil Extraction,'' \emph{American Economic Review}, 109(4), 1568--1615.
+
 \bibitem{AngristPischke2009} Angrist, J.D.\ and J.-S.~Pischke (2009). \emph{Mostly Harmless Econometrics: An Empiricist's Companion}, Princeton University Press.
 
 \bibitem{ArkhangelskySynthDiD} Arkhangelsky, D., S.~Athey, D.A.~Hirshberg, G.W.~Imbens, and S.~Wager (2021). ``Synthetic Difference-in-Differences,'' \emph{American Economic Review}, 111(12), 4088--4118.
@@ -829,6 +833,8 @@ Following the Kroft, Luo, Mogstad, and Setzler \cite{KLMS2025} framework, the re
 \bibitem{DeLoecker2013} De Loecker, J. (2013). ``Detecting Learning by Exporting,'' \emph{American Economic Journal: Microeconomics}, 5(3), 1--21.
 
 \bibitem{DLW2012} De Loecker, J.\ and F.~Warzynski (2012). ``Markups and Firm-Level Export Status,'' \emph{American Economic Review}, 102(6), 2437--2471.
+
+\bibitem{FHS2008} Foster, L., J.~Haltiwanger, and C.~Syverson (2008). ``Reallocation, Firm Turnover, and Efficiency: Selection on Productivity or Profitability?'' \emph{American Economic Review}, 98(1), 394--425.
 
 \bibitem{DeLoeckerScott2025} De Loecker, J. and P.T.\ Scott (2025). ``Markup Estimation using Production and Demand Data: An Application to the US Brewing Industry,'' Working Paper, NYU Stern / KU Leuven.
 
