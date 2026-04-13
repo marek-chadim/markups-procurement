@@ -1,0 +1,4283 @@
+
+  ___  ____  ____  ____  ____ ®
+ /__    /   ____/   /   ____/      StataNow 19.5
+___/   /   /___/   /   /___/       MP—Parallel Edition
+
+ Statistics and Data Science       Copyright 1985-2025 StataCorp LLC
+                                   StataCorp
+                                   4905 Lakeway Drive
+                                   College Station, Texas 77845 USA
+                                   800-782-8272        https://www.stata.com
+                                   979-696-4600        service@stata.com
+
+Stata license: Unlimited-user 4-core network, expiring  1 Jul 2026
+Serial number: 501909301221
+  Licensed to: Marek Chadim
+               Yale University
+
+Notes:
+      1. Stata is running in batch mode.
+      2. Unicode is supported; see help unicode_advice.
+      3. More than 2 billion observations are allowed; see help obs_advice.
+      4. Maximum number of variables is set to 5,000 but can be increased;
+          see help set_maxvar.
+
+. do launcher.do 
+
+. *============================================================================
+> ===
+. * launcher.do — Master launcher for empirical analysis
+. *
+. * Adapted from De Ridder, Grassi & Morzenti (2026, Econometrica)
+. * "Hitchhiker's Guide to Markup Estimation" Replication Package
+. *
+. * Context: Czech construction procurement (Chadim 2026)
+. *   - 3 sub-industries: NACE 41 (buildings), 42 (civil eng), 43 (specialized)
+. *   - Production function inputs: go (output), k (capital), cogs (materials)
+. *   - Treatment: pp_dummy (public procurement participation)
+. *
+. * DGM adaptations:
+. *   - Their 4 inputs (v,k,m,o) → our 2 inputs (k, cogs)
+. *   - Their quantity vs revenue comparison → our specification robustness
+. *   - Their 21 industries → our 3 NACE sub-industries
+. *   - Added: procurement premium analysis (not in DGM)
+. *============================================================================
+> ===
+. 
+. clear all
+
+. set more off
+
+. set seed 42
+
+. 
+. * Set paths — Gentzkow Lab Template structure
+. * Run from: markups-procurement/2_analysis/source/stata/
+. global root    "."
+
+. global datagen "$root/datagen"
+
+. global code    "$root/code"
+
+. global data    "../../output/stata"
+
+. global output  "../../output/stata"
+
+. global temp    "../../output/stata/temp"
+
+. 
+. * Source data (produced by rebuild_data.py in module 1_data)
+. global srcdata "../../input/data.dta"
+
+. 
+. * Create output directories
+. cap mkdir "$data"
+
+. cap mkdir "$output"
+
+. cap mkdir "$temp"
+
+. 
+. cap log close
+
+. log using "$output/launcher.log", text replace
+-------------------------------------------------------------------------------
+      name:  <unnamed>
+       log:  /Users/marek/Desktop/io/markups-procurement/2_analysis/source/stat
+> a/../../output/stata/launcher.log
+  log type:  text
+ opened on:  10 Apr 2026, 21:11:20
+
+. 
+. timer on 1
+
+. 
+. *-----------------------------------------------------------------------
+. * STEP 1: DATA GENERATION
+. *-----------------------------------------------------------------------
+. dis _newline(2) "========================================"
+
+
+========================================
+
+. dis "  STEP 1: Data Generation"
+  STEP 1: Data Generation
+
+. dis "========================================"
+========================================
+
+. 
+. * 1a. Prepare analysis datasets
+. do "$datagen/prepare_data.do"
+
+. *============================================================================
+> ===
+. * prepare_data.do — Prepare analysis datasets
+. *
+. * Analog of DGM prepare_datasets.do:
+. *   DGM: merge FICUS-FARE with EAP price data, generate s/v/k/m/o
+. *   Us:  load rebuilt data, generate analysis variables, winsorize
+. *
+. * Input:  data_rebuilt.dta (from rebuild_data.py)
+. * Output: analysisdata/analysis_panel.dta
+. *============================================================================
+> ===
+. 
+. dis _newline "--- prepare_data.do ---"
+
+--- prepare_data.do ---
+
+. 
+. use "$srcdata", clear
+
+. xtset id year, yearly
+
+Panel variable: id (unbalanced)
+ Time variable: year, 2006 to 2021, but with gaps
+         Delta: 1 year
+
+. 
+. dis "Source data: " _N " obs, " year[1] "-" year[_N]
+Source data: 9164 obs, 2006-2021
+
+. tab nace2
+
+      nace2 |      Freq.     Percent        Cum.
+------------+-----------------------------------
+         41 |      4,911       53.59       53.59
+         42 |        818        8.93       62.52
+         43 |      3,435       37.48      100.00
+------------+-----------------------------------
+      Total |      9,164      100.00
+
+. 
+. *-----------------------------------------------------------------------
+. * Variable construction (analog of DGM variable definitions)
+. *-----------------------------------------------------------------------
+. 
+. * DGM variables → our analogs:
+. *   s = ln(catotalR)  →  go  (already in data, = ln deflated sales)
+. *   v = ln(salR)      →  w   (ln wages, if available) or le (ln employees)
+. *   k = ln(immocorR)  →  k   (already in data, = ln deflated fixed assets)
+. *   m = ln(acha4R)    →  cogs (already in data, = ln deflated COGS)
+. *   o = ln(autachaR)  →  o   (ln overhead, if available)
+. *   ratio = catotal/acha4 → ratio = exp(go)/exp(cogs)
+. 
+. * Expenditure ratio (for markup calculation: μ = θ/α, α = exp(cogs)/exp(go))
+. cap drop ratio
+
+. gen ratio = exp(go) / exp(cogs)
+
+. label var ratio "Sales/COGS ratio (= 1/alpha)"
+
+. 
+. * Market share by year × nace2 (analog of DGM ms5d)
+. cap drop total_sales
+
+. cap drop mktshare
+
+. bys year nace2: egen total_sales = total(exp(go))
+
+. gen mktshare = exp(go) / total_sales
+
+. label var mktshare "Market share (year × nace2)"
+
+. drop total_sales
+
+. 
+. * Cost share (for cost-weighted aggregation, DGM Figure 5)
+. cap drop total_cogs
+
+. cap drop costshare
+
+. bys year nace2: egen total_cogs = total(exp(cogs))
+
+. gen costshare = exp(cogs) / total_cogs
+
+. label var costshare "Cost share (year × nace2)"
+
+. drop total_cogs
+
+. 
+. * Age (years since first observed in panel)
+. cap drop entry_year
+
+. cap drop age
+
+. bys id: egen entry_year = min(year)
+
+. gen age = year - entry_year
+
+. label var age "Firm age (years since panel entry)"
+
+. 
+. * Firm size categories
+. cap drop size_cat
+
+. xtile size_cat = go, nq(4)
+
+. label var size_cat "Size quartile (by go)"
+
+. 
+. *-----------------------------------------------------------------------
+. * Winsorization (DGM: 2% tails by sector)
+. *-----------------------------------------------------------------------
+. 
+. * DGM winsorize at 2% by naf2d for s, m, v, k, o, p, q
+. * We winsorize at 2% by nace2 for go, k, cogs (already done in rebuild_data.p
+> y)
+. * Just verify and add ratio winsorization
+. 
+. foreach var in go k cogs {
+  2.     * Check for extreme values
+.     qui sum `var', d
+  3.     dis "  `var': p1=" %6.2f r(p1) " p99=" %6.2f r(p99) " range=" %6.2f r(
+> max)-r(min)
+  4. }
+  go: p1= 15.88 p99= 21.20 range=  7.41
+  k: p1= 12.26 p99= 19.57 range=  8.98
+  cogs: p1= 15.11 p99= 20.18 range=  7.25
+
+. 
+. * Winsorize ratio at 2% by nace2 (DGM equivalent of their winsor command)
+. cap drop ratio_raw
+
+. gen ratio_raw = ratio
+
+. levelsof nace2, local(naces)
+41 42 43
+
+. foreach n of local naces {
+  2.     qui sum ratio if nace2 == `n', d
+  3.     local lo = r(p1)
+  4.     local hi = r(p99)
+  5.     replace ratio = max(min(ratio, `hi'), `lo') if nace2 == `n'
+  6. }
+(97 real changes made)
+(16 real changes made)
+(68 real changes made)
+
+. 
+. *-----------------------------------------------------------------------
+. * Treatment variables
+. *-----------------------------------------------------------------------
+. 
+. * Ensure procurement indicators exist
+. cap confirm var pp_dummy
+
+. if _rc {
+.     dis "ERROR: pp_dummy not found in data"
+.     error 198
+. }
+
+. 
+. * Lagged treatment
+. cap drop pp_lag
+
+. sort id year
+
+. by id: gen pp_lag = pp_dummy[_n-1]
+(1,498 missing values generated)
+
+. label var pp_lag "L.pp_dummy"
+
+. 
+. * 3-year treatment window
+. cap drop pp_L1
+
+. cap drop pp_L2
+
+. cap drop pp_ever_3y
+
+. by id: gen pp_L1 = pp_dummy[_n-1]
+(1,498 missing values generated)
+
+. by id: gen pp_L2 = pp_dummy[_n-2]
+(2,796 missing values generated)
+
+. gen pp_ever_3y = (pp_dummy == 1 | pp_L1 == 1 | pp_L2 == 1)
+
+. replace pp_ever_3y = . if mi(pp_dummy)
+(0 real changes made)
+
+. label var pp_ever_3y "PP active in t, t-1, or t-2"
+
+. drop pp_L1 pp_L2
+
+. 
+. *-----------------------------------------------------------------------
+. * Survival probit (CWDL 2015)
+. *-----------------------------------------------------------------------
+. 
+. cap drop next_yr
+
+. cap drop survival_1
+
+. cap drop phat_survival
+
+. by id: gen next_yr = year[_n+1]
+(1,498 missing values generated)
+
+. gen survival_1 = (next_yr - year == 1) if next_yr != .
+(1,498 missing values generated)
+
+. replace survival_1 = 0 if survival_1 == .
+(1,498 real changes made)
+
+. 
+. xi: logit survival_1 k cogs pp_dummy i.year*i.nace2, iterate(100)
+i.year            _Iyear_2006-2021    (naturally coded; _Iyear_2006 omitted)
+i.nace2           _Inace2_41-43       (naturally coded; _Inace2_41 omitted)
+i.year*i.nace2    _IyeaXnac_#_#       (coded as above)
+
+note: _Iyear_2021 != 0 predicts failure perfectly;
+      _Iyear_2021 omitted and 622 obs not used.
+
+note: _IyeaXnac_2021_42 omitted because of collinearity.
+note: _IyeaXnac_2021_43 omitted because of collinearity.
+Iteration 0:  Log likelihood = -4253.0016  
+Iteration 1:  Log likelihood = -3870.9321  
+Iteration 2:  Log likelihood = -3834.4458  
+Iteration 3:  Log likelihood = -3833.5612  
+Iteration 4:  Log likelihood = -3833.5585  
+Iteration 5:  Log likelihood = -3833.5585  
+
+Logistic regression                                     Number of obs =  8,542
+                                                        LR chi2(47)   = 838.89
+                                                        Prob > chi2   = 0.0000
+Log likelihood = -3833.5585                             Pseudo R2     = 0.0986
+
+------------------------------------------------------------------------------
+  survival_1 | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+           k |  -.0016638   .0244751    -0.07   0.946     -.049634    .0463064
+        cogs |   .2900496   .0371304     7.81   0.000     .2172753    .3628239
+    pp_dummy |  -.0230978   .0657653    -0.35   0.725    -.1519954    .1057998
+ _Iyear_2007 |   .2404013   .3138066     0.77   0.444    -.3746484    .8554509
+ _Iyear_2008 |    .234169   .2974739     0.79   0.431    -.3488692    .8172072
+ _Iyear_2009 |   .5450806   .3006045     1.81   0.070    -.0440933    1.134255
+ _Iyear_2010 |  -.1535938   .2656278    -0.58   0.563    -.6742148    .3670271
+ _Iyear_2011 |  -.5713968   .2572395    -2.22   0.026    -1.075577   -.0672166
+ _Iyear_2012 |  -1.804598   .2522879    -7.15   0.000    -2.299073   -1.310122
+ _Iyear_2013 |   .3300653   .3312374     1.00   0.319    -.3191481    .9792787
+ _Iyear_2014 |    .382628   .3357633     1.14   0.254    -.2754559    1.040712
+ _Iyear_2015 |  -.3991264   .2727461    -1.46   0.143    -.9336989    .1354461
+ _Iyear_2016 |   .5944956    .283538     2.10   0.036     .0387713     1.15022
+ _Iyear_2017 |   .2349746   .2652125     0.89   0.376    -.2848324    .7547817
+ _Iyear_2018 |   .1420067   .2595789     0.55   0.584    -.3667586    .6507721
+ _Iyear_2019 |   .0060613    .255717     0.02   0.981    -.4951348    .5072574
+ _Iyear_2020 |  -1.077669    .243431    -4.43   0.000    -1.554785   -.6005535
+ _Iyear_2021 |          0  (omitted)
+  _Inace2_42 |  -.1043746   .4983491    -0.21   0.834    -1.081121    .8723716
+  _Inace2_43 |   .1092362   .3500056     0.31   0.755    -.5767622    .7952347
+_IyeaX~07_42 |  -.0508221   .7286397    -0.07   0.944     -1.47893    1.377286
+_IyeaX~07_43 |  -.0560546   .4853953    -0.12   0.908    -1.007412    .8953028
+_IyeaX~08_42 |   .1120439   .7178954     0.16   0.876    -1.295005    1.519093
+_IyeaX~08_43 |   .1541155    .477054     0.32   0.747    -.7808931    1.089124
+_IyeaX~09_42 |   .9084845   .9008852     1.01   0.313    -.8572181    2.674187
+_IyeaX~09_43 |   .0214392   .4742367     0.05   0.964    -.9080476    .9509261
+_IyeaX~10_42 |   .1073171   .6241614     0.17   0.863    -1.116017    1.330651
+_IyeaX~10_43 |  -.3515543   .4113639    -0.85   0.393    -1.157813    .4547042
+_IyeaX~11_42 |   .1461177   .6037399     0.24   0.809    -1.037191    1.329426
+_IyeaX~11_43 |  -.0849555   .4055193    -0.21   0.834    -.8797587    .7098476
+_IyeaXn~2_42 |  -.9913359   .6032088    -1.64   0.100    -2.173603    .1909316
+_IyeaXn~2_43 |   -.234161    .398217    -0.59   0.557    -1.014652    .5463301
+_IyeaXn~3_42 |   .0991955   .9367047     0.11   0.916    -1.736712    1.935103
+_IyeaXn~3_43 |   -.158353   .5217133    -0.30   0.761    -1.180892    .8641862
+_IyeaXn~4_42 |  -.7517858   .8011346    -0.94   0.348    -2.321981    .8184091
+_IyeaXn~4_43 |  -.7818885   .4894144    -1.60   0.110    -1.741123    .1773462
+_IyeaXn~5_42 |   .3385313   .7196224     0.47   0.638    -1.071903    1.748965
+_IyeaXn~5_43 |  -.1668062   .4283272    -0.39   0.697    -1.006312    .6726997
+_IyeaXn~6_42 |   -.184134   .6641736    -0.28   0.782     -1.48589    1.117622
+_IyeaXn~6_43 |  -.4412361   .4317703    -1.02   0.307     -1.28749    .4050181
+_IyeaX~17_42 |    .419708   .6733501     0.62   0.533    -.9000338     1.73945
+_IyeaX~17_43 |  -.2595411   .4106119    -0.63   0.527    -1.064326    .5452435
+_IyeaX~18_42 |   .9824055    .729805     1.35   0.178    -.4479861    2.412797
+_IyeaX~18_43 |   -.159707   .4050297    -0.39   0.693    -.9535506    .6341365
+_IyeaX~19_42 |   .1322202   .6176248     0.21   0.830    -1.078302    1.342743
+_IyeaX~19_43 |  -.0180633   .4018593    -0.04   0.964    -.8056931    .7695664
+_IyeaX~20_42 |    .045735   .5677902     0.08   0.936    -1.067113    1.158583
+_IyeaX~20_43 |  -.2513893   .3803008    -0.66   0.509    -.9967651    .4939865
+_IyeaX~21_42 |          0  (omitted)
+_IyeaX~21_43 |          0  (omitted)
+       _cons |  -3.308997   .5507903    -6.01   0.000    -4.388526   -2.229467
+------------------------------------------------------------------------------
+
+. predict phat_survival, pr
+(622 missing values generated)
+
+. label var phat_survival "Predicted survival probability"
+
+. 
+. dis "  Survival phat: mean=" %6.4f r(mean)
+  Survival phat: mean=     .
+
+. 
+. drop next_yr survival_1 _I*
+
+. 
+. *-----------------------------------------------------------------------
+. * Save
+. *-----------------------------------------------------------------------
+. 
+. order id year nace2 go k cogs ratio mktshare costshare ///
+>     pp_dummy pp_lag pp_ever_3y phat_survival age size_cat
+
+. 
+. compress
+  variable year was long now int
+  variable pp_dummy was long now byte
+  variable pp_lag was float now byte
+  variable pp_ever_3y was float now byte
+  variable age was float now byte
+  variable foreign was long now byte
+  variable n_contracts was long now int
+  variable entry was long now byte
+  variable exit was long now byte
+  variable pp_stock_2y_pos was long now byte
+  variable pp_stock_3y_pos was long now byte
+  variable pp_cumul_revenue_pos was long now byte
+  variable pp_active_2y was long now byte
+  variable pp_active_3y was long now byte
+  variable pp_dummy_L1 was long now byte
+  variable pp_dummy_L2 was long now byte
+  variable pp_ever_2y was long now byte
+  variable pp_cumul_contracts was long now int
+  variable entry_year was float now int
+  variable nace2 was double now byte
+  variable nace was double now long
+  variable empl_num was double now int
+  variable max_bids was double now byte
+  variable pp_entry_year was double now int
+  variable pp_years_since_entry was double now byte
+  (824,760 bytes saved)
+
+. save "$data/analysis_panel.dta", replace
+file ../../output/stata/analysis_panel.dta saved
+
+. dis "  Saved: analysis_panel.dta (" _N " obs)"
+  Saved: analysis_panel.dta (9164 obs)
+
+. 
+end of do-file
+
+. 
+. * 1b. Estimate production functions (ACF, multiple specs)
+. do "$datagen/estimate_pf.do"
+
+. *============================================================================
+> ===
+. * estimate_pf.do — ACF Production Function Estimation
+. *
+. * Analog of DGM markup_estimation_dgmacf.do:
+. *   DGM: 4-input TL/CD by industry via Mata GMM (21 industries)
+. *   Us:  2-input CD/TL by nace2 via Mata GMM (3 industries)
+. *        with CWDL (2015) extensions (survival, pp in Markov)
+. *
+. * Specifications estimated:
+. *   A. Base: CD, linear Markov with pp_lag + survival
+. *   B. No survival: CD, linear Markov with pp_lag
+. *   C. No pp Markov: CD, linear Markov with survival only
+. *   D. Plain: CD, linear Markov only
+. *   E. Translog: TL, linear Markov with pp_lag + survival
+. *
+. * Input:  analysisdata/analysis_panel.dta
+. * Output: analysisdata/coefficients_byind.dta (one row per nace2 × spec)
+. *============================================================================
+> ===
+. 
+. dis _newline "--- estimate_pf.do ---"
+
+--- estimate_pf.do ---
+
+. 
+. use "$data/analysis_panel.dta", clear
+
+. xtset id year, yearly
+
+Panel variable: id (unbalanced)
+ Time variable: year, 2006 to 2021, but with gaps
+         Delta: 1 year
+
+. 
+. levelsof nace2, local(nace2_list)
+41 42 43
+
+. 
+. *-----------------------------------------------------------------------
+. * Mata GMM programs (4 Markov variants + translog)
+. *-----------------------------------------------------------------------
+. 
+. clear mata
+
+. mata:
+------------------------------------------------- mata (type end to exit) -----
+: 
+: // --- CD: base (pp + survival in Markov) ---
+: void GMM_CD_BASE(todo, b, PHI, PHI_LAG, PP_lag, PHAT_lag, Z, X, X_lag, W, cri
+> t, g, H)
+> {
+>     PHI=st_data(.,("phi")); PHI_LAG=st_data(.,("Lphi"))
+>     PP_lag=st_data(.,("Lpp")); PHAT_lag=st_data(.,("Lphat"))
+>     Z=st_data(.,("const","k","Lcogs")); X=st_data(.,("const","k","cogs"))
+>     X_lag=st_data(.,("const","Lk","Lcogs")); W=invsym(Z'Z)
+>     C=st_data(.,("const"))
+>     OMEGA=PHI-X*b'; OL=PHI_LAG-X_lag*b'
+>     P=(C,OL,PP_lag,PHAT_lag); gb=invsym(P'P)*P'OMEGA; XI=OMEGA-P*gb
+>     crit=(Z'XI)'*W*(Z'XI)
+> }
+note: argument todo unused.
+note: argument g unused.
+note: argument H unused.
+
+: 
+: // --- CD: pp only ---
+: void GMM_CD_PP(todo, b, PHI, PHI_LAG, PP_lag, PHAT_lag, Z, X, X_lag, W, crit,
+>  g, H)
+> {
+>     PHI=st_data(.,("phi")); PHI_LAG=st_data(.,("Lphi"))
+>     PP_lag=st_data(.,("Lpp"))
+>     Z=st_data(.,("const","k","Lcogs")); X=st_data(.,("const","k","cogs"))
+>     X_lag=st_data(.,("const","Lk","Lcogs")); W=invsym(Z'Z)
+>     C=st_data(.,("const"))
+>     OMEGA=PHI-X*b'; OL=PHI_LAG-X_lag*b'
+>     P=(C,OL,PP_lag); gb=invsym(P'P)*P'OMEGA; XI=OMEGA-P*gb
+>     crit=(Z'XI)'*W*(Z'XI)
+> }
+note: argument todo unused.
+note: argument PHAT_lag unused.
+note: argument g unused.
+note: argument H unused.
+
+: 
+: // --- CD: survival only ---
+: void GMM_CD_SURV(todo, b, PHI, PHI_LAG, PP_lag, PHAT_lag, Z, X, X_lag, W, cri
+> t, g, H)
+> {
+>     PHI=st_data(.,("phi")); PHI_LAG=st_data(.,("Lphi"))
+>     PHAT_lag=st_data(.,("Lphat"))
+>     Z=st_data(.,("const","k","Lcogs")); X=st_data(.,("const","k","cogs"))
+>     X_lag=st_data(.,("const","Lk","Lcogs")); W=invsym(Z'Z)
+>     C=st_data(.,("const"))
+>     OMEGA=PHI-X*b'; OL=PHI_LAG-X_lag*b'
+>     P=(C,OL,PHAT_lag); gb=invsym(P'P)*P'OMEGA; XI=OMEGA-P*gb
+>     crit=(Z'XI)'*W*(Z'XI)
+> }
+note: argument todo unused.
+note: argument PP_lag unused.
+note: argument g unused.
+note: argument H unused.
+
+: 
+: // --- CD: plain ---
+: void GMM_CD_PLAIN(todo, b, PHI, PHI_LAG, PP_lag, PHAT_lag, Z, X, X_lag, W, cr
+> it, g, H)
+> {
+>     PHI=st_data(.,("phi")); PHI_LAG=st_data(.,("Lphi"))
+>     Z=st_data(.,("const","k","Lcogs")); X=st_data(.,("const","k","cogs"))
+>     X_lag=st_data(.,("const","Lk","Lcogs")); W=invsym(Z'Z)
+>     C=st_data(.,("const"))
+>     OMEGA=PHI-X*b'; OL=PHI_LAG-X_lag*b'
+>     P=(C,OL); gb=invsym(P'P)*P'OMEGA; XI=OMEGA-P*gb
+>     crit=(Z'XI)'*W*(Z'XI)
+> }
+note: argument todo unused.
+note: argument PP_lag unused.
+note: argument PHAT_lag unused.
+note: argument g unused.
+note: argument H unused.
+
+: 
+: // --- TL: base ---
+: void GMM_TL_BASE(todo, b, PHI, PHI_LAG, PP_lag, PHAT_lag, Z, X, X_lag, W, cri
+> t, g, H)
+> {
+>     PHI=st_data(.,("phi")); PHI_LAG=st_data(.,("Lphi"))
+>     PP_lag=st_data(.,("Lpp")); PHAT_lag=st_data(.,("Lphat"))
+>     Z=st_data(.,("const","k","Lcogs","k2","Lcogs2","kLcogs"))
+>     X=st_data(.,("const","k","cogs","k2","cogs2","kcogs"))
+>     X_lag=st_data(.,("const","Lk","Lcogs","Lk2","Lcogs2","LkLcogs"))
+>     W=invsym(Z'Z); C=st_data(.,("const"))
+>     OMEGA=PHI-X*b'; OL=PHI_LAG-X_lag*b'
+>     P=(C,OL,PP_lag,PHAT_lag); gb=invsym(P'P)*P'OMEGA; XI=OMEGA-P*gb
+>     crit=(Z'XI)'*W*(Z'XI)
+> }
+note: argument todo unused.
+note: argument g unused.
+note: argument H unused.
+
+: 
+: // --- Generic optimizer (NM only, robust) ---
+: void run_opt(pointer(function) scalar fn, real rowvector sv,
+>     string scalar bn, string scalar cn)
+> {
+>     S = optimize_init()
+>     for (i=1; i<=8; i++) optimize_init_argument(S, i, .)
+>     optimize_init_params(S, sv)
+>     optimize_init_evaluator(S, fn)
+>     optimize_init_which(S, "min")
+>     optimize_init_conv_warning(S, "off")
+>     optimize_init_conv_nrtol(S, 1e-10)
+>     optimize_init_conv_maxiter(S, 10000)
+>     optimize_init_technique(S, "nm")
+>     optimize_init_tracelevel(S, "none")
+> 
+>     // Coarse NM
+>     optimize_init_nmsimplexdeltas(S, 0.1)
+>     p = optimize(S)
+> 
+>     // Refine NM (3 rounds with tight deltas)
+>     optimize_init_nmsimplexdeltas(S, 1e-5)
+>     optimize_init_params(S, p)
+>     p = optimize(S)
+>     optimize_init_params(S, p)
+>     p = optimize(S)
+>     optimize_init_params(S, p)
+>     p = optimize(S)
+> 
+>     cb = optimize_result_value(S)
+>     printf("  Criterion = %12.6f\n", cb)
+>     printf("  Params: ")
+>     for (j=1; j<=cols(p); j++) printf("%9.4f ", p[j])
+>     printf("\n")
+>     st_matrix(bn, p)
+>     st_numscalar(cn, cb)
+>     printf("  Matrix %s saved.\n", bn)
+> }
+
+: 
+: // --- Analytical SEs (ACH 2012, clustered) ---
+: void compute_se(string scalar bn, string scalar mt,
+>     string rowvector zv, string rowvector xv,
+>     string rowvector xlv)
+> {
+>     PHI = st_data(.,("phi"))
+>     PHIL = st_data(.,("Lphi"))
+>     C = st_data(.,("const"))
+>     Z = st_data(.,zv)
+>     X = st_data(.,xv)
+>     XL = st_data(.,xlv)
+>     cl = st_data(.,("id"))
+>     b = st_matrix(bn)
+>     N = rows(X)
+>     Kz = cols(Z)
+> 
+>     if (mt=="base") {
+>         MV = (C, st_data(.,("Lpp")), st_data(.,("Lphat")))
+>     }
+>     else if (mt=="pp") {
+>         MV = (C, st_data(.,("Lpp")))
+>     }
+>     else if (mt=="surv") {
+>         MV = (C, st_data(.,("Lphat")))
+>     }
+>     else {
+>         MV = C
+>     }
+> 
+>     // Omega and XI
+>     OM = PHI - X*b'
+>     OL = PHIL - XL*b'
+>     P = (MV, OL)
+>     gb = invsym(P'P) * P'OM
+>     XI = OM - P*gb
+> 
+>     // Jacobian (numerical)
+>     h = 1e-7
+>     K = cols(b)
+>     G = J(Kz, K, 0)
+>     for (j=1; j<=K; j++) {
+>         bp = b
+>         bm = b
+>         bp[j] = bp[j] + h
+>         bm[j] = bm[j] - h
+>         OMp = PHI - X*bp'
+>         OLp = PHIL - XL*bp'
+>         Pp = (MV, OLp)
+>         gbp = invsym(Pp'Pp) * Pp'OMp
+>         XIp = OMp - Pp*gbp
+>         OMm = PHI - X*bm'
+>         OLm = PHIL - XL*bm'
+>         Pm = (MV, OLm)
+>         gbm = invsym(Pm'Pm) * Pm'OMm
+>         XIm = OMm - Pm*gbm
+>         G[.,j] = (Z'XIp/N - Z'XIm/N) / (2*h)
+>     }
+> 
+>     // Clustered meat (ACH 2012)
+>     W = invsym(Z'Z/N)
+>     ZXI = Z :* XI
+>     cids = uniqrows(cl)
+>     Nc = rows(cids)
+>     S = J(Kz, Kz, 0)
+>     for (c=1; c<=Nc; c++) {
+>         sel = selectindex(cl :== cids[c])
+>         mc = colsum(ZXI[sel,.])
+>         S = S + mc'*mc
+>     }
+>     S = S/N * (Nc/(Nc-1))
+>     GWGi = invsym(G'*W*G)
+>     V = GWGi * G'*W*S*W*G * GWGi / N
+>     st_matrix("V_an", V)
+>     st_matrix("se_an", sqrt(diagonal(V))')
+> }
+
+: 
+: end
+-------------------------------------------------------------------------------
+
+. 
+. *-----------------------------------------------------------------------
+. * Industry loop
+. *-----------------------------------------------------------------------
+. 
+. local row = 0
+
+. 
+. foreach n of local nace2_list {
+  2. 
+.     dis _newline(2) "=========================================="
+  3.     dis "  NACE2 = `n'"
+  4.     dis "=========================================="
+  5. 
+.     preserve
+  6.     keep if nace2 == `n'
+  7. 
+.     * Polynomial terms
+.     gen k2 = k^2
+  8.     gen cogs2 = cogs^2
+  9.     gen kcogs = k * cogs
+ 10. 
+.     * First stage OLS (with pp_dummy interactions + year FE)
+.     xi: reg go c.k*#pp_dummy c.cogs*#pp_dummy i.year
+ 11.     predict phi
+ 12.     predict epsilon, res
+ 13.     local r2_1st = e(r2)
+ 14. 
+.     * Corrected expenditure share
+.     gen y_c = go - epsilon
+ 15.     gen Y_c = exp(y_c)
+ 16.     gen alphahat = exp(cogs) / Y_c
+ 17. 
+.     * Lags
+.     xtset id year
+ 18.     gen Lphi  = L.phi
+ 19.     gen Lpp   = L.pp_dummy
+ 20.     gen Lphat = L.phat_survival
+ 21.     gen Lk    = L.k
+ 22.     gen Lcogs = L.cogs
+ 23.     gen Lk2   = Lk^2
+ 24.     gen Lcogs2 = Lcogs^2
+ 25.     gen LkLcogs = Lk * Lcogs
+ 26.     gen kLcogs = k * Lcogs
+ 27.     gen const  = 1
+ 28. 
+.     drop if mi(k, cogs, Lk, Lcogs, phi, Lphi, Lpp)
+ 29.     qui sum Lphat
+ 30.     replace Lphat = r(mean) if mi(Lphat)
+ 31. 
+.     local nobs = _N
+ 32.     dis "  N = `nobs'"
+ 33. 
+.     * OLS starting values
+.     qui reg go k cogs
+ 34.     local sv_c = _b[_cons]
+ 35.     local sv_k = _b[k]
+ 36.     local sv_m = _b[cogs]
+ 37. 
+.     * --- Spec A: Base ---
+.     sort id year
+ 38.     mata: run_opt(&GMM_CD_BASE(), (`sv_c',`sv_k',`sv_m'), "bA", "cA")
+ 39.     local b0A = bA[1,1]
+ 40.     replace phi = phi - `b0A'
+ 41.     replace Lphi = Lphi - `b0A'
+ 42.     matrix bAnc = bA[1,2..3]
+ 43.     mata: compute_se("bAnc","base",("k","Lcogs"),("k","cogs"),("Lk","Lcogs
+> "))
+ 44.     replace phi = phi + `b0A'
+ 45.     replace Lphi = Lphi + `b0A'
+ 46.     matrix seA = se_an
+ 47. 
+.     * --- Spec B: No survival ---
+.     sort id year
+ 48.     mata: run_opt(&GMM_CD_PP(), (`sv_c',`sv_k',`sv_m'), "bB", "cB")
+ 49.     local b0B = bB[1,1]
+ 50.     replace phi = phi - `b0B'
+ 51.     replace Lphi = Lphi - `b0B'
+ 52.     matrix bBnc = bB[1,2..3]
+ 53.     mata: compute_se("bBnc","pp",("k","Lcogs"),("k","cogs"),("Lk","Lcogs")
+> )
+ 54.     replace phi = phi + `b0B'
+ 55.     replace Lphi = Lphi + `b0B'
+ 56.     matrix seB = se_an
+ 57. 
+.     * --- Spec C: No pp ---
+.     sort id year
+ 58.     mata: run_opt(&GMM_CD_SURV(), (`sv_c',`sv_k',`sv_m'), "bC", "cC")
+ 59.     local b0C = bC[1,1]
+ 60.     replace phi = phi - `b0C'
+ 61.     replace Lphi = Lphi - `b0C'
+ 62.     matrix bCnc = bC[1,2..3]
+ 63.     mata: compute_se("bCnc","surv",("k","Lcogs"),("k","cogs"),("Lk","Lcogs
+> "))
+ 64.     replace phi = phi + `b0C'
+ 65.     replace Lphi = Lphi + `b0C'
+ 66.     matrix seC = se_an
+ 67. 
+.     * --- Spec D: Plain ---
+.     sort id year
+ 68.     mata: run_opt(&GMM_CD_PLAIN(), (`sv_c',`sv_k',`sv_m'), "bD", "cD")
+ 69.     local b0D = bD[1,1]
+ 70.     replace phi = phi - `b0D'
+ 71.     replace Lphi = Lphi - `b0D'
+ 72.     matrix bDnc = bD[1,2..3]
+ 73.     mata: compute_se("bDnc","plain",("k","Lcogs"),("k","cogs"),("Lk","Lcog
+> s"))
+ 74.     replace phi = phi + `b0D'
+ 75.     replace Lphi = Lphi + `b0D'
+ 76.     matrix seD = se_an
+ 77. 
+.     * --- Spec E: Translog ---
+.     qui reg go k cogs k2 cogs2 kcogs
+ 78.     matrix sv_tl = (_b[_cons], _b[k], _b[cogs], _b[k2], _b[cogs2], _b[kcog
+> s])
+ 79.     sort id year
+ 80.     mata: run_opt(&GMM_TL_BASE(), st_matrix("sv_tl"), "bE", "cE")
+ 81.     local b0E = bE[1,1]
+ 82.     replace phi = phi - `b0E'
+ 83.     replace Lphi = Lphi - `b0E'
+ 84.     matrix bEnc = bE[1,2..6]
+ 85.     mata: compute_se("bEnc","base", ///
+>         ("k","Lcogs","k2","Lcogs2","kLcogs"), ///
+>         ("k","cogs","k2","cogs2","kcogs"), ///
+>         ("Lk","Lcogs","Lk2","Lcogs2","LkLcogs"))
+ 86.     replace phi = phi + `b0E'
+ 87.     replace Lphi = Lphi + `b0E'
+ 88.     matrix seE = se_an
+ 89. 
+.     * --- OLS ---
+.     qui reg go k cogs
+ 90.     local ols_k = _b[k]
+ 91.     local ols_m = _b[cogs]
+ 92. 
+.     * --- Save coefficients ---
+.     clear
+ 93.     set obs 1
+ 94.     gen nace2 = `n'
+ 95.     gen N_obs = `nobs'
+ 96.     gen r2_first = `r2_1st'
+ 97. 
+.     foreach s in A B C D {
+ 98.         gen b_k_`s' = b`s'[1,2]
+ 99.         gen b_cogs_`s' = b`s'[1,3]
+100.         gen se_k_`s' = se`s'[1,1]
+101.         gen se_cogs_`s' = se`s'[1,2]
+102.         gen crit_`s' = c`s'
+103.     }
+104.     gen b_k_E = bE[1,2]
+105.     gen b_cogs_E = bE[1,3]
+106.     gen b_k2_E = bE[1,4]
+107.     gen b_cogs2_E = bE[1,5]
+108.     gen b_kcogs_E = bE[1,6]
+109.     gen se_k_E = seE[1,1]
+110.     gen se_cogs_E = seE[1,2]
+111.     gen se_k2_E = seE[1,3]
+112.     gen se_cogs2_E = seE[1,4]
+113.     gen se_kcogs_E = seE[1,5]
+114.     gen crit_E = cE
+115.     gen b_k_OLS = `ols_k'
+116.     gen b_cogs_OLS = `ols_m'
+117. 
+.     save "$temp/coeff_`n'.dta", replace
+118. 
+.     restore
+119. }
+
+
+==========================================
+  NACE2 = 41
+==========================================
+(4,253 observations deleted)
+i.year            _Iyear_2006-2021    (naturally coded; _Iyear_2006 omitted)
+
+      Source |       SS           df       MS      Number of obs   =     4,911
+-------------+----------------------------------   F(29, 4881)     =   1396.94
+       Model |  5724.57122        29  197.399008   Prob > F        =    0.0000
+    Residual |  689.726441     4,881  .141308429   R-squared       =    0.8925
+-------------+----------------------------------   Adj R-squared   =    0.8918
+       Total |  6414.29766     4,910  1.30637427   Root MSE        =    .37591
+
+------------------------------------------------------------------------------
+          go | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+pp_dummy#c.k |
+          0  |   .1282694   .1193537     1.07   0.283    -.1057176    .3622565
+          1  |   .2624487   .1539504     1.70   0.088    -.0393635    .5642608
+             |
+    pp_dummy#|
+     c.k_raw |
+          0  |  -.0191467   .0443985    -0.43   0.666    -.1061878    .0678944
+          1  |   .0203659   .0739516     0.28   0.783    -.1246124    .1653442
+             |
+    pp_dummy#|
+        c.k2 |
+          0  |   .0056908   .0035289     1.61   0.107    -.0012273     .012609
+          1  |   .0140183   .0047097     2.98   0.003     .0047852    .0232514
+             |
+    pp_dummy#|
+     c.kcogs |
+          0  |  -.0137489   .0074075    -1.86   0.064     -.028271    .0007731
+          1  |  -.0404253   .0120509    -3.35   0.001    -.0640505   -.0168001
+             |
+    pp_dummy#|
+      c.cogs |
+          0  |   1.861488   .1875593     9.92   0.000     1.493787    2.229188
+          1  |   1.495611   .2078051     7.20   0.000     1.088219    1.903002
+             |
+    pp_dummy#|
+  c.cogs_raw |
+          0  |   .0214854   .0537682     0.40   0.689    -.0839245    .1268954
+          1  |   .1916059   .0572462     3.35   0.001     .0793776    .3038342
+             |
+    pp_dummy#|
+     c.cogs2 |
+          0  |  -.0211973   .0067718    -3.13   0.002    -.0344731   -.0079214
+          1  |   -.001135   .0096799    -0.12   0.907    -.0201121     .017842
+             |
+ _Iyear_2007 |   .0289657   .0391965     0.74   0.460     -.047877    .1058085
+ _Iyear_2008 |   -.028519   .0375955    -0.76   0.448    -.1022231    .0451851
+ _Iyear_2009 |   -.013702   .0364926    -0.38   0.707    -.0852438    .0578399
+ _Iyear_2010 |  -.0293802   .0357107    -0.82   0.411    -.0993893    .0406289
+ _Iyear_2011 |  -.0281219   .0357833    -0.79   0.432    -.0982732    .0420295
+ _Iyear_2012 |  -.0704402   .0366152    -1.92   0.054    -.1422225    .0013421
+ _Iyear_2013 |  -.1168152    .041803    -2.79   0.005     -.198768   -.0348624
+ _Iyear_2014 |  -.0757859   .0418836    -1.81   0.070    -.1578965    .0063247
+ _Iyear_2015 |  -.0584927   .0380726    -1.54   0.125    -.1331321    .0161467
+ _Iyear_2016 |   -.041075   .0348972    -1.18   0.239    -.1094892    .0273393
+ _Iyear_2017 |  -.0431328   .0343702    -1.25   0.210    -.1105139    .0242483
+ _Iyear_2018 |  -.0139359   .0339256    -0.41   0.681    -.0804453    .0525734
+ _Iyear_2019 |  -.0211012   .0338073    -0.62   0.533    -.0873788    .0451764
+ _Iyear_2020 |  -.0328612   .0340698    -0.96   0.335    -.0996533    .0339309
+ _Iyear_2021 |  -.0769623    .035624    -2.16   0.031    -.1468013   -.0071233
+       _cons |  -7.552807   1.284533    -5.88   0.000    -10.07107   -5.034544
+------------------------------------------------------------------------------
+(option xb assumed; fitted values)
+
+Panel variable: id (unbalanced)
+ Time variable: year, 2006 to 2021, but with gaps
+         Delta: 1 year
+(1,213 missing values generated)
+(1,213 missing values generated)
+(1,213 missing values generated)
+(1,213 missing values generated)
+(1,213 missing values generated)
+(1,213 missing values generated)
+(1,213 missing values generated)
+(1,213 missing values generated)
+(1,213 missing values generated)
+(1,213 observations deleted)
+(0 real changes made)
+  N = 3698
+  Criterion =     0.042225
+  Params:    0.3809   -0.0130    1.2912 
+  Matrix bA saved.
+(3,698 real changes made)
+(3,698 real changes made)
+(3,698 real changes made)
+(3,698 real changes made)
+  Criterion =     0.000000
+  Params:    0.5584    0.0446    0.9705 
+  Matrix bB saved.
+(3,698 real changes made)
+(3,698 real changes made)
+(3,698 real changes made)
+(3,698 real changes made)
+  Criterion =     0.000000
+  Params:    0.6297    0.0473    0.9455 
+  Matrix bC saved.
+(3,698 real changes made)
+(3,698 real changes made)
+(3,698 real changes made)
+(3,698 real changes made)
+  Criterion =     0.000000
+  Params:    0.5566    0.0445    0.9699 
+  Matrix bD saved.
+(3,698 real changes made)
+(3,698 real changes made)
+(3,698 real changes made)
+(3,698 real changes made)
+  Criterion =     0.041268
+  Params:   -5.7822    0.0848    1.6587    0.0010   -0.0181   -0.0040 
+  Matrix bE saved.
+(3,698 real changes made)
+(3,698 real changes made)
+(3,698 real changes made)
+(3,698 real changes made)
+Number of observations (_N) was 0, now 1.
+file ../../output/stata/temp/coeff_41.dta saved
+
+
+==========================================
+  NACE2 = 42
+==========================================
+(8,346 observations deleted)
+i.year            _Iyear_2006-2021    (naturally coded; _Iyear_2006 omitted)
+
+      Source |       SS           df       MS      Number of obs   =       818
+-------------+----------------------------------   F(29, 788)      =    562.07
+       Model |  1532.54339        29  52.8463237   Prob > F        =    0.0000
+    Residual |  74.0879843       788  .094020285   R-squared       =    0.9539
+-------------+----------------------------------   Adj R-squared   =    0.9522
+       Total |  1606.63137       817  1.96650107   Root MSE        =    .30663
+
+------------------------------------------------------------------------------
+          go | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+pp_dummy#c.k |
+          0  |   .6990803   .4142857     1.69   0.092    -.1141538    1.512315
+          1  |   .6536528   .2927578     2.23   0.026     .0789754     1.22833
+             |
+    pp_dummy#|
+     c.k_raw |
+          0  |  -.4842153   .1140418    -4.25   0.000    -.7080769   -.2603537
+          1  |   -.244264   .0976533    -2.50   0.013    -.4359554   -.0525727
+             |
+    pp_dummy#|
+        c.k2 |
+          0  |   -.013839   .0131558    -1.05   0.293    -.0396635    .0119855
+          1  |   .0334506   .0103767     3.22   0.001     .0130813    .0538199
+             |
+    pp_dummy#|
+     c.kcogs |
+          0  |   .0127894   .0290363     0.44   0.660    -.0442082     .069787
+          1  |  -.0865702   .0248353    -3.49   0.001    -.1353213   -.0378191
+             |
+    pp_dummy#|
+      c.cogs |
+          0  |   .6975181   .3830528     1.82   0.069    -.0544066    1.449443
+          1  |   .5487299   .4267927     1.29   0.199    -.2890552    1.386515
+             |
+    pp_dummy#|
+  c.cogs_raw |
+          0  |  -.1367762   .1619385    -0.84   0.399    -.4546581    .1811058
+          1  |  -.1535645   .3025327    -0.51   0.612    -.7474299    .4403009
+             |
+    pp_dummy#|
+     c.cogs2 |
+          0  |   .0091757   .0210273     0.44   0.663    -.0321005    .0504518
+          1  |   .0598731   .0179117     3.34   0.001     .0247129    .0950333
+             |
+ _Iyear_2007 |   .0052618   .0693733     0.08   0.940    -.1309166    .1414401
+ _Iyear_2008 |   -.037552   .0669509    -0.56   0.575    -.1689752    .0938713
+ _Iyear_2009 |   -.052655   .0648986    -0.81   0.417    -.1800497    .0747397
+ _Iyear_2010 |  -.0714551   .0622793    -1.15   0.252     -.193708    .0507978
+ _Iyear_2011 |   -.062025   .0625645    -0.99   0.322    -.1848377    .0607877
+ _Iyear_2012 |  -.0930247   .0650496    -1.43   0.153    -.2207157    .0346662
+ _Iyear_2013 |  -.1853168   .0879636    -2.11   0.035    -.3579874   -.0126462
+ _Iyear_2014 |  -.0760847   .0892631    -0.85   0.394    -.2513062    .0991368
+ _Iyear_2015 |   .0402865   .0757792     0.53   0.595    -.1084665    .1890395
+ _Iyear_2016 |  -.0789008   .0630066    -1.25   0.211    -.2025813    .0447798
+ _Iyear_2017 |  -.0885126   .0626071    -1.41   0.158    -.2114091    .0343839
+ _Iyear_2018 |  -.0901889   .0622251    -1.45   0.148    -.2123355    .0319577
+ _Iyear_2019 |  -.0503568   .0615043    -0.82   0.413    -.1710883    .0703748
+ _Iyear_2020 |  -.0480084   .0618102    -0.78   0.438    -.1693406    .0733239
+ _Iyear_2021 |  -.0691971   .0660717    -1.05   0.295    -.1988945    .0605003
+       _cons |     2.1458   1.706816     1.26   0.209    -1.204644    5.496244
+------------------------------------------------------------------------------
+(option xb assumed; fitted values)
+
+Panel variable: id (unbalanced)
+ Time variable: year, 2006 to 2021, but with gaps
+         Delta: 1 year
+(192 missing values generated)
+(192 missing values generated)
+(192 missing values generated)
+(192 missing values generated)
+(192 missing values generated)
+(192 missing values generated)
+(192 missing values generated)
+(192 missing values generated)
+(192 missing values generated)
+(192 observations deleted)
+(0 real changes made)
+  N = 626
+  Criterion =     0.000000
+  Params:   -0.8416   -0.0319    1.1011 
+  Matrix bA saved.
+(626 real changes made)
+(626 real changes made)
+(626 real changes made)
+(626 real changes made)
+  Criterion =     0.000000
+  Params:   -0.8385   -0.0311    1.1075 
+  Matrix bB saved.
+(626 real changes made)
+(626 real changes made)
+(626 real changes made)
+(626 real changes made)
+  Criterion =     0.000000
+  Params:   -0.7991   -0.0323    1.0992 
+  Matrix bC saved.
+(626 real changes made)
+(626 real changes made)
+(626 real changes made)
+(626 real changes made)
+  Criterion =     0.000000
+  Params:   -0.7859   -0.0314    1.1061 
+  Matrix bD saved.
+(626 real changes made)
+(626 real changes made)
+(626 real changes made)
+(626 real changes made)
+  Criterion =     0.000458
+  Params:   -0.6611   -0.0234    0.8977    0.0142    0.0179   -0.0269 
+  Matrix bE saved.
+(626 real changes made)
+(626 real changes made)
+(626 real changes made)
+(626 real changes made)
+Number of observations (_N) was 0, now 1.
+file ../../output/stata/temp/coeff_42.dta saved
+
+
+==========================================
+  NACE2 = 43
+==========================================
+(5,729 observations deleted)
+i.year            _Iyear_2006-2021    (naturally coded; _Iyear_2006 omitted)
+
+      Source |       SS           df       MS      Number of obs   =     3,435
+-------------+----------------------------------   F(29, 3405)     =   1263.68
+       Model |   4241.1948        29  146.248097   Prob > F        =    0.0000
+    Residual |  394.065762     3,405  .115731501   R-squared       =    0.9150
+-------------+----------------------------------   Adj R-squared   =    0.9143
+       Total |  4635.26056     3,434  1.34981379   Root MSE        =    .34019
+
+------------------------------------------------------------------------------
+          go | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+pp_dummy#c.k |
+          0  |   .3600372   .1144886     3.14   0.002      .135564    .5845105
+          1  |  -.4912552   .1494826    -3.29   0.001      -.78434   -.1981705
+             |
+    pp_dummy#|
+     c.k_raw |
+          0  |  -.0348598   .0398764    -0.87   0.382    -.1130439    .0433242
+          1  |   .0380592   .0621947     0.61   0.541    -.0838835    .1600019
+             |
+    pp_dummy#|
+        c.k2 |
+          0  |   .0135916   .0036515     3.72   0.000     .0064323     .020751
+          1  |    .024289   .0062977     3.86   0.000     .0119414    .0366367
+             |
+    pp_dummy#|
+     c.kcogs |
+          0  |  -.0401606   .0075013    -5.35   0.000    -.0548681   -.0254532
+          1  |  -.0147618   .0122803    -1.20   0.229    -.0388394    .0093158
+             |
+    pp_dummy#|
+      c.cogs |
+          0  |  -.1293139    .171854    -0.75   0.452    -.4662613    .2076336
+          1  |   .7362813   .1855035     3.97   0.000     .3725718    1.099991
+             |
+    pp_dummy#|
+  c.cogs_raw |
+          0  |  -.0782069   .0481245    -1.63   0.104    -.1725628     .016149
+          1  |  -.2232504   .0582495    -3.83   0.000     -.337458   -.1090429
+             |
+    pp_dummy#|
+     c.cogs2 |
+          0  |   .0500144    .006424     7.79   0.000     .0374191    .0626096
+          1  |   .0176526   .0084342     2.09   0.036      .001116    .0341891
+             |
+ _Iyear_2007 |  -.0464507   .0420554    -1.10   0.269     -.128907    .0360056
+ _Iyear_2008 |  -.0355783   .0408495    -0.87   0.384    -.1156703    .0445137
+ _Iyear_2009 |  -.0429127   .0396476    -1.08   0.279    -.1206482    .0348228
+ _Iyear_2010 |  -.0627812   .0387763    -1.62   0.106    -.1388083     .013246
+ _Iyear_2011 |  -.0659532   .0392568    -1.68   0.093    -.1429225    .0110161
+ _Iyear_2012 |  -.0804951   .0400906    -2.01   0.045    -.1590992    -.001891
+ _Iyear_2013 |  -.0776023   .0465216    -1.67   0.095    -.1688154    .0136108
+ _Iyear_2014 |  -.0785724   .0450929    -1.74   0.082    -.1669843    .0098395
+ _Iyear_2015 |  -.0280608   .0419897    -0.67   0.504    -.1103883    .0542667
+ _Iyear_2016 |  -.0429576   .0379739    -1.13   0.258    -.1174115    .0314962
+ _Iyear_2017 |  -.0181794   .0374661    -0.49   0.628    -.0916377    .0552788
+ _Iyear_2018 |   .0014233   .0370816     0.04   0.969    -.0712811    .0741276
+ _Iyear_2019 |    .005493   .0369676     0.15   0.882    -.0669879     .077974
+ _Iyear_2020 |  -.0017266   .0370011    -0.05   0.963    -.0742733    .0708201
+ _Iyear_2021 |  -.0310078   .0387905    -0.80   0.424    -.1070629    .0450473
+       _cons |    8.92443   1.211328     7.37   0.000     6.549426    11.29943
+------------------------------------------------------------------------------
+(option xb assumed; fitted values)
+
+Panel variable: id (unbalanced)
+ Time variable: year, 2006 to 2021, but with gaps
+         Delta: 1 year
+(910 missing values generated)
+(910 missing values generated)
+(910 missing values generated)
+(910 missing values generated)
+(910 missing values generated)
+(910 missing values generated)
+(910 missing values generated)
+(910 missing values generated)
+(910 missing values generated)
+(910 observations deleted)
+(0 real changes made)
+  N = 2525
+  Criterion =     0.000000
+  Params:    1.2316    0.0659    0.9059 
+  Matrix bA saved.
+(2,525 real changes made)
+(2,525 real changes made)
+(2,525 real changes made)
+(2,525 real changes made)
+  Criterion =     0.000000
+  Params:    1.2572    0.0652    0.9131 
+  Matrix bB saved.
+(2,525 real changes made)
+(2,525 real changes made)
+(2,525 real changes made)
+(2,525 real changes made)
+  Criterion =     0.000000
+  Params:    1.2489    0.0649    0.8999 
+  Matrix bC saved.
+(2,525 real changes made)
+(2,525 real changes made)
+(2,525 real changes made)
+(2,525 real changes made)
+  Criterion =     0.000000
+  Params:    1.2454    0.0642    0.9058 
+  Matrix bD saved.
+(2,525 real changes made)
+(2,525 real changes made)
+(2,525 real changes made)
+(2,525 real changes made)
+  Criterion =     0.039929
+  Params:    5.0270   -0.0300    0.5933    0.0156    0.0235   -0.0234 
+  Matrix bE saved.
+(2,525 real changes made)
+(2,525 real changes made)
+(2,525 real changes made)
+(2,525 real changes made)
+Number of observations (_N) was 0, now 1.
+file ../../output/stata/temp/coeff_43.dta saved
+
+. 
+. * Combine
+. use "$temp/coeff_41.dta", clear
+
+. foreach n in 42 43 {
+  2.     append using "$temp/coeff_`n'.dta"
+  3. }
+
+. save "$data/coefficients_byind.dta", replace
+file ../../output/stata/coefficients_byind.dta saved
+
+. dis _newline "  Saved: coefficients_byind.dta"
+
+  Saved: coefficients_byind.dta
+
+. list nace2 b_k_A b_cogs_A se_k_A se_cogs_A N_obs, noobs
+
+  +------------------------------------------------------------+
+  | nace2       b_k_A   b_cogs_A     se_k_A   se_cog~A   N_obs |
+  |------------------------------------------------------------|
+  |    41   -.0129677    1.29119   .0126694          0    3698 |
+  |    42   -.0319487   1.101062   .0236252   .1270882     626 |
+  |    43    .0659437   .9058543   .0065331   .1260054    2525 |
+  +------------------------------------------------------------+
+
+. 
+end of do-file
+
+. 
+. * 1c. Calculate firm-level markups
+. do "$datagen/calculate_markups.do"
+
+. *============================================================================
+> ===
+. * calculate_markups.do — Compute firm-level markups from PF coefficients
+. *
+. * Analog of DGM markup_calculation.do:
+. *   DGM: elasticity × (sales/materials), 4 specs × 10 treatments
+. *   Us:  θ/α for CD and TL, 6 specs (A-E + OLS)
+. *
+. * Markup formula (DLW 2012):
+. *   CD:  μ = β_cogs / α,  where α = exp(cogs)/exp(y_c)
+. *   TL:  μ = (β_cogs + 2·β_cogs2·cogs + β_kcogs·k) / α
+. *
+. * Input:  analysisdata/analysis_panel.dta + coefficients_byind.dta
+. * Output: analysisdata/markups_panel.dta
+. *============================================================================
+> ===
+. 
+. dis _newline "--- calculate_markups.do ---"
+
+--- calculate_markups.do ---
+
+. 
+. use "$data/analysis_panel.dta", clear
+
+. xtset id year, yearly
+
+Panel variable: id (unbalanced)
+ Time variable: year, 2006 to 2021, but with gaps
+         Delta: 1 year
+
+. 
+. * Load coefficients
+. preserve
+
+. use "$data/coefficients_byind.dta", clear
+
+. tempfile coeff
+
+. save `coeff'
+file /var/folders/4c/ww4k0h5j0fq1529s2dttb4t00000gn/T//St29358.000002 saved
+    as .dta format
+
+. restore
+
+. 
+. * Merge coefficients by nace2
+. merge m:1 nace2 using `coeff', assert(3) nogen
+(variable nace2 was byte, now float to accommodate using data's values)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                             9,164  
+    -----------------------------------------
+
+. 
+. *-----------------------------------------------------------------------
+. * First stage (needed for corrected α)
+. *-----------------------------------------------------------------------
+. 
+. * We need phi and epsilon. Re-run first stage by industry.
+. gen phi = .
+(9,164 missing values generated)
+
+. gen epsilon = .
+(9,164 missing values generated)
+
+. 
+. levelsof nace2, local(naces)
+41 42 43
+
+. foreach n of local naces {
+  2.     xi: qui reg go c.k*#pp_dummy c.cogs*#pp_dummy i.year if nace2 == `n'
+  3.     predict phi_`n' if nace2 == `n'
+  4.     predict eps_`n' if nace2 == `n', res
+  5.     replace phi = phi_`n' if nace2 == `n'
+  6.     replace epsilon = eps_`n' if nace2 == `n'
+  7.     drop phi_`n' eps_`n' _I*
+  8. }
+i.year            _Iyear_2006-2021    (naturally coded; _Iyear_2006 omitted)
+(option xb assumed; fitted values)
+(4,253 missing values generated)
+(4,253 missing values generated)
+(4,911 real changes made)
+(4,911 real changes made)
+i.year            _Iyear_2006-2021    (naturally coded; _Iyear_2006 omitted)
+(option xb assumed; fitted values)
+(8,346 missing values generated)
+(8,346 missing values generated)
+(818 real changes made)
+(818 real changes made)
+i.year            _Iyear_2006-2021    (naturally coded; _Iyear_2006 omitted)
+(option xb assumed; fitted values)
+(5,729 missing values generated)
+(5,729 missing values generated)
+(3,435 real changes made)
+(3,435 real changes made)
+
+. 
+. * Corrected expenditure share (DGM: ratio = catotal/acha4; we use α = exp(cog
+> s)/exp(y_c))
+. gen y_c = go - epsilon
+
+. gen Y_c = exp(y_c)
+
+. gen alphahat = exp(cogs) / Y_c
+
+. label var alphahat "Corrected expenditure share (cogs/output)"
+
+. 
+. *-----------------------------------------------------------------------
+. * Markup computation (analog of DGM's 4-spec × 10-treatment loop)
+. *-----------------------------------------------------------------------
+. 
+. * Spec A: Base CD
+. gen mu_A = b_cogs_A / alphahat
+
+. label var mu_A "Markup: Base (surv + pp Markov)"
+
+. 
+. * Spec B: No survival CD
+. gen mu_B = b_cogs_B / alphahat
+
+. label var mu_B "Markup: No survival"
+
+. 
+. * Spec C: No pp Markov CD
+. gen mu_C = b_cogs_C / alphahat
+
+. label var mu_C "Markup: No pp in Markov"
+
+. 
+. * Spec D: Plain CD
+. gen mu_D = b_cogs_D / alphahat
+
+. label var mu_D "Markup: Plain ACF"
+
+. 
+. * Spec E: Translog
+. gen theta_E = b_cogs_E + 2*b_cogs2_E*cogs + b_kcogs_E*k
+
+. gen mu_E = theta_E / alphahat
+
+. label var mu_E "Markup: Translog (surv + pp)"
+
+. label var theta_E "Output elasticity (TL)"
+
+. 
+. * OLS
+. gen mu_OLS = b_cogs_OLS / alphahat
+
+. label var mu_OLS "Markup: OLS"
+
+. 
+. *-----------------------------------------------------------------------
+. * Log markups (DGM: l_mu_*)
+. *-----------------------------------------------------------------------
+. 
+. foreach s in A B C D E OLS {
+  2.     gen l_mu_`s' = ln(mu_`s') if mu_`s' > 0
+  3.     label var l_mu_`s' "Log markup: spec `s'"
+  4. }
+
+. 
+. *-----------------------------------------------------------------------
+. * Productivity (omega, from base spec A)
+. *-----------------------------------------------------------------------
+. 
+. gen omega_A = phi - b_k_A*k - b_cogs_A*cogs
+
+. * No constant subtraction needed — it's absorbed in phi
+. 
+. label var omega_A "Productivity (omega, base spec)"
+
+. 
+. *-----------------------------------------------------------------------
+. * First differences (DGM Figure 4)
+. *-----------------------------------------------------------------------
+. 
+. sort id year
+
+. foreach s in A B C D E OLS {
+  2.     by id: gen FD_l_mu_`s' = l_mu_`s' - l_mu_`s'[_n-1]
+  3.     label var FD_l_mu_`s' "FD log markup: spec `s'"
+  4. }
+(1,498 missing values generated)
+(1,498 missing values generated)
+(1,498 missing values generated)
+(1,498 missing values generated)
+(1,498 missing values generated)
+(1,498 missing values generated)
+
+. 
+. *-----------------------------------------------------------------------
+. * Summary statistics
+. *-----------------------------------------------------------------------
+. 
+. dis _newline "=== Markup Distributions ==="
+
+=== Markup Distributions ===
+
+. foreach s in A B C D E OLS {
+  2.     dis _newline "  Spec `s':"
+  3.     tabstat mu_`s', by(nace2) stat(mean sd p10 p50 p90 N) format(%9.3f)
+  4. }
+
+  Spec A:
+
+Summary for variables: mu_A
+Group variable: nace2 
+
+   nace2 |      Mean        SD       p10       p50       p90         N
+---------+------------------------------------------------------------
+      41 |     2.867     0.294     2.483     2.881     3.212  4911.000
+      42 |     2.355     0.325     2.027     2.316     2.731   818.000
+      43 |     1.665     0.187     1.437     1.653     1.915  3435.000
+---------+------------------------------------------------------------
+   Total |     2.371     0.622     1.536     2.496     3.157  9164.000
+----------------------------------------------------------------------
+
+  Spec B:
+
+Summary for variables: mu_B
+Group variable: nace2 
+
+   nace2 |      Mean        SD       p10       p50       p90         N
+---------+------------------------------------------------------------
+      41 |     2.155     0.221     1.867     2.165     2.414  4911.000
+      42 |     2.369     0.327     2.038     2.330     2.748   818.000
+      43 |     1.678     0.188     1.449     1.666     1.930  3435.000
+---------+------------------------------------------------------------
+   Total |     1.995     0.336     1.548     1.984     2.404  9164.000
+----------------------------------------------------------------------
+
+  Spec C:
+
+Summary for variables: mu_C
+Group variable: nace2 
+
+   nace2 |      Mean        SD       p10       p50       p90         N
+---------+------------------------------------------------------------
+      41 |     2.099     0.215     1.818     2.109     2.352  4911.000
+      42 |     2.351     0.325     2.023     2.312     2.727   818.000
+      43 |     1.654     0.186     1.428     1.642     1.902  3435.000
+---------+------------------------------------------------------------
+   Total |     1.955     0.326     1.525     1.939     2.345  9164.000
+----------------------------------------------------------------------
+
+  Spec D:
+
+Summary for variables: mu_D
+Group variable: nace2 
+
+   nace2 |      Mean        SD       p10       p50       p90         N
+---------+------------------------------------------------------------
+      41 |     2.153     0.220     1.865     2.164     2.413  4911.000
+      42 |     2.366     0.327     2.036     2.327     2.744   818.000
+      43 |     1.665     0.187     1.437     1.653     1.915  3435.000
+---------+------------------------------------------------------------
+   Total |     1.989     0.339     1.536     1.980     2.402  9164.000
+----------------------------------------------------------------------
+
+  Spec E:
+
+Summary for variables: mu_E
+Group variable: nace2 
+
+   nace2 |      Mean        SD       p10       p50       p90         N
+---------+------------------------------------------------------------
+      41 |     2.137     0.214     1.853     2.148     2.405  4911.000
+      42 |     2.332     0.362     1.945     2.291     2.757   818.000
+      43 |     1.905     0.160     1.715     1.888     2.125  3435.000
+---------+------------------------------------------------------------
+   Total |     2.068     0.254     1.768     2.043     2.388  9164.000
+----------------------------------------------------------------------
+
+  Spec OLS:
+
+Summary for variables: mu_OLS
+Group variable: nace2 
+
+   nace2 |      Mean        SD       p10       p50       p90         N
+---------+------------------------------------------------------------
+      41 |     2.173     0.222     1.882     2.184     2.435  4911.000
+      42 |     2.421     0.334     2.084     2.382     2.809   818.000
+      43 |     1.679     0.188     1.449     1.667     1.931  3435.000
+---------+------------------------------------------------------------
+   Total |     2.010     0.347     1.548     1.999     2.427  9164.000
+----------------------------------------------------------------------
+
+. 
+. dis _newline "=== By Procurement Status (Base Spec A) ==="
+
+=== By Procurement Status (Base Spec A) ===
+
+. tabstat mu_A l_mu_A omega_A, by(pp_dummy) stat(mean sd p50 N) format(%9.4f)
+
+Summary statistics: Mean, SD, p50, N
+Group variable: pp_dummy 
+
+pp_dummy |      mu_A    l_mu_A   omega_A
+---------+------------------------------
+       0 |    2.1391    0.7294   -1.4670
+         |    0.5219    0.2521    2.5711
+         |    2.2128    0.7943   -0.5827
+         | 5296.0000 5296.0000 5296.0000
+---------+------------------------------
+       1 |    2.6874    0.9584   -2.2114
+         |    0.6086    0.2560    2.3740
+         |    3.0268    1.1075   -3.8005
+         | 3868.0000 3868.0000 3868.0000
+---------+------------------------------
+   Total |    2.3706    0.8260   -1.7812
+         |    0.6221    0.2778    2.5167
+         |    2.4959    0.9147   -3.6548
+         | 9164.0000 9164.0000 9164.0000
+----------------------------------------
+
+. 
+. *-----------------------------------------------------------------------
+. * Save
+. *-----------------------------------------------------------------------
+. 
+. drop b_k_* b_cogs_* b_k2_* b_cogs2_* b_kcogs_* se_* crit_* N_obs r2_first
+
+. drop phi epsilon y_c Y_c theta_E
+
+. 
+. order id year nace2 pp_dummy pp_lag pp_ever_3y ///
+>     mu_A mu_B mu_C mu_D mu_E mu_OLS ///
+>     l_mu_A l_mu_B l_mu_C l_mu_D l_mu_E l_mu_OLS ///
+>     omega_A alphahat ratio
+
+. 
+. compress
+  variable nace2 was float now byte
+  (27,492 bytes saved)
+
+. save "$data/markups_panel.dta", replace
+file ../../output/stata/markups_panel.dta saved
+
+. dis _newline "  Saved: markups_panel.dta (" _N " obs)"
+
+  Saved: markups_panel.dta (9164 obs)
+
+. 
+end of do-file
+
+. 
+. *-----------------------------------------------------------------------
+. * STEP 2: ANALYSIS (TABLES AND FIGURES)
+. *-----------------------------------------------------------------------
+. dis _newline(2) "========================================"
+
+
+========================================
+
+. dis "  STEP 2: Analysis"
+  STEP 2: Analysis
+
+. dis "========================================"
+========================================
+
+. 
+. do "$code/master_code.do"
+
+. *============================================================================
+> ===
+. * master_code.do — Run all tables and figures
+. *
+. * Analog of DGM master_code.do
+. *============================================================================
+> ===
+. 
+. dis _newline "--- master_code.do ---"
+
+--- master_code.do ---
+
+. 
+. * Tables
+. do "$code/table_pf.do"
+
+. *============================================================================
+> ===
+. * table_pf.do — Table 1: Production Function Estimates
+. *
+. * No direct DGM analog (DGM report coefficients inline).
+. * We create a standalone coefficient table with robustness panel.
+. *
+. * Output: output/table_pf.tex
+. *============================================================================
+> ===
+. 
+. dis _newline "--- table_pf.do ---"
+
+--- table_pf.do ---
+
+. 
+. use "$data/coefficients_byind.dta", clear
+
+. 
+. * LaTeX output
+. cap file close tf
+
+. file open tf using "$output/table_pf.tex", write replace
+
+. 
+. #delimit ;
+delimiter now ;
+. file write tf
+>     "\begin{table}[htbp]\centering" _n
+>     "\caption{Production Function Estimates by Industry}" _n
+>     "\label{tab:pf_estimates}" _n
+>     "\begin{tabular}{l*{3}{c}}" _n
+>     "\hline\hline" _n
+>     " & NACE 41 & NACE 42 & NACE 43 \\" _n
+>     " & (Buildings) & (Civil Eng.) & (Specialized) \\" _n
+>     "\hline" _n
+>     "\multicolumn{4}{l}{\textit{Panel A: Baseline (survival + pp in Markov)}}
+>  \\" _n
+> ;
+
+. #delimit cr
+delimiter now cr
+. 
+. * Panel A: beta_k
+. file write tf _char(36) "\hat{\beta}_k" _char(36)
+
+. forvalues i = 1/3 {
+  2.     local b = b_k_A[`i']
+  3.     file write tf " & " %6.4f (`b')
+  4. }
+
+. file write tf " \\" _n " "
+
+. forvalues i = 1/3 {
+  2.     local s = se_k_A[`i']
+  3.     file write tf " & (" %6.4f (`s') ")"
+  4. }
+
+. file write tf " \\" _n
+
+. 
+. * Panel A: beta_cogs
+. file write tf _char(36) "\hat{\beta}_{\text{cogs}}" _char(36)
+
+. forvalues i = 1/3 {
+  2.     local b = b_cogs_A[`i']
+  3.     file write tf " & " %6.4f (`b')
+  4. }
+
+. file write tf " \\" _n " "
+
+. forvalues i = 1/3 {
+  2.     local s = se_cogs_A[`i']
+  3.     file write tf " & (" %6.4f (`s') ")"
+  4. }
+
+. file write tf " \\" _n
+
+. 
+. * RTS and N
+. file write tf "RTS"
+
+. forvalues i = 1/3 {
+  2.     local rts = b_k_A[`i'] + b_cogs_A[`i']
+  3.     file write tf " & " %5.3f (`rts')
+  4. }
+
+. file write tf " \\" _n
+
+. file write tf _char(36) "N" _char(36)
+
+. forvalues i = 1/3 {
+  2.     local nn = N_obs[`i']
+  3.     file write tf " & " %6.0fc (`nn')
+  4. }
+
+. file write tf " \\" _n
+
+. 
+. * Panel B
+. #delimit ;
+delimiter now ;
+. file write tf
+>     "\hline" _n
+>     "\multicolumn{4}{l}{\textit{Panel B: Robustness --- "
+>     _char(36) "\hat{\beta}_{\text{cogs}}" _char(36) " (SE)}} \\" _n
+> ;
+
+. #delimit cr
+delimiter now cr
+. 
+. foreach spec in B C D OLS {
+  2.     if "`spec'"=="B" local lab "No survival"
+  3.     if "`spec'"=="C" local lab "No pp in Markov"
+  4.     if "`spec'"=="D" local lab "Plain ACF"
+  5.     if "`spec'"=="OLS" local lab "OLS"
+  6. 
+.     file write tf "`lab'"
+  7.     forvalues i = 1/3 {
+  8.         local b = b_cogs_`spec'[`i']
+  9.         file write tf " & " %6.4f (`b')
+ 10.     }
+ 11.     file write tf " \\" _n
+ 12.     if "`spec'" != "OLS" {
+ 13.         file write tf " "
+ 14.         forvalues i = 1/3 {
+ 15.             local s = se_cogs_`spec'[`i']
+ 16.             file write tf " & (" %6.4f (`s') ")"
+ 17.         }
+ 18.         file write tf " \\" _n
+ 19.     }
+ 20. }
+
+. 
+. * Translog
+. file write tf "Translog"
+
+. forvalues i = 1/3 {
+  2.     local b = b_cogs_E[`i']
+  3.     file write tf " & " %6.4f (`b')
+  4. }
+
+. file write tf " \\" _n " "
+
+. forvalues i = 1/3 {
+  2.     local s = se_cogs_E[`i']
+  3.     file write tf " & (" %6.4f (`s') ")"
+  4. }
+
+. file write tf " \\" _n
+
+. 
+. #delimit ;
+delimiter now ;
+. file write tf
+>     "\hline\hline" _n
+>     "\multicolumn{4}{p{10cm}}{\footnotesize" _n
+>     "Notes: Two-step ACF estimator (Ackerberg et al.\ 2015). "
+>     "Baseline Markov: " _char(36) "\omega_t = \rho\omega_{t-1} + \gamma pp_{t
+> -1}"
+>     " + \delta\hat{p}_{t-1} + \xi_t" _char(36) ". "
+>     "Instruments: " _char(36) "(1, k_t, \text{cogs}_{t-1})" _char(36) ". "
+>     "Analytical SEs (ACH 2012), clustered by firm.} \\" _n
+>     "\end{tabular}" _n
+>     "\end{table}" _n
+> ;
+
+. #delimit cr
+delimiter now cr
+. 
+. file close tf
+
+. dis "  Saved: table_pf.tex"
+  Saved: table_pf.tex
+
+. 
+end of do-file
+
+. do "$code/table_premium.do"
+
+. *============================================================================
+> ===
+. * table_premium.do — Table 2: Procurement Premium
+. *
+. * No DGM analog. Novel to our application.
+. * Reports raw and regression premiums across all specifications.
+. *
+. * Output: output/table_premium.tex
+. *============================================================================
+> ===
+. 
+. dis _newline "--- table_premium.do ---"
+
+--- table_premium.do ---
+
+. 
+. use "$data/markups_panel.dta", clear
+
+. 
+. cap file close tf
+
+. file open tf using "$output/table_premium.tex", write replace
+
+. 
+. #delimit ;
+delimiter now ;
+. file write tf
+>     "\begin{table}[htbp]\centering" _n
+>     "\caption{Procurement Markup Premium Across Specifications}" _n
+>     "\label{tab:premium}" _n
+>     "\begin{tabular}{l*{2}{c}}" _n
+>     "\hline\hline" _n
+>     " & " _char(36) "pp_t" _char(36) " & " _char(36) "pp^{3y}_t" _char(36) " 
+> \\" _n
+>     "\hline" _n
+>     "\multicolumn{3}{l}{\textit{Raw log markup difference}} \\" _n
+> ;
+
+. #delimit cr
+delimiter now cr
+. 
+. foreach spec in A B C D E OLS {
+  2.     if "`spec'"=="A" local lab "Base (surv.\ + pp)"
+  3.     if "`spec'"=="B" local lab "No survival"
+  4.     if "`spec'"=="C" local lab "No pp in Markov"
+  5.     if "`spec'"=="D" local lab "Plain ACF"
+  6.     if "`spec'"=="E" local lab "Translog"
+  7.     if "`spec'"=="OLS" local lab "OLS"
+  8. 
+.     * pp_dummy raw
+.     qui ttest l_mu_`spec', by(pp_dummy)
+  9.     local raw = r(mu_2) - r(mu_1)
+ 10.     local se_raw = r(se)
+ 11.     * pp_ever_3y raw
+.     qui ttest l_mu_`spec', by(pp_ever_3y)
+ 12.     local raw3 = r(mu_2) - r(mu_1)
+ 13.     local se3 = r(se)
+ 14. 
+.     file write tf "`lab'"
+ 15.     file write tf " & " %6.3f (`raw') " & " %6.3f (`raw3') " \\" _n
+ 16.     file write tf " & (" %5.3f (`se_raw') ") & (" %5.3f (`se3') ") \\" _n
+ 17. }
+
+. 
+. #delimit ;
+delimiter now ;
+. file write tf
+>     "\hline" _n
+>     "\multicolumn{3}{l}{\textit{Regression (" _char(36) "k" _char(36) ", cogs
+> , year" _char(36) "\times" _char(36) "nace2 FE)}} \\" _n
+> ;
+
+. #delimit cr
+delimiter now cr
+. 
+. foreach spec in A B C D E OLS {
+  2.     if "`spec'"=="A" local lab "Base (surv.\ + pp)"
+  3.     if "`spec'"=="B" local lab "No survival"
+  4.     if "`spec'"=="C" local lab "No pp in Markov"
+  5.     if "`spec'"=="D" local lab "Plain ACF"
+  6.     if "`spec'"=="E" local lab "Translog"
+  7.     if "`spec'"=="OLS" local lab "OLS"
+  8. 
+.     xi: qui reg l_mu_`spec' pp_dummy k cogs i.year*i.nace2, cluster(id)
+  9.     local reg = _b[pp_dummy]
+ 10.     local se = _se[pp_dummy]
+ 11.     local N = e(N)
+ 12. 
+.     xi: qui reg l_mu_`spec' pp_ever_3y k cogs i.year*i.nace2, cluster(id)
+ 13.     local reg3 = _b[pp_ever_3y]
+ 14.     local se3 = _se[pp_ever_3y]
+ 15. 
+.     file write tf "`lab'"
+ 16.     file write tf " & " %6.3f (`reg') " & " %6.3f (`reg3') " \\" _n
+ 17.     file write tf " & (" %5.3f (`se') ") & (" %5.3f (`se3') ") \\" _n
+ 18. }
+i.year            _Iyear_2006-2021    (naturally coded; _Iyear_2006 omitted)
+i.nace2           _Inace2_41-43       (naturally coded; _Inace2_41 omitted)
+i.year*i.nace2    _IyeaXnac_#_#       (coded as above)
+i.year            _Iyear_2006-2021    (naturally coded; _Iyear_2006 omitted)
+i.nace2           _Inace2_41-43       (naturally coded; _Inace2_41 omitted)
+i.year*i.nace2    _IyeaXnac_#_#       (coded as above)
+i.year            _Iyear_2006-2021    (naturally coded; _Iyear_2006 omitted)
+i.nace2           _Inace2_41-43       (naturally coded; _Inace2_41 omitted)
+i.year*i.nace2    _IyeaXnac_#_#       (coded as above)
+i.year            _Iyear_2006-2021    (naturally coded; _Iyear_2006 omitted)
+i.nace2           _Inace2_41-43       (naturally coded; _Inace2_41 omitted)
+i.year*i.nace2    _IyeaXnac_#_#       (coded as above)
+i.year            _Iyear_2006-2021    (naturally coded; _Iyear_2006 omitted)
+i.nace2           _Inace2_41-43       (naturally coded; _Inace2_41 omitted)
+i.year*i.nace2    _IyeaXnac_#_#       (coded as above)
+i.year            _Iyear_2006-2021    (naturally coded; _Iyear_2006 omitted)
+i.nace2           _Inace2_41-43       (naturally coded; _Inace2_41 omitted)
+i.year*i.nace2    _IyeaXnac_#_#       (coded as above)
+i.year            _Iyear_2006-2021    (naturally coded; _Iyear_2006 omitted)
+i.nace2           _Inace2_41-43       (naturally coded; _Inace2_41 omitted)
+i.year*i.nace2    _IyeaXnac_#_#       (coded as above)
+i.year            _Iyear_2006-2021    (naturally coded; _Iyear_2006 omitted)
+i.nace2           _Inace2_41-43       (naturally coded; _Inace2_41 omitted)
+i.year*i.nace2    _IyeaXnac_#_#       (coded as above)
+i.year            _Iyear_2006-2021    (naturally coded; _Iyear_2006 omitted)
+i.nace2           _Inace2_41-43       (naturally coded; _Inace2_41 omitted)
+i.year*i.nace2    _IyeaXnac_#_#       (coded as above)
+i.year            _Iyear_2006-2021    (naturally coded; _Iyear_2006 omitted)
+i.nace2           _Inace2_41-43       (naturally coded; _Inace2_41 omitted)
+i.year*i.nace2    _IyeaXnac_#_#       (coded as above)
+i.year            _Iyear_2006-2021    (naturally coded; _Iyear_2006 omitted)
+i.nace2           _Inace2_41-43       (naturally coded; _Inace2_41 omitted)
+i.year*i.nace2    _IyeaXnac_#_#       (coded as above)
+i.year            _Iyear_2006-2021    (naturally coded; _Iyear_2006 omitted)
+i.nace2           _Inace2_41-43       (naturally coded; _Inace2_41 omitted)
+i.year*i.nace2    _IyeaXnac_#_#       (coded as above)
+
+. 
+. #delimit ;
+delimiter now ;
+. file write tf
+>     "\hline" _n
+>     _char(36) "N" _char(36) " & \multicolumn{2}{c}{" %6.0fc (`N') "} \\" _n
+>     "\hline\hline" _n
+>     "\multicolumn{3}{p{10cm}}{\footnotesize" _n
+>     "Notes: Premium is the log markup difference between procurement"
+>     " and non-procurement firms. Regression controls for " _char(36) "k" _cha
+> r(36) ", cogs,"
+>     " year" _char(36) "\times" _char(36) "nace2 FE; SEs clustered by firm."
+>     " " _char(36) "pp_t" _char(36) " = active supplier in year " _char(36) "t
+> " _char(36) ";"
+>     " " _char(36) "pp^{3y}_t" _char(36) " = active in " _char(36) "t" _char(3
+> 6) ", " _char(36) "t{-}1" _char(36) ", or " _char(36) "t{-}2" _char(36) ".} \
+> \" _n
+>     "\end{tabular}" _n
+>     "\end{table}" _n
+> ;
+
+. #delimit cr
+delimiter now cr
+. 
+. file close tf
+
+. dis "  Saved: table_premium.tex"
+  Saved: table_premium.tex
+
+. 
+end of do-file
+
+. do "$code/table_moments.do"
+
+. *============================================================================
+> ===
+. * table_moments.do — Table 3: Markup Distributional Moments
+. *
+. * Analog of DGM Table 4:
+. *   DGM: mean/sd/p25/p50/p75 by industry for FSQ/BFSR/NoFSQ/NoFSR
+. *   Us:  mean/sd/p10/p50/p90 by nace2 for Base/NoSurv/NoPP/Plain/TL/OLS
+. *
+. * Output: output/table_moments.tex
+. *============================================================================
+> ===
+. 
+. dis _newline "--- table_moments.do ---"
+
+--- table_moments.do ---
+
+. 
+. 
+. use "$data/markups_panel.dta", clear
+
+. 
+. cap file close tf
+
+. file open tf using "$output/table_moments.tex", write replace
+
+. 
+. #delimit ;
+delimiter now ;
+. file write tf
+>     "\begin{table}[htbp]\centering" _n
+>     "\caption{Markup Distributional Moments by Industry and Specification}" _
+> n
+>     "\label{tab:moments}" _n
+>     "\small" _n
+>     "\begin{tabular}{ll*{5}{c}}" _n
+>     "\hline\hline" _n
+>     " & Spec & Mean & SD & p10 & p50 & p90 \\" _n
+>     "\hline" _n
+> ;
+
+. #delimit cr
+delimiter now cr
+. 
+. levelsof nace2, local(naces)
+41 42 43
+
+. foreach n of local naces {
+  2.     if `n'==41 local nlab "NACE 41 (Buildings)"
+  3.     if `n'==42 local nlab "NACE 42 (Civil Eng.)"
+  4.     if `n'==43 local nlab "NACE 43 (Specialized)"
+  5. 
+.     file write tf "\multicolumn{7}{l}{\textit{`nlab'}} \\" _n
+  6. 
+.     foreach s in A D E OLS {
+  7.         if "`s'"=="A" local slab "Base"
+  8.         if "`s'"=="D" local slab "Plain"
+  9.         if "`s'"=="E" local slab "Translog"
+ 10.         if "`s'"=="OLS" local slab "OLS"
+ 11. 
+.         qui sum mu_`s' if nace2==`n', d
+ 12.         local mn = r(mean)
+ 13.         local sd = r(sd)
+ 14.         local p10 = r(p10)
+ 15.         local p50 = r(p50)
+ 16.         local p90 = r(p90)
+ 17. 
+.         file write tf " & `slab'"
+ 18.         file write tf " & " %5.2f (`mn') " & " %5.2f (`sd')
+ 19.         file write tf " & " %5.2f (`p10') " & " %5.2f (`p50') " & " %5.2f 
+> (`p90')
+ 20.         file write tf " \\" _n
+ 21.     }
+ 22.     file write tf "\hline" _n
+ 23. }
+
+. 
+. * Pooled
+. file write tf "\multicolumn{7}{l}{\textit{All industries}} \\" _n
+
+. foreach s in A D E OLS {
+  2.     if "`s'"=="A" local slab "Base"
+  3.     if "`s'"=="D" local slab "Plain"
+  4.     if "`s'"=="E" local slab "Translog"
+  5.     if "`s'"=="OLS" local slab "OLS"
+  6. 
+.     qui sum mu_`s', d
+  7.     file write tf " & `slab'"
+  8.     file write tf " & " %5.2f (r(mean)) " & " %5.2f (r(sd))
+  9.     file write tf " & " %5.2f (r(p10)) " & " %5.2f (r(p50)) " & " %5.2f (r
+> (p90))
+ 10.     file write tf " \\" _n
+ 11. }
+
+. 
+. #delimit ;
+delimiter now ;
+. file write tf
+>     "\hline\hline" _n
+>     "\multicolumn{7}{p{12cm}}{\footnotesize" _n
+>     "Notes: Markup " _char(36) "\mu = \hat{\theta}^V / \hat{\alpha}^V" _char(
+> 36)
+>     " where " _char(36) "\hat{\theta}^V" _char(36) " is the estimated output 
+> elasticity"
+>     " and " _char(36) "\hat{\alpha}^V" _char(36) " the corrected expenditure 
+> share."
+>     " Base = CD with survival + pp in Markov;"
+>     " Plain = CD without Markov controls;"
+>     " Translog = TL with survival + pp.} \\" _n
+>     "\end{tabular}" _n
+>     "\end{table}" _n
+> ;
+
+. #delimit cr
+delimiter now cr
+. 
+. file close tf
+
+. dis "  Saved: table_moments.tex"
+  Saved: table_moments.tex
+
+. 
+end of do-file
+
+. do "$code/table_correlations.do"
+
+. *============================================================================
+> ===
+. * table_correlations.do — Table 4: Cross-Specification Correlations
+. *
+. * Analog of DGM Table 5:
+. *   DGM: Pearson/Spearman correlations between quantity & revenue markups
+. *   Us:  correlations between Base/Plain/TL/OLS markups (levels & FD)
+. *
+. * Output: output/table_correlations.tex
+. *============================================================================
+> ===
+. 
+. dis _newline "--- table_correlations.do ---"
+
+--- table_correlations.do ---
+
+. 
+. 
+. use "$data/markups_panel.dta", clear
+
+. 
+. * Balance panel on non-missing across specs
+. drop if mi(l_mu_A) | mi(l_mu_D) | mi(l_mu_E) | mi(l_mu_OLS)
+(0 observations deleted)
+
+. 
+. cap file close tf
+
+. file open tf using "$output/table_correlations.tex", write replace
+
+. 
+. #delimit ;
+delimiter now ;
+. file write tf
+>     "\begin{table}[htbp]\centering" _n
+>     "\caption{Cross-Specification Markup Correlations}" _n
+>     "\label{tab:correlations}" _n
+>     "\begin{tabular}{l*{4}{c}}" _n
+>     "\hline\hline" _n
+>     " & Base--Plain & Base--TL & Base--OLS & Plain--OLS \\" _n
+>     "\hline" _n
+>     "\multicolumn{5}{l}{\textit{Levels (log markups)}} \\" _n
+> ;
+
+. #delimit cr
+delimiter now cr
+. 
+. * Pearson correlations (levels)
+. local pairs "A-D A-E A-OLS D-OLS"
+
+. local labs  `""Base--Plain" "Base--TL" "Base--OLS" "Plain--OLS""'
+
+. 
+. * Pooled Pearson
+. file write tf "Pearson (pooled)"
+
+. foreach pair in A_D A_E A_OLS D_OLS {
+  2.     local s1 = substr("`pair'", 1, strpos("`pair'","_")-1)
+  3.     local s2 = substr("`pair'", strpos("`pair'","_")+1, .)
+  4.     qui corr l_mu_`s1' l_mu_`s2'
+  5.     file write tf " & " %5.3f (r(rho))
+  6. }
+
+. file write tf " \\" _n
+
+. 
+. * Spearman
+. file write tf "Spearman (pooled)"
+
+. foreach pair in A_D A_E A_OLS D_OLS {
+  2.     local s1 = substr("`pair'", 1, strpos("`pair'","_")-1)
+  3.     local s2 = substr("`pair'", strpos("`pair'","_")+1, .)
+  4.     qui spearman l_mu_`s1' l_mu_`s2'
+  5.     file write tf " & " %5.3f (r(rho))
+  6. }
+
+. file write tf " \\" _n
+
+. 
+. * By industry
+. levelsof nace2, local(naces)
+41 42 43
+
+. foreach n of local naces {
+  2.     file write tf "Pearson (NACE `n')"
+  3.     foreach pair in A_D A_E A_OLS D_OLS {
+  4.         local s1 = substr("`pair'", 1, strpos("`pair'","_")-1)
+  5.         local s2 = substr("`pair'", strpos("`pair'","_")+1, .)
+  6.         qui corr l_mu_`s1' l_mu_`s2' if nace2==`n'
+  7.         file write tf " & " %5.3f (r(rho))
+  8.     }
+  9.     file write tf " \\" _n
+ 10. }
+
+. 
+. * First differences
+. #delimit ;
+delimiter now ;
+. file write tf
+>     "\hline" _n
+>     "\multicolumn{5}{l}{\textit{First differences (" _char(36) "\Delta" _char
+> (36) " log markups)}} \\" _n
+> ;
+
+. #delimit cr
+delimiter now cr
+. 
+. * Pooled FD Pearson
+. file write tf "Pearson (pooled)"
+
+. foreach pair in A_D A_E A_OLS D_OLS {
+  2.     local s1 = substr("`pair'", 1, strpos("`pair'","_")-1)
+  3.     local s2 = substr("`pair'", strpos("`pair'","_")+1, .)
+  4.     qui corr FD_l_mu_`s1' FD_l_mu_`s2'
+  5.     file write tf " & " %5.3f (r(rho))
+  6. }
+
+. file write tf " \\" _n
+
+. 
+. * FD Spearman
+. file write tf "Spearman (pooled)"
+
+. foreach pair in A_D A_E A_OLS D_OLS {
+  2.     local s1 = substr("`pair'", 1, strpos("`pair'","_")-1)
+  3.     local s2 = substr("`pair'", strpos("`pair'","_")+1, .)
+  4.     qui spearman FD_l_mu_`s1' FD_l_mu_`s2'
+  5.     file write tf " & " %5.3f (r(rho))
+  6. }
+
+. file write tf " \\" _n
+
+. 
+. local N = _N
+
+. #delimit ;
+delimiter now ;
+. file write tf
+>     "\hline" _n
+>     _char(36) "N" _char(36) " & \multicolumn{4}{c}{" %6.0fc (`N') "} \\" _n
+>     "\hline\hline" _n
+>     "\multicolumn{5}{p{11cm}}{\footnotesize" _n
+>     "Notes: Correlations between log markups across specifications."
+>     " Base = CD with survival + pp in Markov;"
+>     " Plain = CD without Markov controls;"
+>     " TL = translog; OLS = first-stage only."
+>     " First differences: " _char(36) "\Delta\ln\mu_{it} = \ln\mu_{it} - \ln\m
+> u_{it-1}" _char(36) ".} \\" _n
+>     "\end{tabular}" _n
+>     "\end{table}" _n
+> ;
+
+. #delimit cr
+delimiter now cr
+. 
+. file close tf
+
+. dis "  Saved: table_correlations.tex"
+  Saved: table_correlations.tex
+
+. 
+end of do-file
+
+. do "$code/table_dlw_eval.do"
+
+. *============================================================================
+> ===
+. * table_dlw_eval.do — DLW (2012) Treatment Evaluation Framework
+. *
+. * Replicates De Loecker & Warzynski (2012, AER) treatment evaluation
+. * with procurement status replacing export status:
+. *   1. Cross-sectional premium (DLW Table 3, eq. 20)
+. *   2. Entry/exit dynamics (DLW Table 4, eq. 22)
+. *   3. Controlling for productivity (DLW eq. 21)
+. *   4. Intensive margin (procurement share)
+. *   5. Productivity-markup correlation (DLW Section V.C)
+. *   6. Sub-industry heterogeneity (DLW destination analog)
+. *   7. Event study (dynamic entry effects)
+. *
+. * Parallels Python dlw_treatment_eval.py
+. *
+. * Input:  $data/markups_panel.dta (from calculate_markups.do)
+. * Output: $output/dlw_treatment_eval_stata.tex
+. *         $output/dlw_event_study_stata.csv
+. *============================================================================
+> ===
+. 
+. dis _newline "--- table_dlw_eval.do ---"
+
+--- table_dlw_eval.do ---
+
+. 
+. *-----------------------------------------------------------------------
+. * Setup: check for reghdfe/estout, fall back gracefully
+. *-----------------------------------------------------------------------
+. 
+. cap which reghdfe
+
+. local has_reghdfe = (_rc == 0)
+
+. if !`has_reghdfe' {
+.     dis as text "  Note: reghdfe not installed; using areg with group FE"
+. }
+
+. 
+. cap which esttab
+
+. local has_estout = (_rc == 0)
+
+. if !`has_estout' {
+.     dis as text "  Note: estout not installed; using manual LaTeX output"
+. }
+
+. 
+. *-----------------------------------------------------------------------
+. * Load data
+. *-----------------------------------------------------------------------
+. 
+. use "$data/markups_panel.dta", clear
+
+. 
+. * Verify key variables exist
+. foreach v in l_mu_A omega_A pp_dummy k cogs nace2 year id {
+  2.     cap confirm var `v'
+  3.     if _rc {
+  4.         dis as error "ERROR: variable `v' not found in markups_panel.dta"
+  5.         error 198
+  6.     }
+  7. }
+
+. 
+. * Generate year × nace2 FE group
+. cap drop yr_nace
+
+. egen yr_nace = group(year nace2)
+
+. 
+. * Log markup shorthand
+. local lmu "l_mu_A"
+
+. 
+. dis "  Loaded: " _N " obs, " r(N) " firms"
+  Loaded: 9164 obs, . firms
+
+. distinct id
+
+       |        Observations
+       |      total   distinct
+-------+----------------------
+    id |       9164       1498
+
+. local N_firms = r(ndistinct)
+
+. dis "  Firms: `N_firms'"
+  Firms: 1498
+
+. 
+. *-----------------------------------------------------------------------
+. * Construct entry/exit/always variables
+. *-----------------------------------------------------------------------
+. 
+. sort id year
+
+. 
+. * First procurement year per firm
+. bys id (year): gen _first_pp = year if pp_dummy == 1 & ///
+>     (pp_dummy[_n-1] == 0 | _n == 1)
+(7,933 missing values generated)
+
+. bys id: egen first_pp_year = min(_first_pp)
+(2,609 missing values generated)
+
+. drop _first_pp
+
+. 
+. * Last procurement year per firm
+. bys id: egen last_pp_year = max(cond(pp_dummy == 1, year, .))
+(2,609 missing values generated)
+
+. 
+. * Last observed year per firm
+. bys id: egen last_year = max(year)
+
+. 
+. * Always-procurer: pp_dummy = 1 in every year
+. bys id: egen _min_pp = min(pp_dummy)
+
+. gen always_pp = (_min_pp == 1)
+
+. drop _min_pp
+
+. 
+. * Entry: non-always firm, post first procurement year
+. gen entry_pp = 0
+
+. replace entry_pp = 1 if always_pp == 0 & first_pp_year != . & ///
+>     year >= first_pp_year
+(3,322 real changes made)
+
+. 
+. * Exit: non-always firm, post last procurement year (firm stopped procuring)
+. gen exit_pp = 0
+
+. replace exit_pp = 1 if always_pp == 0 & last_pp_year != . & ///
+>     last_pp_year < last_year & year > last_pp_year
+(403 real changes made)
+
+. 
+. * Count switches for multi-switcher filter (DLW fn 52)
+. bys id (year): gen _switch = abs(pp_dummy - pp_dummy[_n-1]) if _n > 1
+(1,498 missing values generated)
+
+. bys id: egen n_switches = total(_switch)
+
+. drop _switch
+
+. 
+. * Procurement share (if available; fill 0 otherwise)
+. cap confirm var pp_share
+
+. if _rc {
+.     gen pp_share = pp_dummy
+.     label var pp_share "Procurement share (proxy = pp_dummy)"
+. }
+
+. replace pp_share = 0 if mi(pp_share)
+(0 real changes made)
+
+. 
+. * Interactions for analysis 4
+. gen pp_x_share = pp_dummy * pp_share
+
+. label var pp_x_share "pp_dummy × pp_share"
+
+. 
+. dis _newline "  Entry/exit construction:"
+
+  Entry/exit construction:
+
+. dis "    Always-procurers: " %6.0f _N " obs where always_pp==1"
+    Always-procurers:   9164 obs where always_pp==1
+
+. count if always_pp == 1
+  1,561
+
+. dis "    Entry obs:        " r(N)
+    Entry obs:        1561
+
+. count if entry_pp == 1
+  3,322
+
+. dis "    Exit obs:         " r(N)
+    Exit obs:         3322
+
+. 
+. * Preserve full sample before dropping multi-switchers
+. tempfile fulldata
+
+. save `fulldata'
+file /var/folders/4c/ww4k0h5j0fq1529s2dttb4t00000gn/T//St29358.000001 saved
+    as .dta format
+
+. 
+. 
+. *=======================================================================
+. *  ANALYSIS 1: Cross-sectional premium (DLW Table 3, eq. 20)
+. *=======================================================================
+. 
+. dis _newline(2) "========================================"
+
+
+========================================
+
+. dis "  1. CROSS-SECTIONAL PREMIUM (DLW Table 3)"
+  1. CROSS-SECTIONAL PREMIUM (DLW Table 3)
+
+. dis "========================================"
+========================================
+
+. 
+. if `has_reghdfe' {
+.     reghdfe `lmu' pp_dummy k cogs, absorb(yr_nace) cluster(id)
+(MWFE estimator converged in 1 iterations)
+
+HDFE Linear regression                            Number of obs   =      9,164
+Absorbing 1 HDFE group                            F(   3,   1497) =    1704.27
+Statistics robust to heteroskedasticity           Prob > F        =     0.0000
+                                                  R-squared       =     0.9572
+                                                  Adj R-squared   =     0.9570
+                                                  Within R-sq.    =     0.6807
+Number of clusters (id)      =      1,498         Root MSE        =     0.0576
+
+                                 (Std. err. adjusted for 1,498 clusters in id)
+------------------------------------------------------------------------------
+             |               Robust
+      l_mu_A | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+    pp_dummy |   .1407067   .0024521    57.38   0.000     .1358968    .1455165
+           k |    .043385   .0013332    32.54   0.000     .0407698    .0460002
+        cogs |  -.0605113   .0033083   -18.29   0.000    -.0670007   -.0540219
+       _cons |   1.128813   .0486618    23.20   0.000      1.03336    1.224265
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+-----------------------------------------------------+
+ Absorbed FE | Categories  - Redundant  = Num. Coefs |
+-------------+---------------------------------------|
+     yr_nace |        48           0          48     |
+-----------------------------------------------------+
+. }
+
+. else {
+.     areg `lmu' pp_dummy k cogs, absorb(yr_nace) cluster(id)
+. }
+
+. est store dlw1_xsec
+
+. 
+. local b1 = _b[pp_dummy]
+
+. local se1 = _se[pp_dummy]
+
+. local N1 = e(N)
+
+. dis _newline "  Premium (pp_dummy): " %7.4f `b1' " (SE " %6.4f `se1' ")"
+
+  Premium (pp_dummy):  0.1407 (SE 0.0025)
+
+. dis "  N = " %6.0fc `N1'
+  N =  9,164
+
+. 
+. 
+. *=======================================================================
+. *  ANALYSIS 2: Entry/exit dynamics (DLW Table 4, eq. 22)
+. *=======================================================================
+. 
+. dis _newline(2) "========================================"
+
+
+========================================
+
+. dis "  2. ENTRY/EXIT DYNAMICS (DLW Table 4)"
+  2. ENTRY/EXIT DYNAMICS (DLW Table 4)
+
+. dis "========================================"
+========================================
+
+. 
+. * Drop multi-switchers (DLW fn 52)
+. preserve
+
+. drop if n_switches > 2
+(2,222 observations deleted)
+
+. local N_dropped = _N
+
+. use `fulldata', clear
+
+. local N_full = _N
+
+. restore
+
+. 
+. preserve
+
+. drop if n_switches > 2
+(2,222 observations deleted)
+
+. dis "  Dropped multi-switchers (>2 switches), " _N " obs remain"
+  Dropped multi-switchers (>2 switches), 6942 obs remain
+
+. 
+. if `has_reghdfe' {
+.     reghdfe `lmu' entry_pp exit_pp always_pp k cogs, absorb(yr_nace) cluster(
+> id)
+(MWFE estimator converged in 1 iterations)
+
+HDFE Linear regression                            Number of obs   =      6,942
+Absorbing 1 HDFE group                            F(   5,   1285) =     648.89
+Statistics robust to heteroskedasticity           Prob > F        =     0.0000
+                                                  R-squared       =     0.9522
+                                                  Adj R-squared   =     0.9519
+                                                  Within R-sq.    =     0.6557
+Number of clusters (id)      =      1,286         Root MSE        =     0.0606
+
+                                 (Std. err. adjusted for 1,286 clusters in id)
+------------------------------------------------------------------------------
+             |               Robust
+      l_mu_A | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+    entry_pp |   .1197435   .0042077    28.46   0.000     .1114888    .1279981
+     exit_pp |  -.1249026   .0060557   -20.63   0.000    -.1367827   -.1130224
+   always_pp |   .1512473   .0047594    31.78   0.000     .1419102    .1605843
+           k |   .0436466    .001432    30.48   0.000     .0408372     .046456
+        cogs |  -.0583952   .0035921   -16.26   0.000    -.0654423   -.0513482
+       _cons |   1.089156   .0545719    19.96   0.000     .9820967    1.196216
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+-----------------------------------------------------+
+ Absorbed FE | Categories  - Redundant  = Num. Coefs |
+-------------+---------------------------------------|
+     yr_nace |        48           0          48     |
+-----------------------------------------------------+
+. }
+
+. else {
+.     areg `lmu' entry_pp exit_pp always_pp k cogs, absorb(yr_nace) cluster(id)
+. }
+
+. est store dlw2_entry
+
+. 
+. local b2_entry  = _b[entry_pp]
+
+. local se2_entry = _se[entry_pp]
+
+. local b2_exit   = _b[exit_pp]
+
+. local se2_exit  = _se[exit_pp]
+
+. local b2_always = _b[always_pp]
+
+. local se2_always = _se[always_pp]
+
+. local N2 = e(N)
+
+. 
+. dis _newline "  Entry (pp):  " %7.4f `b2_entry'  " (SE " %6.4f `se2_entry'  "
+> )"
+
+  Entry (pp):   0.1197 (SE 0.0042)
+
+. dis "  Exit (pp):   " %7.4f `b2_exit'   " (SE " %6.4f `se2_exit'   ")"
+  Exit (pp):   -0.1249 (SE 0.0061)
+
+. dis "  Always (pp): " %7.4f `b2_always' " (SE " %6.4f `se2_always' ")"
+  Always (pp):  0.1512 (SE 0.0048)
+
+. dis "  N = " %6.0fc `N2'
+  N =  6,942
+
+. 
+. restore
+
+. 
+. 
+. *=======================================================================
+. *  ANALYSIS 3: Controlling for productivity (DLW eq. 21)
+. *=======================================================================
+. 
+. dis _newline(2) "========================================"
+
+
+========================================
+
+. dis "  3. CONTROLLING FOR PRODUCTIVITY (DLW eq. 21)"
+  3. CONTROLLING FOR PRODUCTIVITY (DLW eq. 21)
+
+. dis "========================================"
+========================================
+
+. 
+. * Without omega
+. if `has_reghdfe' {
+.     reghdfe `lmu' pp_dummy k cogs, absorb(yr_nace) cluster(id)
+(MWFE estimator converged in 1 iterations)
+
+HDFE Linear regression                            Number of obs   =      9,164
+Absorbing 1 HDFE group                            F(   3,   1497) =    1704.27
+Statistics robust to heteroskedasticity           Prob > F        =     0.0000
+                                                  R-squared       =     0.9572
+                                                  Adj R-squared   =     0.9570
+                                                  Within R-sq.    =     0.6807
+Number of clusters (id)      =      1,498         Root MSE        =     0.0576
+
+                                 (Std. err. adjusted for 1,498 clusters in id)
+------------------------------------------------------------------------------
+             |               Robust
+      l_mu_A | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+    pp_dummy |   .1407067   .0024521    57.38   0.000     .1358968    .1455165
+           k |    .043385   .0013332    32.54   0.000     .0407698    .0460002
+        cogs |  -.0605113   .0033083   -18.29   0.000    -.0670007   -.0540219
+       _cons |   1.128813   .0486618    23.20   0.000      1.03336    1.224265
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+-----------------------------------------------------+
+ Absorbed FE | Categories  - Redundant  = Num. Coefs |
+-------------+---------------------------------------|
+     yr_nace |        48           0          48     |
+-----------------------------------------------------+
+. }
+
+. else {
+.     areg `lmu' pp_dummy k cogs, absorb(yr_nace) cluster(id)
+. }
+
+. est store dlw3_noomega
+
+. 
+. local b3a = _b[pp_dummy]
+
+. local se3a = _se[pp_dummy]
+
+. 
+. * With omega
+. if `has_reghdfe' {
+.     reghdfe `lmu' pp_dummy omega_A k cogs, absorb(yr_nace) cluster(id)
+(MWFE estimator converged in 1 iterations)
+
+HDFE Linear regression                            Number of obs   =      9,164
+Absorbing 1 HDFE group                            F(   4,   1497) =    1535.89
+Statistics robust to heteroskedasticity           Prob > F        =     0.0000
+                                                  R-squared       =     0.9582
+                                                  Adj R-squared   =     0.9580
+                                                  Within R-sq.    =     0.6882
+Number of clusters (id)      =      1,498         Root MSE        =     0.0569
+
+                                 (Std. err. adjusted for 1,498 clusters in id)
+------------------------------------------------------------------------------
+             |               Robust
+      l_mu_A | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+    pp_dummy |   .1489358   .0040974    36.35   0.000     .1408986     .156973
+     omega_A |  -.0591966   .0210337    -2.81   0.005    -.1004553   -.0179379
+           k |   .0443567   .0014408    30.79   0.000     .0415305    .0471829
+        cogs |  -.0699899   .0063037   -11.10   0.000    -.0823548   -.0576249
+       _cons |   1.169438   .0606264    19.29   0.000     1.050516    1.288359
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+-----------------------------------------------------+
+ Absorbed FE | Categories  - Redundant  = Num. Coefs |
+-------------+---------------------------------------|
+     yr_nace |        48           0          48     |
+-----------------------------------------------------+
+. }
+
+. else {
+.     areg `lmu' pp_dummy omega_A k cogs, absorb(yr_nace) cluster(id)
+. }
+
+. est store dlw3_omega
+
+. 
+. local b3b = _b[pp_dummy]
+
+. local se3b = _se[pp_dummy]
+
+. local b3_omega = _b[omega_A]
+
+. local se3_omega = _se[omega_A]
+
+. local N3 = e(N)
+
+. 
+. local pct_explained = (1 - `b3b'/`b3a') * 100
+
+. 
+. dis _newline "  Without omega: pp = " %7.4f `b3a' " (SE " %6.4f `se3a' ")"
+
+  Without omega: pp =  0.1407 (SE 0.0025)
+
+. dis "  With omega:    pp = " %7.4f `b3b' " (SE " %6.4f `se3b' ")"
+  With omega:    pp =  0.1489 (SE 0.0041)
+
+. dis "  omega_A coef:       " %7.4f `b3_omega' " (SE " %6.4f `se3_omega' ")"
+  omega_A coef:       -0.0592 (SE 0.0210)
+
+. dis "  Productivity explains " %5.1f `pct_explained' "% of premium"
+  Productivity explains  -5.8% of premium
+
+. dis "  (DLW: ~70% for Slovenian exporters)"
+  (DLW: ~70% for Slovenian exporters)
+
+. dis "  N = " %6.0fc `N3'
+  N =  9,164
+
+. 
+. 
+. *=======================================================================
+. *  ANALYSIS 4: Intensive margin (procurement share)
+. *=======================================================================
+. 
+. dis _newline(2) "========================================"
+
+
+========================================
+
+. dis "  4. INTENSIVE MARGIN (procurement share)"
+  4. INTENSIVE MARGIN (procurement share)
+
+. dis "========================================"
+========================================
+
+. 
+. if `has_reghdfe' {
+.     reghdfe `lmu' pp_dummy pp_x_share k cogs, absorb(yr_nace) cluster(id)
+(MWFE estimator converged in 1 iterations)
+
+HDFE Linear regression                            Number of obs   =      9,164
+Absorbing 1 HDFE group                            F(   4,   1497) =    1321.96
+Statistics robust to heteroskedasticity           Prob > F        =     0.0000
+                                                  R-squared       =     0.9577
+                                                  Adj R-squared   =     0.9574
+                                                  Within R-sq.    =     0.6839
+Number of clusters (id)      =      1,498         Root MSE        =     0.0573
+
+                                 (Std. err. adjusted for 1,498 clusters in id)
+------------------------------------------------------------------------------
+             |               Robust
+      l_mu_A | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+    pp_dummy |   .1320759   .0028054    47.08   0.000     .1265731    .1375788
+  pp_x_share |   .0263207   .0060055     4.38   0.000     .0145406    .0381009
+           k |   .0432576   .0013099    33.02   0.000     .0406882    .0458271
+        cogs |  -.0605812   .0032515   -18.63   0.000    -.0669592   -.0542033
+       _cons |   1.131728   .0477467    23.70   0.000      1.03807    1.225385
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+-----------------------------------------------------+
+ Absorbed FE | Categories  - Redundant  = Num. Coefs |
+-------------+---------------------------------------|
+     yr_nace |        48           0          48     |
+-----------------------------------------------------+
+. }
+
+. else {
+.     areg `lmu' pp_dummy pp_x_share k cogs, absorb(yr_nace) cluster(id)
+. }
+
+. est store dlw4_intensive
+
+. 
+. local b4_ext  = _b[pp_dummy]
+
+. local se4_ext = _se[pp_dummy]
+
+. local b4_int  = _b[pp_x_share]
+
+. local se4_int = _se[pp_x_share]
+
+. local N4 = e(N)
+
+. 
+. dis _newline "  Extensive (pp_dummy):   " %7.4f `b4_ext'  " (SE " %6.4f `se4_
+> ext'  ")"
+
+  Extensive (pp_dummy):    0.1321 (SE 0.0028)
+
+. dis "  Intensive (pp×share):   " %7.4f `b4_int'  " (SE " %6.4f `se4_int'  ")"
+  Intensive (pp×share):    0.0263 (SE 0.0060)
+
+. dis "  N = " %6.0fc `N4'
+  N =  9,164
+
+. 
+. 
+. *=======================================================================
+. *  ANALYSIS 5: Productivity-markup correlation (DLW Section V.C)
+. *=======================================================================
+. 
+. dis _newline(2) "========================================"
+
+
+========================================
+
+. dis "  5. PRODUCTIVITY-MARKUP CORRELATION (DLW V.C)"
+  5. PRODUCTIVITY-MARKUP CORRELATION (DLW V.C)
+
+. dis "========================================"
+========================================
+
+. 
+. if `has_reghdfe' {
+.     reghdfe `lmu' omega_A k cogs, absorb(yr_nace) cluster(id)
+(MWFE estimator converged in 1 iterations)
+
+HDFE Linear regression                            Number of obs   =      9,164
+Absorbing 1 HDFE group                            F(   3,   1497) =     335.99
+Statistics robust to heteroskedasticity           Prob > F        =     0.0000
+                                                  R-squared       =     0.9102
+                                                  Adj R-squared   =     0.9097
+                                                  Within R-sq.    =     0.3295
+Number of clusters (id)      =      1,498         Root MSE        =     0.0835
+
+                                 (Std. err. adjusted for 1,498 clusters in id)
+------------------------------------------------------------------------------
+             |               Robust
+      l_mu_A | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+     omega_A |   .0964011   .0180793     5.33   0.000     .0609376    .1318647
+           k |   .0461199   .0019512    23.64   0.000     .0422924    .0499473
+        cogs |  -.0325775   .0055851    -5.83   0.000    -.0435329   -.0216221
+       _cons |   .8299975   .0568052    14.61   0.000     .7185713    .9414238
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+-----------------------------------------------------+
+ Absorbed FE | Categories  - Redundant  = Num. Coefs |
+-------------+---------------------------------------|
+     yr_nace |        48           0          48     |
+-----------------------------------------------------+
+. }
+
+. else {
+.     areg `lmu' omega_A k cogs, absorb(yr_nace) cluster(id)
+. }
+
+. est store dlw5_omega
+
+. 
+. local b5 = _b[omega_A]
+
+. local se5 = _se[omega_A]
+
+. local N5 = e(N)
+
+. 
+. dis _newline "  omega_A coef: " %7.4f `b5' " (SE " %6.4f `se5' ")"
+
+  omega_A coef:  0.0964 (SE 0.0181)
+
+. dis "  (DLW find beta = 0.3 for Slovenian manufacturing)"
+  (DLW find beta = 0.3 for Slovenian manufacturing)
+
+. dis "  N = " %6.0fc `N5'
+  N =  9,164
+
+. 
+. 
+. *=======================================================================
+. *  ANALYSIS 6: Sub-industry heterogeneity (DLW destination analog)
+. *=======================================================================
+. 
+. dis _newline(2) "========================================"
+
+
+========================================
+
+. dis "  6. SUB-INDUSTRY HETEROGENEITY"
+  6. SUB-INDUSTRY HETEROGENEITY
+
+. dis "========================================"
+========================================
+
+. 
+. gen pp_x_n41 = pp_dummy * (nace2 == 41)
+
+. gen pp_x_n42 = pp_dummy * (nace2 == 42)
+
+. gen pp_x_n43 = pp_dummy * (nace2 == 43)
+
+. 
+. label var pp_x_n41 "pp × NACE 41 (Buildings)"
+
+. label var pp_x_n42 "pp × NACE 42 (Civil eng.)"
+
+. label var pp_x_n43 "pp × NACE 43 (Specialized)"
+
+. 
+. if `has_reghdfe' {
+.     reghdfe `lmu' pp_x_n41 pp_x_n42 pp_x_n43 k cogs, ///
+>         absorb(yr_nace) cluster(id)
+(MWFE estimator converged in 1 iterations)
+
+HDFE Linear regression                            Number of obs   =      9,164
+Absorbing 1 HDFE group                            F(   5,   1497) =    2149.79
+Statistics robust to heteroskedasticity           Prob > F        =     0.0000
+                                                  R-squared       =     0.9630
+                                                  Adj R-squared   =     0.9628
+                                                  Within R-sq.    =     0.7235
+Number of clusters (id)      =      1,498         Root MSE        =     0.0536
+
+                                 (Std. err. adjusted for 1,498 clusters in id)
+------------------------------------------------------------------------------
+             |               Robust
+      l_mu_A | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+    pp_x_n41 |   .1739793   .0021454    81.10   0.000      .169771    .1781875
+    pp_x_n42 |   .1528132   .0200173     7.63   0.000     .1135482    .1920782
+    pp_x_n43 |   .0759827   .0045316    16.77   0.000     .0670937    .0848717
+           k |   .0430134   .0012149    35.41   0.000     .0406304    .0453965
+        cogs |  -.0592573   .0030601   -19.36   0.000    -.0652599   -.0532547
+       _cons |   1.110697   .0450667    24.65   0.000     1.022296    1.199098
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+-----------------------------------------------------+
+ Absorbed FE | Categories  - Redundant  = Num. Coefs |
+-------------+---------------------------------------|
+     yr_nace |        48           0          48     |
+-----------------------------------------------------+
+. }
+
+. else {
+.     areg `lmu' pp_x_n41 pp_x_n42 pp_x_n43 k cogs, ///
+>         absorb(yr_nace) cluster(id)
+. }
+
+. est store dlw6_nace
+
+. 
+. local b6_41  = _b[pp_x_n41]
+
+. local se6_41 = _se[pp_x_n41]
+
+. local b6_42  = _b[pp_x_n42]
+
+. local se6_42 = _se[pp_x_n42]
+
+. local b6_43  = _b[pp_x_n43]
+
+. local se6_43 = _se[pp_x_n43]
+
+. local N6 = e(N)
+
+. 
+. dis _newline "  NACE 41 (Buildings):     " %7.4f `b6_41' " (SE " %6.4f `se6_4
+> 1' ")"
+
+  NACE 41 (Buildings):      0.1740 (SE 0.0021)
+
+. dis "  NACE 42 (Civil eng.):    " %7.4f `b6_42' " (SE " %6.4f `se6_42' ")"
+  NACE 42 (Civil eng.):     0.1528 (SE 0.0200)
+
+. dis "  NACE 43 (Specialized):   " %7.4f `b6_43' " (SE " %6.4f `se6_43' ")"
+  NACE 43 (Specialized):    0.0760 (SE 0.0045)
+
+. dis "  N = " %6.0fc `N6'
+  N =  9,164
+
+. 
+. 
+. *=======================================================================
+. *  ANALYSIS 7: Event study (dynamic entry effects)
+. *=======================================================================
+. 
+. dis _newline(2) "========================================"
+
+
+========================================
+
+. dis "  7. EVENT STUDY (dynamic entry effects)"
+  7. EVENT STUDY (dynamic entry effects)
+
+. dis "========================================"
+========================================
+
+. 
+. * Restrict to firms with observed entry
+. preserve
+
+. keep if first_pp_year != .
+(2,609 observations deleted)
+
+. gen rel_year = year - first_pp_year
+
+. 
+. * Event window: [-3, +5], omit τ = -1
+. keep if inrange(rel_year, -3, 5)
+(2,650 observations deleted)
+
+. 
+. dis "  Event study sample: " _N " obs"
+  Event study sample: 3905 obs
+
+. distinct id
+
+       |        Observations
+       |      total   distinct
+-------+----------------------
+    id |       3905        872
+
+. dis "  Event study firms:  " r(ndistinct)
+  Event study firms:  872
+
+. 
+. * Create relative-year dummies (Stata-safe names: m = minus, p = plus)
+. gen tau_m3 = (rel_year == -3)
+
+. gen tau_m2 = (rel_year == -2)
+
+. * tau = -1 omitted (reference period)
+. gen tau_p0 = (rel_year == 0)
+
+. gen tau_p1 = (rel_year == 1)
+
+. gen tau_p2 = (rel_year == 2)
+
+. gen tau_p3 = (rel_year == 3)
+
+. gen tau_p4 = (rel_year == 4)
+
+. gen tau_p5 = (rel_year == 5)
+
+. 
+. if `has_reghdfe' {
+.     reghdfe `lmu' tau_m3 tau_m2 tau_p0 tau_p1 tau_p2 tau_p3 tau_p4 tau_p5 ///
+>         k cogs, absorb(yr_nace) cluster(id)
+(MWFE estimator converged in 1 iterations)
+
+HDFE Linear regression                            Number of obs   =      3,905
+Absorbing 1 HDFE group                            F(  10,    871) =     231.74
+Statistics robust to heteroskedasticity           Prob > F        =     0.0000
+                                                  R-squared       =     0.9225
+                                                  Adj R-squared   =     0.9214
+                                                  Within R-sq.    =     0.4066
+Number of clusters (id)      =        872         Root MSE        =     0.0778
+
+                                   (Std. err. adjusted for 872 clusters in id)
+------------------------------------------------------------------------------
+             |               Robust
+      l_mu_A | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+      tau_m3 |  -.0077764   .0044526    -1.75   0.081    -.0165156    .0009627
+      tau_m2 |  -.0040104   .0030565    -1.31   0.190    -.0100093    .0019885
+      tau_p0 |   .1346846   .0033537    40.16   0.000     .1281024    .1412668
+      tau_p1 |   .0829707   .0045729    18.14   0.000     .0739956    .0919458
+      tau_p2 |   .0830395   .0046845    17.73   0.000     .0738453    .0922338
+      tau_p3 |    .086376   .0054963    15.72   0.000     .0755884    .0971636
+      tau_p4 |   .0938402   .0060594    15.49   0.000     .0819475    .1057329
+      tau_p5 |   .0953136   .0067215    14.18   0.000     .0821214    .1085058
+           k |   .0405172   .0023043    17.58   0.000     .0359946    .0450399
+        cogs |  -.0462591   .0046068   -10.04   0.000    -.0553008   -.0372174
+       _cons |    .950045   .0638441    14.88   0.000     .8247387    1.075351
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+-----------------------------------------------------+
+ Absorbed FE | Categories  - Redundant  = Num. Coefs |
+-------------+---------------------------------------|
+     yr_nace |        48           0          48     |
+-----------------------------------------------------+
+. }
+
+. else {
+.     areg `lmu' tau_m3 tau_m2 tau_p0 tau_p1 tau_p2 tau_p3 tau_p4 tau_p5 ///
+>         k cogs, absorb(yr_nace) cluster(id)
+. }
+
+. est store dlw7_event
+
+. local N7 = e(N)
+
+. 
+. * Collect event study coefficients
+. dis _newline "  tau   Coef       SE         95% CI"
+
+  tau   Coef       SE         95% CI
+
+. dis "  " _dup(55) "-"
+  -------------------------------------------------------
+
+. 
+. * Reference period
+. dis "   -1  (reference)"
+   -1  (reference)
+
+. 
+. matrix C = e(b)
+
+. matrix V = e(V)
+
+. 
+. * Save event study coefficients to CSV
+. cap file close evf
+
+. file open evf using "$output/dlw_event_study_stata.csv", write replace
+
+. file write evf "tau,coef,se,ci_lo,ci_hi" _n
+
+. 
+. * Pre-treatment
+. foreach tau_name in tau_m3 tau_m2 {
+  2.     local tau_num = cond("`tau_name'" == "tau_m3", -3, -2)
+  3.     local b = _b[`tau_name']
+  4.     local se = _se[`tau_name']
+  5.     local ci_lo = `b' - 1.96 * `se'
+  6.     local ci_hi = `b' + 1.96 * `se'
+  7.     dis "  " %3.0f `tau_num' "   " %7.4f `b' "   " %7.4f `se' ///
+>         "   [" %7.4f `ci_lo' ", " %7.4f `ci_hi' "]"
+  8.     file write evf "`tau_num'," %12.8f (`b') "," %12.8f (`se') ///
+>         "," %12.8f (`ci_lo') "," %12.8f (`ci_hi') _n
+  9. }
+   -3   -0.0078    0.0045   [-0.0165,  0.0010]
+   -2   -0.0040    0.0031   [-0.0100,  0.0020]
+
+. 
+. * Reference period (tau = -1)
+. file write evf "-1,0,0,0,0" _n
+
+. 
+. * Post-treatment
+. foreach tau_name in tau_p0 tau_p1 tau_p2 tau_p3 tau_p4 tau_p5 {
+  2.     local tau_num = cond("`tau_name'" == "tau_p0", 0, ///
+>                    cond("`tau_name'" == "tau_p1", 1, ///
+>                    cond("`tau_name'" == "tau_p2", 2, ///
+>                    cond("`tau_name'" == "tau_p3", 3, ///
+>                    cond("`tau_name'" == "tau_p4", 4, 5)))))
+  3.     local b = _b[`tau_name']
+  4.     local se = _se[`tau_name']
+  5.     local ci_lo = `b' - 1.96 * `se'
+  6.     local ci_hi = `b' + 1.96 * `se'
+  7.     dis "  " %3.0f `tau_num' "   " %7.4f `b' "   " %7.4f `se' ///
+>         "   [" %7.4f `ci_lo' ", " %7.4f `ci_hi' "]"
+  8.     file write evf "`tau_num'," %12.8f (`b') "," %12.8f (`se') ///
+>         "," %12.8f (`ci_lo') "," %12.8f (`ci_hi') _n
+  9. }
+    0    0.1347    0.0034   [ 0.1281,  0.1413]
+    1    0.0830    0.0046   [ 0.0740,  0.0919]
+    2    0.0830    0.0047   [ 0.0739,  0.0922]
+    3    0.0864    0.0055   [ 0.0756,  0.0971]
+    4    0.0938    0.0061   [ 0.0820,  0.1057]
+    5    0.0953    0.0067   [ 0.0821,  0.1085]
+
+. 
+. file close evf
+
+. dis _newline "  Saved: $output/dlw_event_study_stata.csv"
+
+  Saved: ../../output/stata/dlw_event_study_stata.csv
+
+. 
+. restore
+
+. 
+. 
+. *=======================================================================
+. *  OUTPUT: LaTeX table
+. *=======================================================================
+. 
+. dis _newline(2) "========================================"
+
+
+========================================
+
+. dis "  Writing LaTeX table"
+  Writing LaTeX table
+
+. dis "========================================"
+========================================
+
+. 
+. cap file close tf
+
+. file open tf using "$output/dlw_treatment_eval_stata.tex", write replace
+
+. 
+. #delimit ;
+delimiter now ;
+. file write tf
+>     "\begin{table}[htbp]\centering" _n
+>     "\caption{DLW (2012) Treatment Evaluation: Procurement Premium}"
+>     "\label{tab:dlw_eval}" _n
+>     "\begin{tabular}{lcccc}" _n
+>     "\hline\hline" _n
+>     " & (1) & (2) & (3) & (4) \\" _n
+>     " & Cross-section & Entry/Exit & With "
+>     _char(36) "\omega" _char(36) " & Intensive \\" _n
+>     "\hline" _n
+> ;
+
+. #delimit cr
+delimiter now cr
+. 
+. * Row: pp_dummy
+. file write tf _char(36) "pp_t" _char(36)
+
+. file write tf " & " %6.4f (`b1')
+
+. file write tf " & "
+
+. file write tf " & " %6.4f (`b3b')
+
+. file write tf " & " %6.4f (`b4_ext') " \\" _n
+
+. file write tf " & (" %5.4f (`se1') ")"
+
+. file write tf " & "
+
+. file write tf " & (" %5.4f (`se3b') ")"
+
+. file write tf " & (" %5.4f (`se4_ext') ") \\" _n
+
+. 
+. * Row: entry_pp
+. file write tf "Entry"
+
+. file write tf " & "
+
+. file write tf " & " %6.4f (`b2_entry')
+
+. file write tf " & "
+
+. file write tf " & \\" _n
+
+. file write tf " & "
+
+. file write tf " & (" %5.4f (`se2_entry') ")"
+
+. file write tf " & "
+
+. file write tf " & \\" _n
+
+. 
+. * Row: exit_pp
+. file write tf "Exit"
+
+. file write tf " & "
+
+. file write tf " & " %6.4f (`b2_exit')
+
+. file write tf " & "
+
+. file write tf " & \\" _n
+
+. file write tf " & "
+
+. file write tf " & (" %5.4f (`se2_exit') ")"
+
+. file write tf " & "
+
+. file write tf " & \\" _n
+
+. 
+. * Row: always_pp
+. file write tf "Always"
+
+. file write tf " & "
+
+. file write tf " & " %6.4f (`b2_always')
+
+. file write tf " & "
+
+. file write tf " & \\" _n
+
+. file write tf " & "
+
+. file write tf " & (" %5.4f (`se2_always') ")"
+
+. file write tf " & "
+
+. file write tf " & \\" _n
+
+. 
+. * Row: omega_A
+. file write tf _char(36) "\omega_A" _char(36)
+
+. file write tf " & "
+
+. file write tf " & "
+
+. file write tf " & " %6.4f (`b3_omega')
+
+. file write tf " & \\" _n
+
+. file write tf " & "
+
+. file write tf " & "
+
+. file write tf " & (" %5.4f (`se3_omega') ")"
+
+. file write tf " & \\" _n
+
+. 
+. * Row: pp_x_share
+. file write tf _char(36) "pp_t \times \text{share}" _char(36)
+
+. file write tf " & "
+
+. file write tf " & "
+
+. file write tf " & "
+
+. file write tf " & " %6.4f (`b4_int') " \\" _n
+
+. file write tf " & "
+
+. file write tf " & "
+
+. file write tf " & "
+
+. file write tf " & (" %5.4f (`se4_int') ") \\" _n
+
+. 
+. * Separator and sub-industry panel
+. #delimit ;
+delimiter now ;
+. file write tf
+>     "\hline" _n
+>     "\multicolumn{5}{l}{\textit{Sub-industry heterogeneity (Analysis 6)}} \\"
+>  _n
+> ;
+
+. #delimit cr
+delimiter now cr
+. 
+. file write tf "NACE 41 (Buildings)"
+
+. file write tf " & \multicolumn{4}{c}{" %6.4f (`b6_41') " (" %5.4f (`se6_41') 
+> ")} \\" _n
+
+. file write tf "NACE 42 (Civil eng.)"
+
+. file write tf " & \multicolumn{4}{c}{" %6.4f (`b6_42') " (" %5.4f (`se6_42') 
+> ")} \\" _n
+
+. file write tf "NACE 43 (Specialized)"
+
+. file write tf " & \multicolumn{4}{c}{" %6.4f (`b6_43') " (" %5.4f (`se6_43') 
+> ")} \\" _n
+
+. 
+. * Footer
+. #delimit ;
+delimiter now ;
+. file write tf
+>     "\hline" _n
+>     "Year " _char(36) "\times" _char(36) " NACE FE & Yes & Yes & Yes & Yes \\
+> " _n
+>     "Controls (" _char(36) "k, \text{cogs}" _char(36) ") & Yes & Yes & Yes & 
+> Yes \\" _n
+>     _char(36) "N" _char(36) " & " %6.0fc (`N1')
+>         " & " %6.0fc (`N2')
+>         " & " %6.0fc (`N3')
+>         " & " %6.0fc (`N4') " \\" _n
+>     "\hline\hline" _n
+>     "\multicolumn{5}{p{12cm}}{\footnotesize" _n
+>     "\emph{Notes:} All regressions include year " _char(36) "\times" _char(36
+> )
+>     " NACE 2-digit FE and controls for " _char(36) "k_{it}" _char(36)
+>     " and " _char(36) "\text{cogs}_{it}" _char(36) ". "
+>     "Firm-clustered standard errors in parentheses. "
+>     "Following De Loecker and Warzynski (2012), "
+>     "Entry" _char(36) "_{it}" _char(36) " = 1 post-first-procurement, "
+>     "Exit" _char(36) "_{it}" _char(36) " = 1 post-last-procurement, "
+>     "Always" _char(36) "_i" _char(36) " = 1 for permanent procurement firms. 
+> "
+>     "Multi-switchers ($>$2 status changes) excluded from col.\ (2). "
+>     "Analysis 5 (productivity-markup correlation): "
+>     _char(36) "\hat{\beta}_\omega" _char(36)
+>     " = " %6.4f (`b5') " (SE " %5.4f (`se5') "). "
+>     "Event study coefficients in separate CSV.} \\" _n
+>     "\end{tabular}" _n
+>     "\end{table}" _n
+> ;
+
+. #delimit cr
+delimiter now cr
+. 
+. file close tf
+
+. dis "  Saved: $output/dlw_treatment_eval_stata.tex"
+  Saved: ../../output/stata/dlw_treatment_eval_stata.tex
+
+. 
+. 
+. *=======================================================================
+. *  Summary
+. *=======================================================================
+. 
+. dis _newline(2) "========================================"
+
+
+========================================
+
+. dis "  DLW TREATMENT EVALUATION SUMMARY"
+  DLW TREATMENT EVALUATION SUMMARY
+
+. dis "========================================"
+========================================
+
+. dis "  1. Cross-section premium:   " %7.4f `b1'  " (SE " %6.4f `se1'  ")"
+  1. Cross-section premium:    0.1407 (SE 0.0025)
+
+. dis "  2. Entry effect:            " %7.4f `b2_entry'  " (SE " %6.4f `se2_ent
+> ry'  ")"
+  2. Entry effect:             0.1197 (SE 0.0042)
+
+. dis "     Exit effect:             " %7.4f `b2_exit'   " (SE " %6.4f `se2_exi
+> t'   ")"
+     Exit effect:             -0.1249 (SE 0.0061)
+
+. dis "     Always-procurer:         " %7.4f `b2_always' " (SE " %6.4f `se2_alw
+> ays' ")"
+     Always-procurer:          0.1512 (SE 0.0048)
+
+. dis "  3. Premium with omega:      " %7.4f `b3b' " (omega explains " %5.1f `p
+> ct_explained' "%)"
+  3. Premium with omega:       0.1489 (omega explains  -5.8%)
+
+. dis "  4. Intensive margin:        " %7.4f `b4_int'  " (SE " %6.4f `se4_int' 
+>  ")"
+  4. Intensive margin:         0.0263 (SE 0.0060)
+
+. dis "  5. Omega-markup corr:       " %7.4f `b5'  " (SE " %6.4f `se5'  ")"
+  5. Omega-markup corr:        0.0964 (SE 0.0181)
+
+. dis "  6. NACE 41/42/43:           " %5.3f `b6_41' " / " %5.3f `b6_42' " / " 
+> %5.3f `b6_43'
+  6. NACE 41/42/43:           0.174 / 0.153 / 0.076
+
+. dis "  7. Event study:             see dlw_event_study_stata.csv"
+  7. Event study:             see dlw_event_study_stata.csv
+
+. dis "========================================"
+========================================
+
+. 
+. * Clean up generated variables
+. cap drop yr_nace first_pp_year last_pp_year last_year
+
+. cap drop always_pp entry_pp exit_pp n_switches
+
+. cap drop pp_x_share pp_x_n41 pp_x_n42 pp_x_n43
+
+. 
+end of do-file
+
+. do "$code/table_cwdl_acf.do"
+
+. *============================================================================
+> ===
+. * table_cwdl_acf.do — CWDL (2020) ACF cross-validation
+. *
+. * Independent Stata ACF estimation using Collard-Wexler & De Loecker (2020)
+. * Mata GMM procedure. Cross-validates Python acf_estimator.py results.
+. *============================================================================
+> ===
+. 
+. dis _newline "--- table_cwdl_acf.do ---"
+
+--- table_cwdl_acf.do ---
+
+. 
+. use "$data/analysis_panel.dta", clear
+
+. xtset id year, yearly
+
+Panel variable: id (unbalanced)
+ Time variable: year, 2006 to 2021, but with gaps
+         Delta: 1 year
+
+. 
+. *-----------------------------------------------------------------------
+. * Regenerate ACF first-stage variables locally.
+. *
+. * estimate_pf.do creates phi/Lphi/Lk/Lcogs inside a `preserve ... restore`
+. * block, so they do not persist to analysis_panel.dta. Rather than modify
+. * the upstream pipeline (which would ripple through multiple scripts), we
+. * reconstruct the variables here using the same first-stage regression
+. * specification as estimate_pf.do (xi: reg go c.k*#pp_dummy c.cogs*#pp_dummy
+. * i.year, by nace2).
+. *-----------------------------------------------------------------------
+. cap drop phi Lphi Lk Lcogs Lpp yr_nace const
+
+. gen phi = .
+(9,164 missing values generated)
+
+. levelsof nace2, local(nace_list_init)
+41 42 43
+
+. foreach n of local nace_list_init {
+  2.     xi: qui reg go c.k*#pp_dummy c.cogs*#pp_dummy i.year if nace2 == `n'
+  3.     cap drop phi_tmp_`n'
+  4.     predict phi_tmp_`n' if nace2 == `n'
+  5.     replace phi = phi_tmp_`n' if nace2 == `n'
+  6.     drop phi_tmp_`n' _I*
+  7. }
+i.year            _Iyear_2006-2021    (naturally coded; _Iyear_2006 omitted)
+(option xb assumed; fitted values)
+(4,253 missing values generated)
+(4,911 real changes made)
+i.year            _Iyear_2006-2021    (naturally coded; _Iyear_2006 omitted)
+(option xb assumed; fitted values)
+(8,346 missing values generated)
+(818 real changes made)
+i.year            _Iyear_2006-2021    (naturally coded; _Iyear_2006 omitted)
+(option xb assumed; fitted values)
+(5,729 missing values generated)
+(3,435 real changes made)
+
+. 
+. * Lags via the panel structure (xtset above)
+. gen Lphi  = L.phi
+(2,315 missing values generated)
+
+. gen Lk    = L.k
+(2,315 missing values generated)
+
+. gen Lcogs = L.cogs
+(2,315 missing values generated)
+
+. gen Lpp   = L.pp_dummy
+(2,315 missing values generated)
+
+. 
+. * Year × NACE absorbing interaction (for reghdfe / areg)
+. egen yr_nace = group(year nace2)
+
+. 
+. gen const = 1
+
+. 
+. * Sanity check (should never trigger after the block above)
+. cap confirm variable phi Lphi k cogs Lk Lcogs Lpp pp_dummy yr_nace
+
+. if _rc {
+.     dis as error "Required variables missing after regeneration — aborting."
+.     exit 198
+. }
+
+. 
+. * CWDL Mata GMM programs
+. clear mata
+
+. mata: mata set matastrict off
+
+. mata:
+------------------------------------------------- mata (type end to exit) -----
+: 
+: // Plain ACF (no pp in Markov) — CWDL original
+: // Note: X and X_lag carry only (k, cogs), no const. The intercept is soaked
+: // up by the second-stage Markov regression's constant column C, so putting a
+: // const in the first-stage X creates identification redundancy (and mismatch
+> es
+: // the 2-element optimizer init below, producing a Mata conformability error)
+> .
+: void CritACF_plain(todo, b, crit, g, H)
+> {
+>     PHI=st_data(.,("phi")); PHI_LAG=st_data(.,("Lphi"))
+>     Z=st_data(.,("const","k","Lcogs"))
+>     X=st_data(.,("k","cogs"))
+>     X_lag=st_data(.,("Lk","Lcogs"))
+>     W=invsym(Z'Z)
+>     C=st_data(.,("const"))
+>     OMEGA=PHI-X*b'; OL=PHI_LAG-X_lag*b'
+>     P=(C,OL); gb=invsym(P'P)*P'OMEGA; XI=OMEGA-P*gb
+>     crit=(Z'XI)'*W*(Z'XI)
+> }
+note: argument todo unused.
+note: argument g unused.
+note: argument H unused.
+
+: 
+: // Base ACF (pp in Markov) — De Loecker (2013) extension
+: void CritACF_base(todo, b, crit, g, H)
+> {
+>     PHI=st_data(.,("phi")); PHI_LAG=st_data(.,("Lphi"))
+>     Z=st_data(.,("const","k","Lcogs"))
+>     X=st_data(.,("k","cogs"))
+>     X_lag=st_data(.,("Lk","Lcogs"))
+>     W=invsym(Z'Z)
+>     C=st_data(.,("const")); PP=st_data(.,("Lpp"))
+>     OMEGA=PHI-X*b'; OL=PHI_LAG-X_lag*b'
+>     P=(C,OL,PP); gb=invsym(P'P)*P'OMEGA; XI=OMEGA-P*gb
+>     crit=(Z'XI)'*W*(Z'XI)
+> }
+note: argument todo unused.
+note: argument g unused.
+note: argument H unused.
+
+: 
+: // Run optimizer
+: void run_cwdl(pointer(function) scalar fn, string scalar label)
+> {
+>     S = optimize_init()
+>     optimize_init_params(S, (0.05, 0.95))
+>     optimize_init_evaluator(S, fn)
+>     optimize_init_which(S, "min")
+>     optimize_init_conv_warning(S, "off")
+>     optimize_init_technique(S, "nm")
+>     optimize_init_nmsimplexdeltas(S, 0.1)
+>     optimize_init_conv_maxiter(S, 5000)
+>     p = optimize(S)
+>     // Refine
+>     optimize_init_nmsimplexdeltas(S, 1e-5)
+>     optimize_init_params(S, p)
+>     p = optimize(S)
+>     optimize_init_params(S, p)
+>     p = optimize(S)
+> 
+>     cb = optimize_result_value(S)
+>     printf("\n  %s: b_k=%9.4f, b_cogs=%9.4f, crit=%12.6f\n", label, p[1], p[2
+> ], cb)
+>     st_matrix("cwdl_" + label, p)
+> }
+
+: 
+: end
+-------------------------------------------------------------------------------
+
+. 
+. * Run for each NACE
+. levelsof nace2, local(nace_list)
+41 42 43
+
+. foreach n of local nace_list {
+  2.     preserve
+  3.     keep if nace2 == `n'
+  4.     dis _newline "=== NACE `n' (N = " _N ") ==="
+  5. 
+.     * Ensure estimation sample (need lags)
+.     drop if missing(phi, Lphi, k, cogs, Lk, Lcogs)
+  6. 
+.     mata: run_cwdl(&CritACF_plain(), "plain_`n'")
+  7.     mata: run_cwdl(&CritACF_base(), "base_`n'")
+  8. 
+.     * Compute markups from CWDL estimates
+.     mata: b_base = st_matrix("cwdl_base_`n'")
+  9.     mata: st_numscalar("bk", b_base[1])
+ 10.     mata: st_numscalar("bc", b_base[2])
+ 11. 
+.     gen markup_cwdl = scalar(bc) / (exp(cogs) / exp(go))
+ 12.     gen lmu_cwdl = ln(markup_cwdl) if markup_cwdl > 0
+ 13. 
+.     * Premium
+.     reghdfe lmu_cwdl pp_dummy k cogs, absorb(yr_nace) cluster(id)
+ 14.     dis "  CWDL premium (NACE `n'): " _b[pp_dummy] " (SE " _se[pp_dummy] "
+> )"
+ 15. 
+.     drop markup_cwdl lmu_cwdl
+ 16.     restore
+ 17. }
+(4,253 observations deleted)
+
+=== NACE 41 (N = 4911) ===
+(1,213 observations deleted)
+Iteration 0:  f(p) =  .17609965  
+Iteration 1:  f(p) =  .17609965  
+Iteration 2:  f(p) =  .05152186  
+Iteration 3:  f(p) =  .04465756  
+Iteration 4:  f(p) =  .02558543  
+Iteration 5:  f(p) =  .00052836  
+Iteration 6:  f(p) =  .00052836  
+Iteration 7:  f(p) =  .00052836  
+Iteration 8:  f(p) =  .00020476  
+Iteration 9:  f(p) =  .00012693  
+Iteration 10: f(p) =  6.745e-06  
+Iteration 11: f(p) =  6.745e-06  
+Iteration 12: f(p) =  4.069e-06  
+Iteration 13: f(p) =  4.115e-07  
+Iteration 14: f(p) =  4.115e-07  
+Iteration 15: f(p) =  1.086e-07  
+Iteration 16: f(p) =  5.251e-08  
+Iteration 0:  f(p) =  5.251e-08  
+Iteration 1:  f(p) =  3.718e-09  
+Iteration 0:  f(p) =  3.718e-09  
+Iteration 1:  f(p) =  3.718e-09  
+
+  plain_41: b_k=   0.0440, b_cogs=   0.9756, crit=    0.000000
+Iteration 0:  f(p) =   .1755387  
+Iteration 1:  f(p) =  .08349602  
+Iteration 2:  f(p) =  .08349602  
+Iteration 3:  f(p) =  .05090728  
+Iteration 4:  f(p) =  .03912088  
+Iteration 5:  f(p) =  .03912088  
+Iteration 6:  f(p) =  .03912088  
+Iteration 7:  f(p) =  .03627896  
+Iteration 8:  f(p) =  .03295978  
+Iteration 9:  f(p) =  .02863255  
+Iteration 10: f(p) =  .02117105  
+Iteration 11: f(p) =  .02117105  
+Iteration 12: f(p) =  .01604556  
+Iteration 13: f(p) =  .01604556  
+Iteration 14: f(p) =  .01604556  
+Iteration 15: f(p) =  .01514035  
+Iteration 16: f(p) =  .01514035  
+Iteration 17: f(p) =  .01514035  
+Iteration 18: f(p) =  .01514035  
+Iteration 19: f(p) =  .01502133  
+Iteration 20: f(p) =  .01502133  
+Iteration 21: f(p) =  .01502133  
+Iteration 22: f(p) =  .01500548  
+Iteration 23: f(p) =  .01500548  
+Iteration 24: f(p) =  .01500355  
+Iteration 25: f(p) =   .0150025  
+Iteration 26: f(p) =   .0150025  
+Iteration 27: f(p) =   .0150025  
+Iteration 28: f(p) =  .01500239  
+Iteration 29: f(p) =  .01500239  
+Iteration 0:  f(p) =  .01500239  
+Iteration 1:  f(p) =  .01500239  
+Iteration 0:  f(p) =  .01500239  
+Iteration 1:  f(p) =  .01500239  
+
+  base_41: b_k=   0.0024, b_cogs=   1.2293, crit=    0.015002
+(MWFE estimator converged in 1 iterations)
+
+HDFE Linear regression                            Number of obs   =      3,698
+Absorbing 1 HDFE group                            F(   3,    665) =      20.79
+Statistics robust to heteroskedasticity           Prob > F        =     0.0000
+                                                  R-squared       =     0.0641
+                                                  Adj R-squared   =     0.0598
+                                                  Within R-sq.    =     0.0571
+Number of clusters (id)      =        666         Root MSE        =     0.3740
+
+                                   (Std. err. adjusted for 666 clusters in id)
+------------------------------------------------------------------------------
+             |               Robust
+    lmu_cwdl | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+    pp_dummy |   .1687197   .0247018     6.83   0.000     .1202169    .2172226
+           k |     .03081     .01111     2.77   0.006      .008995     .052625
+        cogs |  -.0365745   .0169921    -2.15   0.032    -.0699391   -.0032098
+       _cons |    1.06124   .2274878     4.67   0.000     .6145589    1.507921
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+-----------------------------------------------------+
+ Absorbed FE | Categories  - Redundant  = Num. Coefs |
+-------------+---------------------------------------|
+     yr_nace |        15           0          15     |
+-----------------------------------------------------+
+  CWDL premium (NACE 41): .16871975 (SE .02470179)
+(8,346 observations deleted)
+
+=== NACE 42 (N = 818) ===
+(192 observations deleted)
+Iteration 0:  f(p) =   .1129235  
+Iteration 1:  f(p) =  .05630979  
+Iteration 2:  f(p) =  .03648559  
+Iteration 3:  f(p) =  .03030451  
+Iteration 4:  f(p) =  .02231863  
+Iteration 5:  f(p) =  .02231863  
+Iteration 6:  f(p) =  .02231863  
+Iteration 7:  f(p) =  .02231863  
+Iteration 8:  f(p) =  .02228559  
+Iteration 9:  f(p) =  .02226106  
+Iteration 10: f(p) =  .02226106  
+Iteration 11: f(p) =  .02226083  
+Iteration 12: f(p) =  .02225983  
+Iteration 13: f(p) =  .02225979  
+Iteration 14: f(p) =  .02225979  
+Iteration 0:  f(p) =  .02225979  
+Iteration 1:  f(p) =  .02225978  
+Iteration 0:  f(p) =  .02225978  
+Iteration 1:  f(p) =  .02225978  
+
+  plain_42: b_k=   0.0194, b_cogs=   0.8615, crit=    0.022260
+Iteration 0:  f(p) =  .09992369  
+Iteration 1:  f(p) =  .05025262  
+Iteration 2:  f(p) =  .03424608  
+Iteration 3:  f(p) =  .02680783  
+Iteration 4:  f(p) =  .02527524  
+Iteration 5:  f(p) =  .02428629  
+Iteration 6:  f(p) =  .02322633  
+Iteration 7:  f(p) =  .02322633  
+Iteration 8:  f(p) =  .02299454  
+Iteration 9:  f(p) =  .02281303  
+Iteration 10: f(p) =  .02279231  
+Iteration 11: f(p) =  .02277586  
+Iteration 12: f(p) =  .02277586  
+Iteration 13: f(p) =  .02277428  
+Iteration 14: f(p) =  .02277414  
+Iteration 15: f(p) =  .02277397  
+Iteration 16: f(p) =  .02277395  
+Iteration 0:  f(p) =  .02277395  
+Iteration 1:  f(p) =  .02277394  
+Iteration 0:  f(p) =  .02277394  
+Iteration 1:  f(p) =  .02277394  
+
+  base_42: b_k=   0.0086, b_cogs=   0.8988, crit=    0.022774
+(MWFE estimator converged in 1 iterations)
+
+HDFE Linear regression                            Number of obs   =        626
+Absorbing 1 HDFE group                            F(   3,     96) =       8.08
+Statistics robust to heteroskedasticity           Prob > F        =     0.0001
+                                                  R-squared       =     0.1418
+                                                  Adj R-squared   =     0.1179
+                                                  Within R-sq.    =     0.1317
+Number of clusters (id)      =         97         Root MSE        =     0.3073
+
+                                    (Std. err. adjusted for 97 clusters in id)
+------------------------------------------------------------------------------
+             |               Robust
+    lmu_cwdl | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+    pp_dummy |   .0502294   .0466325     1.08   0.284    -.0423353    .1427942
+           k |  -.0463991    .033146    -1.40   0.165    -.1121935    .0193952
+        cogs |   .1261609   .0404315     3.12   0.002      .045905    .2064169
+       _cons |   -.875132   .3618022    -2.42   0.017    -1.593304   -.1569602
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+-----------------------------------------------------+
+ Absorbed FE | Categories  - Redundant  = Num. Coefs |
+-------------+---------------------------------------|
+     yr_nace |        15           0          15     |
+-----------------------------------------------------+
+  CWDL premium (NACE 42): .05022945 (SE .04663247)
+(5,729 observations deleted)
+
+=== NACE 43 (N = 3435) ===
+(910 observations deleted)
+Iteration 0:  f(p) =  .13253516  
+Iteration 1:  f(p) =  .09452757  
+Iteration 2:  f(p) =  .09452757  
+Iteration 3:  f(p) =  .08881551  
+Iteration 4:  f(p) =  .07860966  
+Iteration 5:  f(p) =  .07860966  
+Iteration 6:  f(p) =  .07467907  
+Iteration 7:  f(p) =  .06779438  
+Iteration 8:  f(p) =   .0649041  
+Iteration 9:  f(p) =  .06098723  
+Iteration 10: f(p) =  .05878858  
+Iteration 11: f(p) =   .0568606  
+Iteration 12: f(p) =  .05505576  
+Iteration 13: f(p) =  .05457925  
+Iteration 14: f(p) =   .0529406  
+Iteration 15: f(p) =   .0529406  
+Iteration 16: f(p) =  .05197752  
+Iteration 17: f(p) =  .05088698  
+Iteration 18: f(p) =  .05078374  
+Iteration 19: f(p) =  .05078374  
+Iteration 20: f(p) =  .05070388  
+Iteration 21: f(p) =  .05069552  
+Iteration 22: f(p) =  .05069552  
+Iteration 23: f(p) =  .05069546  
+Iteration 24: f(p) =  .05069546  
+Iteration 0:  f(p) =  .05069546  
+Iteration 1:  f(p) =  .05069502  
+Iteration 2:  f(p) =  .05069462  
+Iteration 3:  f(p) =   .0506942  
+Iteration 4:  f(p) =  .05069373  
+Iteration 5:  f(p) =  .05069368  
+Iteration 6:  f(p) =  .05069368  
+Iteration 0:  f(p) =  .05069368  
+Iteration 1:  f(p) =  .05069368  
+
+  plain_43: b_k=  -0.0027, b_cogs=   1.2678, crit=    0.050694
+Iteration 0:  f(p) =   .0242981  
+Iteration 1:  f(p) =  .00406325  
+Iteration 2:  f(p) =   .0026033  
+Iteration 3:  f(p) =   .0026033  
+Iteration 4:  f(p) =   .0026033  
+Iteration 5:  f(p) =  .00257869  
+Iteration 6:  f(p) =  .00257869  
+Iteration 7:  f(p) =  .00252893  
+Iteration 8:  f(p) =  .00249967  
+Iteration 9:  f(p) =  .00249967  
+Iteration 10: f(p) =  .00249967  
+Iteration 11: f(p) =  .00248931  
+Iteration 12: f(p) =  .00247921  
+Iteration 13: f(p) =  .00245428  
+Iteration 14: f(p) =  .00242104  
+Iteration 15: f(p) =  .00236174  
+Iteration 16: f(p) =  .00226975  
+Iteration 17: f(p) =   .0021563  
+Iteration 18: f(p) =  .00196231  
+Iteration 19: f(p) =  .00193806  
+Iteration 20: f(p) =  .00177477  
+Iteration 21: f(p) =  .00177477  
+Iteration 22: f(p) =  .00177477  
+Iteration 23: f(p) =  .00177318  
+Iteration 24: f(p) =   .0017726  
+Iteration 25: f(p) =  .00177255  
+Iteration 0:  f(p) =  .00177255  
+Iteration 1:  f(p) =  .00177247  
+Iteration 0:  f(p) =  .00177247  
+Iteration 1:  f(p) =  .00177245  
+
+  base_43: b_k=   0.0351, b_cogs=   1.1116, crit=    0.001772
+(MWFE estimator converged in 1 iterations)
+
+HDFE Linear regression                            Number of obs   =      2,525
+Absorbing 1 HDFE group                            F(   3,    503) =      18.73
+Statistics robust to heteroskedasticity           Prob > F        =     0.0000
+                                                  R-squared       =     0.0850
+                                                  Adj R-squared   =     0.0788
+                                                  Within R-sq.    =     0.0683
+Number of clusters (id)      =        504         Root MSE        =     0.3350
+
+                                   (Std. err. adjusted for 504 clusters in id)
+------------------------------------------------------------------------------
+             |               Robust
+    lmu_cwdl | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+    pp_dummy |   .1112268   .0257242     4.32   0.000     .0606867     .161767
+           k |   .0515373   .0114321     4.51   0.000     .0290767    .0739979
+        cogs |  -.0947249   .0154689    -6.12   0.000    -.1251166   -.0643333
+       _cons |   1.501082   .2140104     7.01   0.000     1.080617    1.921546
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+-----------------------------------------------------+
+ Absorbed FE | Categories  - Redundant  = Num. Coefs |
+-------------+---------------------------------------|
+     yr_nace |        15           0          15     |
+-----------------------------------------------------+
+  CWDL premium (NACE 43): .11122682 (SE .02572422)
+
+. 
+. dis _newline "--- table_cwdl_acf.do DONE ---"
+
+--- table_cwdl_acf.do DONE ---
+
+. 
+end of do-file
+
+. do "$code/table_bh_ri.do"
+
+. *============================================================================
+> ===
+. * table_bh_ri.do — Borusyak-Hull (2021) Randomization Inference
+. *
+. * Uses ri_pvalue.ado and ri_ci.ado (copied from BH replication package)
+. * to test whether the procurement markup premium survives randomization
+. * inference under counterfactual treatment assignments.
+. *============================================================================
+> ===
+. 
+. dis _newline "--- table_bh_ri.do ---"
+
+--- table_bh_ri.do ---
+
+. 
+. * Add ado path
+. adopath + "$root/ado"
+  [1]  (BASE)      "/Applications/StataNow/ado/base/"
+  [2]  (SITE)      "/Applications/StataNow/ado/site/"
+  [3]              "."
+  [4]  (PERSONAL)  "/Users/marek/Documents/Stata/ado/personal/"
+  [5]  (PLUS)      "/Users/marek/Library/Application Support/Stata/ado/plus/"
+  [6]  (OLDPLACE)  "~/ado/"
+  [7]              "./ado"
+
+. 
+. * Load from markups_panel.dta (created by calculate_markups.do).
+. * It has l_mu_A plus pp_dummy, k, cogs, nace2, year, id — everything this
+. * script needs. analysis_panel.dta lacks l_mu_A because markup calculation
+. * runs after prepare_data.do.
+. use "$data/markups_panel.dta", clear
+
+. xtset id year, yearly
+
+Panel variable: id (unbalanced)
+ Time variable: year, 2006 to 2021, but with gaps
+         Delta: 1 year
+
+. 
+. * Year × NACE absorbing interaction (for reghdfe / ri_pvalue absorb)
+. cap drop yr_nace
+
+. egen yr_nace = group(year nace2)
+
+. 
+. drop if missing(l_mu_A, pp_dummy, k, cogs)
+(0 observations deleted)
+
+. 
+. * ── Generate counterfactual treatment assignments ──
+. * Strategy: permute pp_dummy within (year, nace2) strata
+. * K=500 permutations (Stata is slower than Python's 1000)
+. 
+. set seed 42
+
+. local K = 500
+
+. 
+. * Create strata
+. egen strata = group(year nace2)
+
+. 
+. * Sort-based permutation: sorting by random number within strata
+. * effectively shuffles pp_dummy within each stratum
+. forvalues s = 1/`K' {
+  2.     tempvar rand
+  3.     gen `rand' = runiform()
+  4.     bys strata (`rand'): gen pp_sim_`s' = pp_dummy[_n]
+  5.     drop `rand'
+  6.     if mod(`s', 100) == 0 dis "  Permutation `s'/`K' done"
+  7. }
+  Permutation 100/500 done
+  Permutation 200/500 done
+  Permutation 300/500 done
+  Permutation 400/500 done
+  Permutation 500/500 done
+
+. 
+. dis "  Generated `K' permuted treatment assignments"
+  Generated 500 permuted treatment assignments
+
+. 
+. * ── Run BH randomization inference ──
+. 
+. * RI p-value (null: premium = 0)
+. ri_pvalue l_mu_A pp_dummy, zsim(pp_sim_*) beta(0) controls(k cogs) absorb(yr_
+> nace)
+
+. local ri_p = r(pvalue)
+
+. local ri_stat = r(stat)
+
+. local ri_nsims = r(nsims)
+
+. dis _newline "  RI p-value: " `ri_p' " (stat=" `ri_stat' ", nsims=" `ri_nsims
+> ' ")"
+
+  RI p-value: 0 (stat=252.13555, nsims=500)
+
+. 
+. * RI confidence interval (search range: -0.1 to 0.4)
+. ri_ci l_mu_A pp_dummy, zsim(pp_sim_*) range(-0.1 0.4) controls(k cogs) absorb
+> (yr_nace)
+Warning: CI is empty
+
+. local ci_lo = r(ci_left)
+
+. local ci_hi = r(ci_right)
+
+. dis "  RI 95% CI: [" `ci_lo' ", " `ci_hi' "]"
+  RI 95% CI: [., .]
+
+. 
+. * Standard OLS for comparison
+. reghdfe l_mu_A pp_dummy k cogs, absorb(yr_nace) cluster(id)
+(MWFE estimator converged in 1 iterations)
+
+HDFE Linear regression                            Number of obs   =      9,164
+Absorbing 1 HDFE group                            F(   3,   1497) =    1704.27
+Statistics robust to heteroskedasticity           Prob > F        =     0.0000
+                                                  R-squared       =     0.9572
+                                                  Adj R-squared   =     0.9570
+                                                  Within R-sq.    =     0.6807
+Number of clusters (id)      =      1,498         Root MSE        =     0.0576
+
+                                 (Std. err. adjusted for 1,498 clusters in id)
+------------------------------------------------------------------------------
+             |               Robust
+      l_mu_A | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+    pp_dummy |   .1407067   .0024521    57.38   0.000     .1358968    .1455165
+           k |    .043385   .0013332    32.54   0.000     .0407698    .0460002
+        cogs |  -.0605113   .0033083   -18.29   0.000    -.0670007   -.0540219
+       _cons |   1.128813   .0486618    23.20   0.000      1.03336    1.224265
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+-----------------------------------------------------+
+ Absorbed FE | Categories  - Redundant  = Num. Coefs |
+-------------+---------------------------------------|
+     yr_nace |        48           0          48     |
+-----------------------------------------------------+
+
+. local ols_b = _b[pp_dummy]
+
+. local ols_se = _se[pp_dummy]
+
+. local ols_lo = `ols_b' - 1.96 * `ols_se'
+
+. local ols_hi = `ols_b' + 1.96 * `ols_se'
+
+. 
+. dis _newline "  === Comparison ==="
+
+  === Comparison ===
+
+. dis "  OLS:     " %6.4f `ols_b' " [" %6.4f `ols_lo' ", " %6.4f `ols_hi' "]"
+  OLS:     0.1407 [0.1359, 0.1455]
+
+. dis "  BH RI:   " %6.4f `ols_b' " [" %6.4f `ci_lo' ", " %6.4f `ci_hi' "] p=" 
+> %6.4f `ri_p'
+  BH RI:   0.1407 [     .,      .] p=0.0000
+
+. 
+. * Save results to CSV
+. tempname fh
+
+. file open `fh' using "$output/bh_ri_stata.csv", write replace
+(file ../../output/stata/bh_ri_stata.csv not found)
+
+. file write `fh' "method,estimate,ci_lo,ci_hi,pvalue" _n
+
+. file write `fh' "OLS clustered," %6.4f (`ols_b') "," %6.4f (`ols_lo') "," %6.
+> 4f (`ols_hi') ",." _n
+
+. file write `fh' "BH RI (within yr x nace)," %6.4f (`ols_b') "," %6.4f (`ci_lo
+> ') "," %6.4f (`ci_hi') "," %6.4f (`ri_p') _n
+
+. file close `fh'
+
+. 
+. dis _newline "--- table_bh_ri.do DONE ---"
+
+--- table_bh_ri.do DONE ---
+
+. 
+end of do-file
+
+. 
+. * Figures (require Stata graph capabilities)
+. cap do "$code/figure_timeseries.do"
+
+. cap do "$code/figure_binscatter.do"
+
+. 
+end of do-file
+
+. 
+. *-----------------------------------------------------------------------
+. timer off 1
+
+. timer list
+   1:      8.20 /        1 =       8.2030
+
+. 
+. dis _newline "========================================"
+
+========================================
+
+. dis "  DONE. Output in: $output"
+  DONE. Output in: ../../output/stata
+
+. dis "========================================"
+========================================
+
+. 
+. log close
+      name:  <unnamed>
+       log:  /Users/marek/Desktop/io/markups-procurement/2_analysis/source/stat
+> a/../../output/stata/launcher.log
+  log type:  text
+ closed on:  10 Apr 2026, 21:11:28
+-------------------------------------------------------------------------------
+
+. 
+end of do-file

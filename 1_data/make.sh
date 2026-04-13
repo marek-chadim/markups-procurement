@@ -45,7 +45,11 @@ mkdir -p "${MAKE_SCRIPT_DIR}/output"
 cd "${MAKE_SCRIPT_DIR}/source"
 
 run_python rebuild_data.py "${LOGFILE}" || exit 1
-run_python build_orbis_panel.py "${LOGFILE}" || exit 1
+# build_orbis_panel.py disabled: 0_raw/orbis/*.csv are stale symlinks to a
+# removed thesis-replication path. No currently enabled 2_analysis script
+# consumes orbis_panel outputs (orbis_acf_estimation.py, klms_analysis.py,
+# dleu_orbis_extension.do all commented out). Skip to unblock pipeline.
+# run_python build_orbis_panel.py "${LOGFILE}" || exit 1
 ) || false
 
 echo -e "\nmake.sh finished at $(date '+%Y-%m-%d %H:%M:%S')" | tee -a "${LOGFILE}"

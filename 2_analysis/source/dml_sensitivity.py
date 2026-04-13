@@ -205,9 +205,17 @@ def write_table(result: dict) -> None:
         r"\midrule",
         r"\emph{Observed-covariate benchmarks:} & & & & \\",
     ]
+    label_map = {
+        "omega_A": r"$\omega^A$",
+        "mktshare": "mktshare",
+        "foreign": "foreign",
+        "k": "$k$",
+        "cogs": "cogs",
+    }
     for b in result["benchmarks"]:
+        label = label_map.get(b["covariate"], b["covariate"].replace("_", r"\_"))
         lines.append(
-            rf"\quad {b['covariate']} & {b['r2_y']:.4f} & {b['r2_d']:.4f} & "
+            rf"\quad {label} & {b['r2_y']:.4f} & {b['r2_d']:.4f} & "
             rf"{b['implied_bias']:.4f} & "
             rf"[{b['adj_point_lo']:.4f}, {b['adj_point_hi']:.4f}] \\"
         )

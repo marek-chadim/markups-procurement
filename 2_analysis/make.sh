@@ -59,6 +59,12 @@ run_python aggregate_markup_trends.py "${LOGFILE}" || exit 1
 run_python dleu_replication.py "${LOGFILE}" || exit 1
 run_python adl_instrument_comparison.py "${LOGFILE}" || exit 1
 run_python panel_treatment.py "${LOGFILE}" || exit 1
+run_R panel_treatment_effects.R "${LOGFILE}" || exit 1
+run_stata panel_treatment_sdid_honestdid.do "${LOGFILE}" || exit 1
+run_python build_bacon_tex.py "${LOGFILE}" || exit 1
+run_python build_honestdid_tex.py "${LOGFILE}" || exit 1
+run_R panel_treatment_weidner.R "${LOGFILE}" || exit 1
+run_python favoritism_decomposition.py "${LOGFILE}" || exit 1
 run_python fiscal_welfare_tenders.py "${LOGFILE}" || exit 1
 run_python contract_level_welfare.py "${LOGFILE}" || exit 1
 

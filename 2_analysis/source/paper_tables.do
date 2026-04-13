@@ -132,7 +132,8 @@ foreach spec in A B C D E OLS {
 use "$outpath/paper_coefficients.dta", clear
 
 cap file close tab1
-file open tab1 using "$outpath/table_pf_estimates.tex", write replace
+cap mkdir "$outpath/tables"
+file open tab1 using "$outpath/tables/table_pf_estimates.tex", write replace
 
 #delimit ;
 file write tab1
@@ -306,7 +307,7 @@ foreach spec in A B C D E OLS {
 }
 
 cap file close tab2
-file open tab2 using "$outpath/table_premium.tex", write replace
+file open tab2 using "$outpath/tables/table_premium.tex", write replace
 
 #delimit ;
 file write tab2
