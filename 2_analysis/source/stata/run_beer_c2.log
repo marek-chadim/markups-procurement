@@ -1,0 +1,1079 @@
+
+  ___  ____  ____  ____  ____ ®
+ /__    /   ____/   /   ____/      StataNow 19.5
+___/   /   /___/   /   /___/       MP—Parallel Edition
+
+ Statistics and Data Science       Copyright 1985-2025 StataCorp LLC
+                                   StataCorp
+                                   4905 Lakeway Drive
+                                   College Station, Texas 77845 USA
+                                   800-782-8272        https://www.stata.com
+                                   979-696-4600        service@stata.com
+
+Stata license: Unlimited-user 4-core network, expiring  1 Jul 2026
+Serial number: 501909301221
+  Licensed to: Marek Chadim
+               Yale University
+
+Notes:
+      1. Stata is running in batch mode.
+      2. Unicode is supported; see help unicode_advice.
+      3. More than 2 billion observations are allowed; see help obs_advice.
+      4. Maximum number of variables is set to 5,000 but can be increased;
+          see help set_maxvar.
+
+. do run_beer_c2.do 
+
+. * Wrapper to run table_beer_c2.do with launcher globals set up
+. clear all
+
+. set more off
+
+. set seed 42
+
+. 
+. global root    "."
+
+. global datagen "$root/datagen"
+
+. global code    "$root/code"
+
+. global data    "../../output/stata"
+
+. global output  "../../output/stata"
+
+. global temp    "../../output/stata/temp"
+
+. 
+. cap log close
+
+. log using "$output/table_beer_c2.log", text replace
+-------------------------------------------------------------------------------
+      name:  <unnamed>
+       log:  /Users/marek/Desktop/io/markups-procurement/2_analysis/source/stat
+> a/../../output/stata/table_beer_c2.log
+  log type:  text
+ opened on:  13 Apr 2026, 16:19:52
+
+. 
+. do "$code/table_beer_c2.do"
+
+. *============================================================================
+> ===
+. * table_beer_c2.do — Production Function Estimates in Beer (De Loecker &
+. *                    Scott forthcoming Review of Economic Studies) Table
+. *                    C2 format: 2 panels (CD, TL) x 4 columns (Pooled +
+. *                    3 NACE).
+. *
+. * Stata cross-check for the canonical Python implementation in
+. * `beer_c2_table.py`. Runs 8 ACF estimations via Mata GMM:
+. *   - Pooled sample (year x nace2 FE in first stage), CD + TL
+. *   - NACE 41, 42, 43 individually, CD + TL
+. *
+. * Pooled column uses `i.year##i.nace2` in the first stage; by-NACE columns
+. * use legacy `xi: reg` with `i.year` only (matches estimate_pf.do exactly
+. * so the NACE columns replicate the existing pipeline). Analytical ACH
+. * (2012) sandwich SEs clustered by firm. Multi-start NM optimizer (5 starts)
+. * matches Python `acf_estimator.py n_starts=5`.
+. *
+. * IMPORTANT: the paper table `4_paper/input/tables/table_pf_estimates.tex`
+. * uses Python-produced numbers (from beer_c2_table.py). The Stata do-file
+. * exists as a reproducibility cross-check and agrees with Python on the
+. * by-NACE CD panel exactly, but the translog GMM's local-minimum structure
+. * produces slightly different point estimates in two cells (NACE 41 CD
+. * beta_c, NACE 42 TL beta_c) due to differences in how missing L2.cogs
+. * are handled and in the initial simplex delta schedule. Both implementa-
+. * tions agree on the headline translog markup means (NACE 41 ~ 2.14,
+. * NACE 42 ~ 2.35, NACE 43 ~ 1.68).
+. *
+. * Input:  analysisdata/analysis_panel.dta
+. * Output: $output/beer_c2_table.tex
+. *         $data/beer_c2_estimates.dta
+. *============================================================================
+> ===
+. 
+. dis _newline "--- table_beer_c2.do ---"
+
+--- table_beer_c2.do ---
+
+. 
+. *-----------------------------------------------------------------------
+. * Mata GMM programs (copied from estimate_pf.do; inlined for self-containment
+> )
+. *-----------------------------------------------------------------------
+. 
+. clear mata
+
+. mata:
+------------------------------------------------- mata (type end to exit) -----
+: 
+: // --- CD: base (pp + survival in Markov) ---
+: void GMM_CD_BASE(todo, b, PHI, PHI_LAG, PP_lag, PHAT_lag, Z, X, X_lag, W, cri
+> t, g, H)
+> {
+>     PHI=st_data(.,("phi")); PHI_LAG=st_data(.,("Lphi"))
+>     PP_lag=st_data(.,("Lpp")); PHAT_lag=st_data(.,("Lphat"))
+>     Z=st_data(.,("const","k","Lcogs")); X=st_data(.,("const","k","cogs"))
+>     X_lag=st_data(.,("const","Lk","Lcogs")); W=invsym(Z'Z)
+>     C=st_data(.,("const"))
+>     OMEGA=PHI-X*b'; OL=PHI_LAG-X_lag*b'
+>     P=(C,OL,PP_lag,PHAT_lag); gb=invsym(P'P)*P'OMEGA; XI=OMEGA-P*gb
+>     crit=(Z'XI)'*W*(Z'XI)
+> }
+note: argument todo unused.
+note: argument g unused.
+note: argument H unused.
+
+: 
+: // --- TL: Kim, Luo & Su (2019) overidentified ---
+: // 6 parameters, 8 IVs: adds (L.k, L2.cogs) as deeper lags to eliminate
+: // the near-singular Jacobian of the just-identified translog and match
+: // the Python acf_estimator.py `overidentify=True` semantics.
+: void GMM_TL_OVERID(todo, b, PHI, PHI_LAG, PP_lag, PHAT_lag, Z, X, X_lag, W, c
+> rit, g, H)
+> {
+>     PHI=st_data(.,("phi")); PHI_LAG=st_data(.,("Lphi"))
+>     PP_lag=st_data(.,("Lpp")); PHAT_lag=st_data(.,("Lphat"))
+>     Z=st_data(.,("const","k","Lcogs","k2","Lcogs2","kLcogs","Lk","L2cogs"))
+>     X=st_data(.,("const","k","cogs","k2","cogs2","kcogs"))
+>     X_lag=st_data(.,("const","Lk","Lcogs","Lk2","Lcogs2","LkLcogs"))
+>     W=invsym(Z'Z); C=st_data(.,("const"))
+>     OMEGA=PHI-X*b'; OL=PHI_LAG-X_lag*b'
+>     P=(C,OL,PP_lag,PHAT_lag); gb=invsym(P'P)*P'OMEGA; XI=OMEGA-P*gb
+>     crit=(Z'XI)'*W*(Z'XI)
+> }
+note: argument todo unused.
+note: argument g unused.
+note: argument H unused.
+
+: 
+: // --- Generic optimizer matching Python acf_estimator.py `nm+bfgs` mode.
+: // For each of 5 starts (OLS, 0.5*OLS, 1.5*OLS, 2*OLS, perturbed OLS):
+: //   (a) coarse NM with initial simplex delta 0.1
+: //   (b) 3 NM polishing rounds with delta 1e-5
+: //   (c) BFGS polish from the NM optimum (numerical gradient)
+: // Keep the best criterion across starts. Tol matches scipy 1e-10.
+: void run_opt(pointer(function) scalar fn, real rowvector sv,
+>     string scalar bn, string scalar cn)
+> {
+>     K = cols(sv)
+>     starts = J(5, K, 0)
+>     starts[1,.] = sv                  // OLS
+>     starts[2,.] = sv * 0.5            // 0.5 OLS
+>     starts[3,.] = sv * 1.5            // 1.5 OLS
+>     starts[4,.] = sv * 2.0            // 2 OLS
+>     starts[5,.] = sv + 0.1 * sv :* runiform(1, K)  // perturbed
+> 
+>     best_crit = .
+>     best_p = sv
+> 
+>     for (start_i=1; start_i<=5; start_i++) {
+>         // Phase 1+2: NM coarse + 3 polishing rounds
+>         S = optimize_init()
+>         for (i=1; i<=8; i++) optimize_init_argument(S, i, .)
+>         optimize_init_params(S, starts[start_i,.])
+>         optimize_init_evaluator(S, fn)
+>         optimize_init_which(S, "min")
+>         optimize_init_conv_warning(S, "off")
+>         optimize_init_conv_nrtol(S, 1e-10)
+>         optimize_init_conv_maxiter(S, 10000)
+>         optimize_init_technique(S, "nm")
+>         optimize_init_tracelevel(S, "none")
+>         optimize_init_nmsimplexdeltas(S, 0.1)
+>         rc = _optimize(S)
+>         if (rc != 0) continue
+>         p_nm = optimize_result_params(S)
+>         optimize_init_nmsimplexdeltas(S, 1e-5)
+>         for (r=1; r<=3; r++) {
+>             optimize_init_params(S, p_nm)
+>             rc = _optimize(S)
+>             if (rc == 0) p_nm = optimize_result_params(S)
+>         }
+>         crit_nm = optimize_result_value(S)
+> 
+>         // Phase 3: BFGS polish from NM optimum (numerical gradient)
+>         p_final = p_nm
+>         crit_final = crit_nm
+>         SB = optimize_init()
+>         for (i=1; i<=8; i++) optimize_init_argument(SB, i, .)
+>         optimize_init_params(SB, p_nm)
+>         optimize_init_evaluator(SB, fn)
+>         optimize_init_which(SB, "min")
+>         optimize_init_conv_warning(SB, "off")
+>         optimize_init_conv_nrtol(SB, 1e-10)
+>         optimize_init_conv_maxiter(SB, 10000)
+>         optimize_init_technique(SB, "bfgs")
+>         optimize_init_tracelevel(SB, "none")
+>         rc_b = _optimize(SB)
+>         if (rc_b == 0) {
+>             p_b = optimize_result_params(SB)
+>             cb_b = optimize_result_value(SB)
+>             if (cb_b < crit_final) {
+>                 p_final = p_b
+>                 crit_final = cb_b
+>             }
+>         }
+> 
+>         if (crit_final < best_crit) {
+>             best_crit = crit_final
+>             best_p = p_final
+>         }
+>     }
+> 
+>     printf("  Best criterion (5 starts, nm+bfgs) = %12.6f\n", best_crit)
+>     st_matrix(bn, best_p)
+>     st_numscalar(cn, best_crit)
+> }
+
+: 
+: // --- Analytical SEs (ACH 2012, clustered by firm) ---
+: void compute_se(string scalar bn, string rowvector zv, string rowvector xv,
+>     string rowvector xlv)
+> {
+>     PHI = st_data(.,("phi"))
+>     PHIL = st_data(.,("Lphi"))
+>     C = st_data(.,("const"))
+>     Z = st_data(.,zv)
+>     X = st_data(.,xv)
+>     XL = st_data(.,xlv)
+>     cl = st_data(.,("id"))
+>     b = st_matrix(bn)
+>     N = rows(X)
+>     Kz = cols(Z)
+> 
+>     // Base Markov: (C, Lpp, Lphat)
+>     MV = (C, st_data(.,("Lpp")), st_data(.,("Lphat")))
+> 
+>     OM = PHI - X*b'
+>     OL = PHIL - XL*b'
+>     P = (MV, OL)
+>     gb = invsym(P'P) * P'OM
+>     XI = OM - P*gb
+> 
+>     // Numerical Jacobian
+>     h = 1e-7
+>     K = cols(b)
+>     G = J(Kz, K, 0)
+>     for (j=1; j<=K; j++) {
+>         bp = b; bm = b
+>         bp[j] = bp[j] + h
+>         bm[j] = bm[j] - h
+>         OMp = PHI - X*bp'; OLp = PHIL - XL*bp'
+>         Pp = (MV, OLp)
+>         gbp = invsym(Pp'Pp) * Pp'OMp
+>         XIp = OMp - Pp*gbp
+>         OMm = PHI - X*bm'; OLm = PHIL - XL*bm'
+>         Pm = (MV, OLm)
+>         gbm = invsym(Pm'Pm) * Pm'OMm
+>         XIm = OMm - Pm*gbm
+>         G[.,j] = (Z'XIp/N - Z'XIm/N) / (2*h)
+>     }
+> 
+>     W = invsym(Z'Z/N)
+>     ZXI = Z :* XI
+>     cids = uniqrows(cl)
+>     Nc = rows(cids)
+>     S = J(Kz, Kz, 0)
+>     for (c=1; c<=Nc; c++) {
+>         sel = selectindex(cl :== cids[c])
+>         mc = colsum(ZXI[sel,.])
+>         S = S + mc'*mc
+>     }
+>     S = S/N * (Nc/(Nc-1))
+>     GWGi = invsym(G'*W*G)
+>     V = GWGi * G'*W*S*W*G * GWGi / N
+>     st_matrix("V_an", V)
+>     st_matrix("se_an", sqrt(diagonal(V))')
+> }
+
+: 
+: end
+-------------------------------------------------------------------------------
+
+. 
+. *-----------------------------------------------------------------------
+. * Sample x spec loop
+. *-----------------------------------------------------------------------
+. 
+. * Samples: "0" = Pooled (year x nace2 FE), 41/42/43 = by-NACE (year FE)
+. local sample_codes "0 41 42 43"
+
+. 
+. * Start empty results frame
+. tempfile results
+
+. clear
+
+. set obs 1
+Number of observations (_N) was 0, now 1.
+
+. gen sample = "init"
+
+. gen spec = "init"
+
+. gen N_obs = .
+(1 missing value generated)
+
+. gen b_k = .
+(1 missing value generated)
+
+. gen se_k = .
+(1 missing value generated)
+
+. gen b_cogs = .
+(1 missing value generated)
+
+. gen se_cogs = .
+(1 missing value generated)
+
+. gen b_k2 = .
+(1 missing value generated)
+
+. gen se_k2 = .
+(1 missing value generated)
+
+. gen b_cogs2 = .
+(1 missing value generated)
+
+. gen se_cogs2 = .
+(1 missing value generated)
+
+. gen b_kcogs = .
+(1 missing value generated)
+
+. gen se_kcogs = .
+(1 missing value generated)
+
+. gen markup_mean = .
+(1 missing value generated)
+
+. gen criterion = .
+(1 missing value generated)
+
+. save `results', replace
+(file /var/folders/4c/ww4k0h5j0fq1529s2dttb4t00000gn/T//St43001.000001 not
+    found)
+file /var/folders/4c/ww4k0h5j0fq1529s2dttb4t00000gn/T//St43001.000001 saved
+    as .dta format
+
+. 
+. foreach sc of local sample_codes {
+  2. 
+.     if "`sc'" == "0" {
+  3.         local sample_label "Pooled"
+  4.     }
+  5.     else {
+  6.         local sample_label "NACE `sc'"
+  7.     }
+  8. 
+.     dis _newline(2) "=========================================="
+  9.     dis "  Sample: `sample_label'"
+ 10.     dis "=========================================="
+ 11. 
+.     foreach spec_code in cd tl {
+ 12. 
+.         dis _newline "  [`sample_label' / `=upper("`spec_code'")']"
+ 13. 
+.         use "$data/analysis_panel.dta", clear
+ 14.         xtset id year, yearly
+ 15. 
+.         if "`sc'" != "0" {
+ 16.             keep if nace2 == `sc'
+ 17.         }
+ 18. 
+.         * Polynomial terms for TL GMM (degree 2 in cross products)
+.         gen k2 = k^2
+ 19.         gen cogs2 = cogs^2
+ 20.         gen kcogs = k * cogs
+ 21. 
+.         * Cubic polynomial terms for FIRST STAGE control function
+.         * inversion. Matches Python acf_estimator.py poly_order=3:
+.         *   {k, cogs, k2, cogs2, k3, cogs3, kc, k2c, kc2}
+.         * each interacted with pp_dummy.
+.         gen k3     = k^3
+ 22.         gen cogs3  = cogs^3
+ 23.         gen k2cogs = k^2 * cogs
+ 24.         gen kcogs2 = k * cogs^2
+ 25. 
+.         foreach v in k cogs k2 cogs2 k3 cogs3 kcogs k2cogs kcogs2 {
+ 26.             gen `v'_pp = `v' * pp_dummy
+ 27.         }
+ 28. 
+.         * First stage OLS with cubic polynomial + pp_dummy interactions.
+.         * Pooled adds year x nace2 interaction FE; by-NACE uses year FE
+.         * only. Matches Python first-stage specification exactly.
+.         local poly_terms "k cogs k2 cogs2 k3 cogs3 kcogs k2cogs kcogs2"
+ 29.         local poly_pp    "k_pp cogs_pp k2_pp cogs2_pp k3_pp cogs3_pp kcogs
+> _pp k2cogs_pp kcogs2_pp"
+ 30.         if "`sc'" == "0" {
+ 31.             reg go `poly_terms' `poly_pp' pp_dummy i.year##i.nace2
+ 32.         }
+ 33.         else {
+ 34.             reg go `poly_terms' `poly_pp' pp_dummy i.year
+ 35.         }
+ 36.         predict phi
+ 37.         predict epsilon, res
+ 38.         local r2_1st = e(r2)
+ 39. 
+.         * Lags
+.         xtset id year
+ 40.         gen Lphi    = L.phi
+ 41.         gen Lpp     = L.pp_dummy
+ 42.         gen Lphat   = L.phat_survival
+ 43.         gen Lk      = L.k
+ 44.         gen Lcogs   = L.cogs
+ 45.         gen Lk2     = Lk^2
+ 46.         gen Lcogs2  = Lcogs^2
+ 47.         gen LkLcogs = Lk * Lcogs
+ 48.         gen kLcogs  = k * Lcogs
+ 49.         gen L2cogs  = L2.cogs
+ 50.         gen const   = 1
+ 51. 
+.         drop if mi(k, cogs, Lk, Lcogs, phi, Lphi, Lpp)
+ 52.         if "`spec_code'" == "tl" drop if mi(L2cogs)
+ 53.         qui sum Lphat
+ 54.         replace Lphat = r(mean) if mi(Lphat)
+ 55. 
+.         local nobs = _N
+ 56.         dis "    N = `nobs'"
+ 57. 
+.         * OLS starting values
+.         qui reg go k cogs
+ 58.         local sv_c = _b[_cons]
+ 59.         local sv_k = _b[k]
+ 60.         local sv_m = _b[cogs]
+ 61. 
+.         if "`spec_code'" == "cd" {
+ 62. 
+.             sort id year
+ 63.             mata: run_opt(&GMM_CD_BASE(), (`sv_c',`sv_k',`sv_m'), "bM", "c
+> M")
+ 64.             local b0 = bM[1,1]
+ 65.             replace phi = phi - `b0'
+ 66.             replace Lphi = Lphi - `b0'
+ 67.             matrix bMnc = bM[1,2..3]
+ 68.             mata: compute_se("bMnc", ("k","Lcogs"), ("k","cogs"), ("Lk","L
+> cogs"))
+ 69.             replace phi = phi + `b0'
+ 70.             replace Lphi = Lphi + `b0'
+ 71.             matrix seM = se_an
+ 72. 
+.             local bk_v   = bM[1,2]
+ 73.             local bc_v   = bM[1,3]
+ 74.             local sek_v  = seM[1,1]
+ 75.             local sec_v  = seM[1,2]
+ 76.             local bk2_v  = .
+ 77.             local bc2_v  = .
+ 78.             local bkc_v  = .
+ 79.             local sek2_v = .
+ 80.             local sec2_v = .
+ 81.             local skc_v  = .
+ 82. 
+.             * Compute markup: mu = beta_cogs / alpha_hat where
+.             * alpha = exp(cogs)/exp(go_corrected); go_corrected subtracts
+.             * first-stage residual
+.             gen mu = `bc_v' / (exp(cogs) / exp(go - epsilon))
+ 83.             qui sum mu, d
+ 84.             local mu_mean = r(mean)
+ 85.         }
+ 86.         else {
+ 87. 
+.             qui reg go k cogs k2 cogs2 kcogs
+ 88.             matrix sv_tl = (_b[_cons], _b[k], _b[cogs], _b[k2], _b[cogs2],
+>  _b[kcogs])
+ 89.             sort id year
+ 90.             mata: run_opt(&GMM_TL_OVERID(), st_matrix("sv_tl"), "bM", "cM"
+> )
+ 91.             local b0 = bM[1,1]
+ 92.             replace phi = phi - `b0'
+ 93.             replace Lphi = Lphi - `b0'
+ 94.             matrix bMnc = bM[1,2..6]
+ 95.             mata: compute_se("bMnc", ///
+>                 ("k","Lcogs","k2","Lcogs2","kLcogs","Lk","L2cogs"), ///
+>                 ("k","cogs","k2","cogs2","kcogs"), ///
+>                 ("Lk","Lcogs","Lk2","Lcogs2","LkLcogs"))
+ 96.             replace phi = phi + `b0'
+ 97.             replace Lphi = Lphi + `b0'
+ 98.             matrix seM = se_an
+ 99. 
+.             local bk_v   = bM[1,2]
+100.             local bc_v   = bM[1,3]
+101.             local bk2_v  = bM[1,4]
+102.             local bc2_v  = bM[1,5]
+103.             local bkc_v  = bM[1,6]
+104.             local sek_v  = seM[1,1]
+105.             local sec_v  = seM[1,2]
+106.             local sek2_v = seM[1,3]
+107.             local sec2_v = seM[1,4]
+108.             local skc_v  = seM[1,5]
+109. 
+.             * Firm-year output elasticity of cogs: theta = bc + 2*bcc*c + bkc
+> *k
+.             gen theta_c = `bc_v' + 2*`bc2_v'*cogs + `bkc_v'*k
+110.             gen mu = theta_c / (exp(cogs) / exp(go - epsilon))
+111.             qui sum mu, d
+112.             local mu_mean = r(mean)
+113.         }
+114. 
+.         local crit_v = cM
+115. 
+.         * Append to results
+.         preserve
+116.         clear
+117.         set obs 1
+118.         gen sample = "`sample_label'"
+119.         gen spec = "`spec_code'"
+120.         gen N_obs = `nobs'
+121.         gen b_k = `bk_v'
+122.         gen se_k = `sek_v'
+123.         gen b_cogs = `bc_v'
+124.         gen se_cogs = `sec_v'
+125.         gen b_k2 = `bk2_v'
+126.         gen se_k2 = `sek2_v'
+127.         gen b_cogs2 = `bc2_v'
+128.         gen se_cogs2 = `sec2_v'
+129.         gen b_kcogs = `bkc_v'
+130.         gen se_kcogs = `skc_v'
+131.         gen markup_mean = `mu_mean'
+132.         gen criterion = `crit_v'
+133.         append using `results'
+134.         save `results', replace
+135.         restore
+136. 
+.         dis "    beta_k = " %7.4f `bk_v' " (" %6.4f `sek_v' "), " ///
+>             "beta_c = " %7.4f `bc_v' " (" %6.4f `sec_v' "), " ///
+>             "mu_bar = " %6.3f `mu_mean'
+137.     }
+138. }
+
+
+==========================================
+  Sample: Pooled
+==========================================
+
+  [Pooled / CD]
+
+Panel variable: id (unbalanced)
+ Time variable: year, 2006 to 2021, but with gaps
+         Delta: 1 year
+
+      Source |       SS           df       MS      Number of obs   =     9,164
+-------------+----------------------------------   F(66, 9097)     =   1404.36
+       Model |  12045.2797        66  182.504238   Prob > F        =    0.0000
+    Residual |  1182.20435     9,097  .129955409   R-squared       =    0.9106
+-------------+----------------------------------   Adj R-squared   =    0.9100
+       Total |  13227.4841     9,163  1.44357569   Root MSE        =    .36049
+
+------------------------------------------------------------------------------
+          go | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+           k |  -.9124008   .8596996    -1.06   0.289    -2.597605    .7728036
+        cogs |  -22.43386   2.335767    -9.60   0.000    -27.01249   -17.85524
+          k2 |   .0334571    .044454     0.75   0.452    -.0536828     .120597
+       cogs2 |   1.305946   .1511297     8.64   0.000     1.009698    1.602194
+          k3 |   .0019586   .0013937     1.41   0.160    -.0007734    .0046907
+       cogs3 |  -.0255376   .0035488    -7.20   0.000    -.0324941   -.0185811
+       kcogs |   .0614624   .1025026     0.60   0.549    -.1394657    .2623906
+      k2cogs |  -.0066894   .0035893    -1.86   0.062    -.0137253    .0003465
+      kcogs2 |   .0034331   .0045617     0.75   0.452    -.0055089     .012375
+        k_pp |  -.9243696   1.470885    -0.63   0.530    -3.807635    1.958896
+     cogs_pp |   28.72504   3.088856     9.30   0.000     22.67019    34.77989
+       k2_pp |   .0753765   .0745842     1.01   0.312    -.0708252    .2215782
+    cogs2_pp |   -1.59945   .2191449    -7.30   0.000    -2.029024   -1.169877
+       k3_pp |  -.0010854   .0024145    -0.45   0.653    -.0058183    .0036476
+    cogs3_pp |   .0290737    .005746     5.06   0.000     .0178103     .040337
+    kcogs_pp |  -.0570333    .180784    -0.32   0.752    -.4114105    .2973438
+   k2cogs_pp |  -.0010507   .0069426    -0.15   0.880    -.0146598    .0125584
+   kcogs2_pp |   .0030161   .0088411     0.34   0.733    -.0143146    .0203467
+    pp_dummy |  -162.7018   15.70369   -10.36   0.000    -193.4846   -131.9191
+             |
+        year |
+       2007  |   .0293498   .0375786     0.78   0.435    -.0443128    .1030124
+       2008  |  -.0258307   .0360274    -0.72   0.473    -.0964524     .044791
+       2009  |  -.0121641   .0349794    -0.35   0.728    -.0807316    .0564033
+       2010  |  -.0340014   .0341924    -0.99   0.320    -.1010262    .0330233
+       2011  |  -.0288567   .0342448    -0.84   0.399    -.0959842    .0382707
+       2012  |  -.0671004     .03506    -1.91   0.056    -.1358258     .001625
+       2013  |  -.1129727   .0400445    -2.82   0.005    -.1914688   -.0344765
+       2014  |  -.0743107   .0401169    -1.85   0.064    -.1529489    .0043275
+       2015  |  -.0447062   .0364539    -1.23   0.220     -.116164    .0267515
+       2016  |  -.0408507   .0333811    -1.22   0.221    -.1062851    .0245837
+       2017  |  -.0431589   .0328624    -1.31   0.189    -.1075766    .0212589
+       2018  |  -.0113967    .032445    -0.35   0.725    -.0749961    .0522028
+       2019  |  -.0176219   .0323283    -0.55   0.586    -.0809925    .0457488
+       2020  |   -.030184   .0325466    -0.93   0.354    -.0939826    .0336146
+       2021  |  -.0726351   .0340832    -2.13   0.033    -.1394459   -.0058243
+             |
+       nace2 |
+         42  |  -.0096994   .0634777    -0.15   0.879    -.1341299    .1147311
+         43  |   -.175789   .0433757    -4.05   0.000    -.2608151   -.0907628
+             |
+  year#nace2 |
+    2007 42  |  -.0413903   .0894631    -0.46   0.644    -.2167582    .1339775
+    2007 43  |  -.0716017   .0582871    -1.23   0.219    -.1858576    .0426541
+    2008 42  |  -.0209729   .0862653    -0.24   0.808    -.1900722    .1481264
+    2008 43  |  -.0031182   .0562883    -0.06   0.956     -.113456    .1072196
+    2009 42  |  -.0628698   .0835267    -0.75   0.452    -.2266008    .1008613
+    2009 43  |  -.0214863    .054586    -0.39   0.694    -.1284871    .0855146
+    2010 42  |  -.0599724   .0803582    -0.75   0.455    -.2174926    .0975478
+    2010 43  |  -.0212521   .0533469    -0.40   0.690    -.1258239    .0833198
+    2011 42  |  -.0525014    .080775    -0.65   0.516    -.2108386    .1058358
+    2011 43  |  -.0238993   .0537458    -0.44   0.657    -.1292531    .0814545
+    2012 42  |  -.0491184   .0835698    -0.59   0.557     -.212934    .1146971
+    2012 43  |  -.0002434   .0549121    -0.00   0.996    -.1078836    .1073967
+    2013 42  |  -.0972157   .1100556    -0.88   0.377    -.3129495    .1185181
+    2013 43  |   .0505753   .0633571     0.80   0.425    -.0736188    .1747695
+    2014 42  |  -.0515951   .1100368    -0.47   0.639    -.2672919    .1641017
+    2014 43  |   .0012264   .0621952     0.02   0.984    -.1206902     .123143
+    2015 42  |   .0200137   .0952471     0.21   0.834     -.166692    .2067195
+    2015 43  |   .0223973   .0572733     0.39   0.696    -.0898712    .1346658
+    2016 42  |  -.1064637   .0800026    -1.33   0.183    -.2632868    .0503594
+    2016 43  |   .0034663   .0520142     0.07   0.947    -.0984933    .1054259
+    2017 42  |  -.1084694   .0790313    -1.37   0.170    -.2633885    .0464497
+    2017 43  |   .0361418   .0511343     0.71   0.480    -.0640929    .1363765
+    2018 42  |  -.1561728   .0783659    -1.99   0.046    -.3097875   -.0025581
+    2018 43  |   .0235001   .0505777     0.46   0.642    -.0756436    .1226437
+    2019 42  |  -.1064431   .0779967    -1.36   0.172    -.2593342     .046448
+    2019 43  |   .0332799   .0503898     0.66   0.509    -.0654954    .1320552
+    2020 42  |  -.0716743   .0781856    -0.92   0.359    -.2249356     .081587
+    2020 43  |   .0398351   .0504821     0.79   0.430    -.0591212    .1387913
+    2021 42  |  -.0233984    .083468    -0.28   0.779    -.1870145    .1402177
+    2021 43  |   .0583891    .053048     1.10   0.271    -.0455968    .1623751
+             |
+       _cons |    141.706   12.78984    11.08   0.000      116.635    166.7769
+------------------------------------------------------------------------------
+(option xb assumed; fitted values)
+
+Panel variable: id (unbalanced)
+ Time variable: year, 2006 to 2021, but with gaps
+         Delta: 1 year
+(2,315 missing values generated)
+(2,315 missing values generated)
+(2,315 missing values generated)
+(2,315 missing values generated)
+(2,315 missing values generated)
+(2,315 missing values generated)
+(2,315 missing values generated)
+(2,315 missing values generated)
+(2,315 missing values generated)
+(3,967 missing values generated)
+(2,315 observations deleted)
+(0 real changes made)
+    N = 6849
+cannot compute an improvement -- flat region encountered
+cannot compute an improvement -- flat region encountered
+cannot compute an improvement -- flat region encountered
+  Best criterion (5 starts, nm+bfgs) =     0.000000
+(6,849 real changes made)
+(6,849 real changes made)
+(6,849 real changes made)
+(6,849 real changes made)
+Number of observations (_N) was 0, now 1.
+(1 missing value generated)
+(1 missing value generated)
+(1 missing value generated)
+(1 missing value generated)
+(1 missing value generated)
+(1 missing value generated)
+(variable spec was str2, now str4 to accommodate using data's values)
+file /var/folders/4c/ww4k0h5j0fq1529s2dttb4t00000gn/T//St43001.000001 saved
+    as .dta format
+    beta_k =  0.0538 (0.0283), beta_c =  0.9722 (0.2098), mu_bar =  2.013
+
+  [Pooled / TL]
+
+Panel variable: id (unbalanced)
+ Time variable: year, 2006 to 2021, but with gaps
+         Delta: 1 year
+
+      Source |       SS           df       MS      Number of obs   =     9,164
+-------------+----------------------------------   F(66, 9097)     =   1404.36
+       Model |  12045.2797        66  182.504238   Prob > F        =    0.0000
+    Residual |  1182.20435     9,097  .129955409   R-squared       =    0.9106
+-------------+----------------------------------   Adj R-squared   =    0.9100
+       Total |  13227.4841     9,163  1.44357569   Root MSE        =    .36049
+
+------------------------------------------------------------------------------
+          go | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+           k |  -.9124008   .8596996    -1.06   0.289    -2.597605    .7728036
+        cogs |  -22.43386   2.335767    -9.60   0.000    -27.01249   -17.85524
+          k2 |   .0334571    .044454     0.75   0.452    -.0536828     .120597
+       cogs2 |   1.305946   .1511297     8.64   0.000     1.009698    1.602194
+          k3 |   .0019586   .0013937     1.41   0.160    -.0007734    .0046907
+       cogs3 |  -.0255376   .0035488    -7.20   0.000    -.0324941   -.0185811
+       kcogs |   .0614624   .1025026     0.60   0.549    -.1394657    .2623906
+      k2cogs |  -.0066894   .0035893    -1.86   0.062    -.0137253    .0003465
+      kcogs2 |   .0034331   .0045617     0.75   0.452    -.0055089     .012375
+        k_pp |  -.9243696   1.470885    -0.63   0.530    -3.807635    1.958896
+     cogs_pp |   28.72504   3.088856     9.30   0.000     22.67019    34.77989
+       k2_pp |   .0753765   .0745842     1.01   0.312    -.0708252    .2215782
+    cogs2_pp |   -1.59945   .2191449    -7.30   0.000    -2.029024   -1.169877
+       k3_pp |  -.0010854   .0024145    -0.45   0.653    -.0058183    .0036476
+    cogs3_pp |   .0290737    .005746     5.06   0.000     .0178103     .040337
+    kcogs_pp |  -.0570333    .180784    -0.32   0.752    -.4114105    .2973438
+   k2cogs_pp |  -.0010507   .0069426    -0.15   0.880    -.0146598    .0125584
+   kcogs2_pp |   .0030161   .0088411     0.34   0.733    -.0143146    .0203467
+    pp_dummy |  -162.7018   15.70369   -10.36   0.000    -193.4846   -131.9191
+             |
+        year |
+       2007  |   .0293498   .0375786     0.78   0.435    -.0443128    .1030124
+       2008  |  -.0258307   .0360274    -0.72   0.473    -.0964524     .044791
+       2009  |  -.0121641   .0349794    -0.35   0.728    -.0807316    .0564033
+       2010  |  -.0340014   .0341924    -0.99   0.320    -.1010262    .0330233
+       2011  |  -.0288567   .0342448    -0.84   0.399    -.0959842    .0382707
+       2012  |  -.0671004     .03506    -1.91   0.056    -.1358258     .001625
+       2013  |  -.1129727   .0400445    -2.82   0.005    -.1914688   -.0344765
+       2014  |  -.0743107   .0401169    -1.85   0.064    -.1529489    .0043275
+       2015  |  -.0447062   .0364539    -1.23   0.220     -.116164    .0267515
+       2016  |  -.0408507   .0333811    -1.22   0.221    -.1062851    .0245837
+       2017  |  -.0431589   .0328624    -1.31   0.189    -.1075766    .0212589
+       2018  |  -.0113967    .032445    -0.35   0.725    -.0749961    .0522028
+       2019  |  -.0176219   .0323283    -0.55   0.586    -.0809925    .0457488
+       2020  |   -.030184   .0325466    -0.93   0.354    -.0939826    .0336146
+       2021  |  -.0726351   .0340832    -2.13   0.033    -.1394459   -.0058243
+             |
+       nace2 |
+         42  |  -.0096994   .0634777    -0.15   0.879    -.1341299    .1147311
+         43  |   -.175789   .0433757    -4.05   0.000    -.2608151   -.0907628
+             |
+  year#nace2 |
+    2007 42  |  -.0413903   .0894631    -0.46   0.644    -.2167582    .1339775
+    2007 43  |  -.0716017   .0582871    -1.23   0.219    -.1858576    .0426541
+    2008 42  |  -.0209729   .0862653    -0.24   0.808    -.1900722    .1481264
+    2008 43  |  -.0031182   .0562883    -0.06   0.956     -.113456    .1072196
+    2009 42  |  -.0628698   .0835267    -0.75   0.452    -.2266008    .1008613
+    2009 43  |  -.0214863    .054586    -0.39   0.694    -.1284871    .0855146
+    2010 42  |  -.0599724   .0803582    -0.75   0.455    -.2174926    .0975478
+    2010 43  |  -.0212521   .0533469    -0.40   0.690    -.1258239    .0833198
+    2011 42  |  -.0525014    .080775    -0.65   0.516    -.2108386    .1058358
+    2011 43  |  -.0238993   .0537458    -0.44   0.657    -.1292531    .0814545
+    2012 42  |  -.0491184   .0835698    -0.59   0.557     -.212934    .1146971
+    2012 43  |  -.0002434   .0549121    -0.00   0.996    -.1078836    .1073967
+    2013 42  |  -.0972157   .1100556    -0.88   0.377    -.3129495    .1185181
+    2013 43  |   .0505753   .0633571     0.80   0.425    -.0736188    .1747695
+    2014 42  |  -.0515951   .1100368    -0.47   0.639    -.2672919    .1641017
+    2014 43  |   .0012264   .0621952     0.02   0.984    -.1206902     .123143
+    2015 42  |   .0200137   .0952471     0.21   0.834     -.166692    .2067195
+    2015 43  |   .0223973   .0572733     0.39   0.696    -.0898712    .1346658
+    2016 42  |  -.1064637   .0800026    -1.33   0.183    -.2632868    .0503594
+    2016 43  |   .0034663   .0520142     0.07   0.947    -.0984933    .1054259
+    2017 42  |  -.1084694   .0790313    -1.37   0.170    -.2633885    .0464497
+    2017 43  |   .0361418   .0511343     0.71   0.480    -.0640929    .1363765
+    2018 42  |  -.1561728   .0783659    -1.99   0.046    -.3097875   -.0025581
+    2018 43  |   .0235001   .0505777     0.46   0.642    -.0756436    .1226437
+    2019 42  |  -.1064431   .0779967    -1.36   0.172    -.2593342     .046448
+    2019 43  |   .0332799   .0503898     0.66   0.509    -.0654954    .1320552
+    2020 42  |  -.0716743   .0781856    -0.92   0.359    -.2249356     .081587
+    2020 43  |   .0398351   .0504821     0.79   0.430    -.0591212    .1387913
+    2021 42  |  -.0233984    .083468    -0.28   0.779    -.1870145    .1402177
+    2021 43  |   .0583891    .053048     1.10   0.271    -.0455968    .1623751
+             |
+       _cons |    141.706   12.78984    11.08   0.000      116.635    166.7769
+------------------------------------------------------------------------------
+(option xb assumed; fitted values)
+
+Panel variable: id (unbalanced)
+ Time variable: year, 2006 to 2021, but with gaps
+         Delta: 1 year
+(2,315 missing values generated)
+(2,315 missing values generated)
+(2,315 missing values generated)
+(2,315 missing values generated)
+(2,315 missing values generated)
+(2,315 missing values generated)
+(2,315 missing values generated)
+(2,315 missing values generated)
+(2,315 missing values generated)
+(3,967 missing values generated)
+(2,315 observations deleted)
+(1,726 observations deleted)
+(0 real changes made)
+    N = 5123
+cannot compute an improvement -- flat region encountered
+cannot compute an improvement -- flat region encountered
+cannot compute an improvement -- flat region encountered
+cannot compute an improvement -- flat region encountered
+cannot compute an improvement -- flat region encountered
+  Best criterion (5 starts, nm+bfgs) =     0.176469
+(5,123 real changes made)
+(5,123 real changes made)
+(5,123 real changes made)
+(5,123 real changes made)
+Number of observations (_N) was 0, now 1.
+(variable spec was str2, now str4 to accommodate using data's values)
+file /var/folders/4c/ww4k0h5j0fq1529s2dttb4t00000gn/T//St43001.000001 saved
+    as .dta format
+    beta_k = -0.0045 (0.1861), beta_c =  1.1273 (0.9635), mu_bar =  1.988
+
+
+==========================================
+  Sample: NACE 41
+==========================================
+
+  [NACE 41 / CD]
+
+Panel variable: id (unbalanced)
+ Time variable: year, 2006 to 2021, but with gaps
+         Delta: 1 year
+(4,253 observations deleted)
+
+      Source |       SS           df       MS      Number of obs   =     4,911
+-------------+----------------------------------   F(34, 4876)     =   1192.64
+       Model |  5725.78709        34  168.405503   Prob > F        =    0.0000
+    Residual |  688.510572     4,876  .141203973   R-squared       =    0.8927
+-------------+----------------------------------   Adj R-squared   =    0.8919
+       Total |  6414.29766     4,910  1.30637427   Root MSE        =    .37577
+
+------------------------------------------------------------------------------
+          go | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+           k |   1.566139   1.339542     1.17   0.242    -1.059968    4.192245
+        cogs |  -6.715375   4.299116    -1.56   0.118    -15.14358    1.712829
+          k2 |  -.0472733   .0669116    -0.71   0.480    -.1784501    .0839036
+       cogs2 |   .5121219   .2668728     1.92   0.055     -.011069    1.035313
+          k3 |  -.0004833   .0019972    -0.24   0.809    -.0043986    .0034321
+       cogs3 |   -.009781    .005717    -1.71   0.087    -.0209889    .0014269
+       kcogs |   -.087409   .1455781    -0.60   0.548    -.3728077    .1979897
+      k2cogs |   .0043654   .0052987     0.82   0.410    -.0060225    .0147533
+      kcogs2 |  -.0017906   .0064648    -0.28   0.782    -.0144645    .0108832
+        k_pp |  -6.103215   2.235357    -2.73   0.006    -10.48552   -1.720909
+     cogs_pp |   25.80077   6.169235     4.18   0.000     13.70629    37.89525
+       k2_pp |   .0315947   .1183955     0.27   0.790    -.2005139    .2637033
+    cogs2_pp |  -1.784581    .410698    -4.35   0.000    -2.589734   -.9794279
+       k3_pp |  -.0022411   .0033835    -0.66   0.508    -.0088742    .0043921
+    cogs3_pp |   .0415483     .01021     4.07   0.000     .0215321    .0615645
+    kcogs_pp |   .6473663   .2991013     2.16   0.030      .060993     1.23374
+   k2cogs_pp |    .004707   .0100685     0.47   0.640    -.0150318    .0244457
+   kcogs2_pp |   -.023347    .014304    -1.63   0.103    -.0513893    .0046954
+    pp_dummy |  -116.7168    32.6826    -3.57   0.000    -180.7895   -52.64421
+             |
+        year |
+       2007  |   .0281726   .0391994     0.72   0.472    -.0486759     .105021
+       2008  |  -.0340644   .0375977    -0.91   0.365    -.1077728    .0396441
+       2009  |  -.0190101   .0365469    -0.52   0.603    -.0906586    .0526383
+       2010  |  -.0331149   .0357549    -0.93   0.354    -.1032105    .0369807
+       2011  |  -.0327023   .0358343    -0.91   0.361    -.1029536     .037549
+       2012  |  -.0741858   .0366981    -2.02   0.043    -.1461307   -.0022409
+       2013  |  -.1222216     .04188    -2.92   0.004    -.2043253   -.0401179
+       2014  |  -.0806715    .041962    -1.92   0.055     -.162936     .001593
+       2015  |  -.0606759   .0381972    -1.59   0.112    -.1355597    .0142078
+       2016  |  -.0466682   .0349556    -1.34   0.182     -.115197    .0218606
+       2017  |  -.0475625   .0344418    -1.38   0.167    -.1150838    .0199589
+       2018  |  -.0171588   .0340009    -0.50   0.614    -.0838159    .0494982
+       2019  |  -.0259355   .0338891    -0.77   0.444    -.0923733    .0405023
+       2020  |  -.0385477    .034156    -1.13   0.259    -.1055088    .0284134
+       2021  |  -.0831281   .0357352    -2.33   0.020    -.1531852    -.013071
+             |
+       _cons |    34.0882   23.31604     1.46   0.144    -11.62174    79.79814
+------------------------------------------------------------------------------
+(option xb assumed; fitted values)
+
+Panel variable: id (unbalanced)
+ Time variable: year, 2006 to 2021, but with gaps
+         Delta: 1 year
+(1,213 missing values generated)
+(1,213 missing values generated)
+(1,213 missing values generated)
+(1,213 missing values generated)
+(1,213 missing values generated)
+(1,213 missing values generated)
+(1,213 missing values generated)
+(1,213 missing values generated)
+(1,213 missing values generated)
+(2,088 missing values generated)
+(1,213 observations deleted)
+(0 real changes made)
+    N = 3698
+cannot compute an improvement -- flat region encountered
+cannot compute an improvement -- flat region encountered
+cannot compute an improvement -- flat region encountered
+cannot compute an improvement -- flat region encountered
+  Best criterion (5 starts, nm+bfgs) =     0.000000
+(3,698 real changes made)
+(3,698 real changes made)
+(3,698 real changes made)
+(3,698 real changes made)
+Number of observations (_N) was 0, now 1.
+(1 missing value generated)
+(1 missing value generated)
+(1 missing value generated)
+(1 missing value generated)
+(1 missing value generated)
+(1 missing value generated)
+(variable spec was str2, now str4 to accommodate using data's values)
+file /var/folders/4c/ww4k0h5j0fq1529s2dttb4t00000gn/T//St43001.000001 saved
+    as .dta format
+    beta_k =  0.0459 (0.0100), beta_c =  0.9479 (0.0889), mu_bar =  2.115
+
+  [NACE 41 / TL]
+
+Panel variable: id (unbalanced)
+ Time variable: year, 2006 to 2021, but with gaps
+         Delta: 1 year
+(4,253 observations deleted)
+
+      Source |       SS           df       MS      Number of obs   =     4,911
+-------------+----------------------------------   F(34, 4876)     =   1192.64
+       Model |  5725.78709        34  168.405503   Prob > F        =    0.0000
+    Residual |  688.510572     4,876  .141203973   R-squared       =    0.8927
+-------------+----------------------------------   Adj R-squared   =    0.8919
+       Total |  6414.29766     4,910  1.30637427   Root MSE        =    .37577
+
+------------------------------------------------------------------------------
+          go | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+           k |   1.566139   1.339542     1.17   0.242    -1.059968    4.192245
+        cogs |  -6.715375   4.299116    -1.56   0.118    -15.14358    1.712829
+          k2 |  -.0472733   .0669116    -0.71   0.480    -.1784501    .0839036
+       cogs2 |   .5121219   .2668728     1.92   0.055     -.011069    1.035313
+          k3 |  -.0004833   .0019972    -0.24   0.809    -.0043986    .0034321
+       cogs3 |   -.009781    .005717    -1.71   0.087    -.0209889    .0014269
+       kcogs |   -.087409   .1455781    -0.60   0.548    -.3728077    .1979897
+      k2cogs |   .0043654   .0052987     0.82   0.410    -.0060225    .0147533
+      kcogs2 |  -.0017906   .0064648    -0.28   0.782    -.0144645    .0108832
+        k_pp |  -6.103215   2.235357    -2.73   0.006    -10.48552   -1.720909
+     cogs_pp |   25.80077   6.169235     4.18   0.000     13.70629    37.89525
+       k2_pp |   .0315947   .1183955     0.27   0.790    -.2005139    .2637033
+    cogs2_pp |  -1.784581    .410698    -4.35   0.000    -2.589734   -.9794279
+       k3_pp |  -.0022411   .0033835    -0.66   0.508    -.0088742    .0043921
+    cogs3_pp |   .0415483     .01021     4.07   0.000     .0215321    .0615645
+    kcogs_pp |   .6473663   .2991013     2.16   0.030      .060993     1.23374
+   k2cogs_pp |    .004707   .0100685     0.47   0.640    -.0150318    .0244457
+   kcogs2_pp |   -.023347    .014304    -1.63   0.103    -.0513893    .0046954
+    pp_dummy |  -116.7168    32.6826    -3.57   0.000    -180.7895   -52.64421
+             |
+        year |
+       2007  |   .0281726   .0391994     0.72   0.472    -.0486759     .105021
+       2008  |  -.0340644   .0375977    -0.91   0.365    -.1077728    .0396441
+       2009  |  -.0190101   .0365469    -0.52   0.603    -.0906586    .0526383
+       2010  |  -.0331149   .0357549    -0.93   0.354    -.1032105    .0369807
+       2011  |  -.0327023   .0358343    -0.91   0.361    -.1029536     .037549
+       2012  |  -.0741858   .0366981    -2.02   0.043    -.1461307   -.0022409
+       2013  |  -.1222216     .04188    -2.92   0.004    -.2043253   -.0401179
+       2014  |  -.0806715    .041962    -1.92   0.055     -.162936     .001593
+       2015  |  -.0606759   .0381972    -1.59   0.112    -.1355597    .0142078
+       2016  |  -.0466682   .0349556    -1.34   0.182     -.115197    .0218606
+       2017  |  -.0475625   .0344418    -1.38   0.167    -.1150838    .0199589
+       2018  |  -.0171588   .0340009    -0.50   0.614    -.0838159    .0494982
+       2019  |  -.0259355   .0338891    -0.77   0.444    -.0923733    .0405023
+       2020  |  -.0385477    .034156    -1.13   0.259    -.1055088    .0284134
+       2021  |  -.0831281   .0357352    -2.33   0.020    -.1531852    -.013071
+             |
+       _cons |    34.0882   23.31604     1.46   0.144    -11.62174    79.79814
+------------------------------------------------------------------------------
+(option xb assumed; fitted values)
+
+Panel variable: id (unbalanced)
+ Time variable: year, 2006 to 2021, but with gaps
+         Delta: 1 year
+(1,213 missing values generated)
+(1,213 missing values generated)
+(1,213 missing values generated)
+(1,213 missing values generated)
+(1,213 missing values generated)
+(1,213 missing values generated)
+(1,213 missing values generated)
+(1,213 missing values generated)
+(1,213 missing values generated)
+(2,088 missing values generated)
+(1,213 observations deleted)
+(914 observations deleted)
+(0 real changes made)
+    N = 2784
+cannot compute an improvement -- flat region encountered
+cannot compute an improvement -- flat region encountered
+cannot compute an improvement -- flat region encountered
+cannot compute an improvement -- flat region encountered
+cannot compute an improvement -- flat region encountered
+  Best criterion (5 starts, nm+bfgs) =     0.137082
+(2,784 real changes made)
+(2,784 real changes made)
+(2,784 real changes made)
+(2,784 real changes made)
+Number of observations (_N) was 0, now 1.
+(variable spec was str2, now str4 to accommodate using data's values)
+file /var/folders/4c/ww4k0h5j0fq1529s2dttb4t00000gn/T//St43001.000001 saved
+    as .dta format
+    beta_k =  0.1390 (0.1835), beta_c =  1.5810 (1.1012), mu_bar =  2.154
+
+
+==========================================
+  Sample: NACE 42
+==========================================
+
+  [NACE 42 / CD]
+
+Panel variable: id (unbalanced)
+ Time variable: year, 2006 to 2021, but with gaps
+         Delta: 1 year
+(8,346 observations deleted)
+note: kcogs2_pp omitted because of collinearity.
+
+      Source |       SS           df       MS      Number of obs   =       818
+-------------+----------------------------------   F(33, 784)      =    506.46
+       Model |  1534.64321        33  46.5043398   Prob > F        =    0.0000
+    Residual |  71.9881579       784   .09182163   R-squared       =    0.9552
+-------------+----------------------------------   Adj R-squared   =    0.9533
+       Total |  1606.63137       817  1.96650107   Root MSE        =    .30302
+
+------------------------------------------------------------------------------
+          go | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+           k |  -3.523823   5.232562    -0.67   0.501    -13.79531    6.747667
+        cogs |  -36.84411   12.34607    -2.98   0.003    -61.07938   -12.60884
+          k2 |    .650766    .267774     2.43   0.015     .1251271    1.176405
+       cogs2 |   2.440888   .6875943     3.55   0.000     1.091144    3.790632
+          k3 |  -.0172845   .0080567    -2.15   0.032    -.0330997   -.0014692
+       cogs3 |  -.0498816   .0150012    -3.33   0.001    -.0793289   -.0204343
+       kcogs |  -.7996036   .6700368    -1.19   0.233    -2.114882     .515675
+      k2cogs |   .0093078   .0186263     0.50   0.617    -.0272554    .0458711
+      kcogs2 |     .01569   .0238446     0.66   0.511    -.0311169    .0624969
+        k_pp |   6.885167   5.735814     1.20   0.230    -4.374204    18.14454
+     cogs_pp |   24.98655   13.65211     1.83   0.068    -1.812462    51.78557
+       k2_pp |  -.3793404   .2664286    -1.42   0.155    -.9023382    .1436575
+    cogs2_pp |  -1.344502   .8120231    -1.66   0.098    -2.938499    .2494944
+       k3_pp |   .0102042   .0099559     1.02   0.306    -.0093393    .0297476
+    cogs3_pp |   .0259532   .0150396     1.73   0.085    -.0035694    .0554758
+    kcogs_pp |  -.0694576   .6034992    -0.12   0.908    -1.254123    1.115208
+   k2cogs_pp |  -.0026085   .0188554    -0.14   0.890    -.0396215    .0344045
+   kcogs2_pp |          0  (omitted)
+    pp_dummy |  -188.2638   81.12299    -2.32   0.021    -347.5078   -29.01984
+             |
+        year |
+       2007  |   .0208048    .068674     0.30   0.762    -.1140018    .1556114
+       2008  |  -.0103737    .066502    -0.16   0.876    -.1409169    .1201694
+       2009  |  -.0421341    .064215    -0.66   0.512    -.1681878    .0839196
+       2010  |  -.0585255   .0615767    -0.95   0.342    -.1794003    .0623493
+       2011  |  -.0630356   .0620472    -1.02   0.310    -.1848339    .0587628
+       2012  |  -.0924154    .064371    -1.44   0.151    -.2187753    .0339446
+       2013  |  -.1689352   .0873499    -1.93   0.053    -.3404026    .0025322
+       2014  |  -.0698495   .0872027    -0.80   0.423    -.2410279     .101329
+       2015  |   .0565735     .07492     0.76   0.450    -.0904942    .2036411
+       2016  |  -.0508784   .0622983    -0.82   0.414    -.1731696    .0714128
+       2017  |   -.058695   .0616867    -0.95   0.342    -.1797857    .0623956
+       2018  |  -.0716593      .0612    -1.17   0.242    -.1917945    .0484758
+       2019  |  -.0332002   .0608718    -0.55   0.586    -.1526913    .0862909
+       2020  |  -.0138757   .0612126    -0.23   0.821    -.1340358    .1062844
+       2021  |  -.0289665   .0652139    -0.44   0.657    -.1569811    .0990481
+             |
+       _cons |   248.6431   78.00394     3.19   0.001     95.52179    401.7644
+------------------------------------------------------------------------------
+(option xb assumed; fitted values)
+
+Panel variable: id (unbalanced)
+ Time variable: year, 2006 to 2021, but with gaps
+         Delta: 1 year
+(192 missing values generated)
+(192 missing values generated)
+(192 missing values generated)
+(192 missing values generated)
+(192 missing values generated)
+(192 missing values generated)
+(192 missing values generated)
+(192 missing values generated)
+(192 missing values generated)
+(336 missing values generated)
+(192 observations deleted)
+(0 real changes made)
+    N = 626

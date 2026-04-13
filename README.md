@@ -69,6 +69,7 @@ All three helpers define the identical 7-color palette so R, Python, and Stata f
 | Andrews, Gentzkow & Shapiro (2017, QJE) | Λ sensitivity measure |
 | Andrews (2017, Econometrica) | Two-step identification-robust CS |
 | Andrews et al. (2025, QJE) | Strong-exclusion misspecification theory |
+| Pakes (2021, Annu. Rev. Econ.) | Multiproduct-revenue critique of DLW markups (defended via ABGRS) |
 | Baránek & Titl (2024, JLE) | Favoritism channel benchmark |
 
 ## Acknowledgments

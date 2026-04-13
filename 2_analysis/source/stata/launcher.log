@@ -81,12 +81,15 @@ Notes:
 . cap log close
 
 . log using "$output/launcher.log", text replace
+(file
+    /Users/marek/Desktop/io/markups-procurement/2_analysis/source/stata/../..
+    > /output/stata/launcher.log not found)
 -------------------------------------------------------------------------------
       name:  <unnamed>
        log:  /Users/marek/Desktop/io/markups-procurement/2_analysis/source/stat
 > a/../../output/stata/launcher.log
   log type:  text
- opened on:  10 Apr 2026, 21:11:20
+ opened on:  13 Apr 2026, 14:11:52
 
 . 
 . timer on 1
@@ -453,6 +456,7 @@ _IyeaX~21_43 |          0  (omitted)
   (824,760 bytes saved)
 
 . save "$data/analysis_panel.dta", replace
+(file ../../output/stata/analysis_panel.dta not found)
 file ../../output/stata/analysis_panel.dta saved
 
 . dis "  Saved: analysis_panel.dta (" _N " obs)"
@@ -1014,6 +1018,7 @@ Panel variable: id (unbalanced)
 (3,698 real changes made)
 (3,698 real changes made)
 Number of observations (_N) was 0, now 1.
+(file ../../output/stata/temp/coeff_41.dta not found)
 file ../../output/stata/temp/coeff_41.dta saved
 
 
@@ -1137,6 +1142,7 @@ Panel variable: id (unbalanced)
 (626 real changes made)
 (626 real changes made)
 Number of observations (_N) was 0, now 1.
+(file ../../output/stata/temp/coeff_42.dta not found)
 file ../../output/stata/temp/coeff_42.dta saved
 
 
@@ -1260,6 +1266,7 @@ Panel variable: id (unbalanced)
 (2,525 real changes made)
 (2,525 real changes made)
 Number of observations (_N) was 0, now 1.
+(file ../../output/stata/temp/coeff_43.dta not found)
 file ../../output/stata/temp/coeff_43.dta saved
 
 . 
@@ -1271,6 +1278,7 @@ file ../../output/stata/temp/coeff_43.dta saved
   3. }
 
 . save "$data/coefficients_byind.dta", replace
+(file ../../output/stata/coefficients_byind.dta not found)
 file ../../output/stata/coefficients_byind.dta saved
 
 . dis _newline "  Saved: coefficients_byind.dta"
@@ -1333,7 +1341,7 @@ Panel variable: id (unbalanced)
 . tempfile coeff
 
 . save `coeff'
-file /var/folders/4c/ww4k0h5j0fq1529s2dttb4t00000gn/T//St29358.000002 saved
+file /var/folders/4c/ww4k0h5j0fq1529s2dttb4t00000gn/T//St33398.000002 saved
     as .dta format
 
 . restore
@@ -1633,6 +1641,7 @@ pp_dummy |      mu_A    l_mu_A   omega_A
   (27,492 bytes saved)
 
 . save "$data/markups_panel.dta", replace
+(file ../../output/stata/markups_panel.dta not found)
 file ../../output/stata/markups_panel.dta saved
 
 . dis _newline "  Saved: markups_panel.dta (" _N " obs)"
@@ -1699,6 +1708,7 @@ end of do-file
 . cap file close tf
 
 . file open tf using "$output/table_pf.tex", write replace
+(file ../../output/stata/table_pf.tex not found)
 
 . 
 . #delimit ;
@@ -1878,6 +1888,7 @@ end of do-file
 . cap file close tf
 
 . file open tf using "$output/table_premium.tex", write replace
+(file ../../output/stata/table_premium.tex not found)
 
 . 
 . #delimit ;
@@ -2047,6 +2058,7 @@ end of do-file
 . cap file close tf
 
 . file open tf using "$output/table_moments.tex", write replace
+(file ../../output/stata/table_moments.tex not found)
 
 . 
 . #delimit ;
@@ -2177,6 +2189,7 @@ end of do-file
 . cap file close tf
 
 . file open tf using "$output/table_correlations.tex", write replace
+(file ../../output/stata/table_correlations.tex not found)
 
 . 
 . #delimit ;
@@ -2507,7 +2520,7 @@ end of do-file
 . tempfile fulldata
 
 . save `fulldata'
-file /var/folders/4c/ww4k0h5j0fq1529s2dttb4t00000gn/T//St29358.000001 saved
+file /var/folders/4c/ww4k0h5j0fq1529s2dttb4t00000gn/T//St33398.000001 saved
     as .dta format
 
 . 
@@ -3221,6 +3234,7 @@ Absorbed degrees of freedom:
 . cap file close evf
 
 . file open evf using "$output/dlw_event_study_stata.csv", write replace
+(file ../../output/stata/dlw_event_study_stata.csv not found)
 
 . file write evf "tau,coef,se,ci_lo,ci_hi" _n
 
@@ -3299,6 +3313,7 @@ Absorbed degrees of freedom:
 . cap file close tf
 
 . file open tf using "$output/dlw_treatment_eval_stata.tex", write replace
+(file ../../output/stata/dlw_treatment_eval_stata.tex not found)
 
 . 
 . #delimit ;
@@ -4257,7 +4272,7 @@ end of do-file
 . timer off 1
 
 . timer list
-   1:      8.20 /        1 =       8.2030
+   1:     15.45 /        1 =      15.4510
 
 . 
 . dis _newline "========================================"
@@ -4276,7 +4291,7 @@ end of do-file
        log:  /Users/marek/Desktop/io/markups-procurement/2_analysis/source/stat
 > a/../../output/stata/launcher.log
   log type:  text
- closed on:  10 Apr 2026, 21:11:28
+ closed on:  13 Apr 2026, 14:12:07
 -------------------------------------------------------------------------------
 
 . 
