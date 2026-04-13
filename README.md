@@ -64,14 +64,11 @@ All three helpers define the identical 7-color palette so R, Python, and Stata f
 | Raval (2023, REStud) | Overidentification test |
 | Kroft, Luo, Mogstad & Setzler (2025, AER) | Double market power framework |
 | Benkard, Miller & Yurukoglu (2026) | Compositional decomposition |
-
 | Hendren & Sprung-Keyser (2020, QJE) | MVPF welfare framework |
 | Finkelstein & Hendren (2020, JEP) | Welfare analysis meets causal inference |
-
 | Andrews, Gentzkow & Shapiro (2017, QJE) | Λ sensitivity measure |
 | Andrews (2017, Econometrica) | Two-step identification-robust CS |
 | Andrews et al. (2025, QJE) | Strong-exclusion misspecification theory |
-
 | Baránek & Titl (2024, JLE) | Favoritism channel benchmark |
 
 ## Acknowledgments
