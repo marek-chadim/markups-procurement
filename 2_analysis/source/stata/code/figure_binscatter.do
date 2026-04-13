@@ -11,6 +11,9 @@
 
 dis _newline "--- figure_binscatter.do ---"
 
+* Load shared Healy-inspired palette & plot-region style
+do "$code/graph_markups.do"
+
 * Install binscatter if needed
 cap which binscatter
 if _rc ssc install binscatter, replace
@@ -27,8 +30,8 @@ drop if mi(l_mu_A) | mi(l_mu_D) | mi(l_mu_E) | mi(l_mu_OLS)
 binscatter l_mu_D l_mu_A, nq(50) ///
     xtitle("Log markup: Base") ytitle("Log markup: Plain") ///
     title("Base vs. Plain (levels)") ///
-    lcolor(cranberry) mcolor(navy) ///
-    scheme(s2color) graphregion(color(white)) ///
+    lcolor("${markups_pink}") mcolor("${markups_blue}") ///
+    scheme(s2color) ${markups_gropts} ///
     absorb(nace2)
 
 graph export "$output/figure_binscatter_base_plain.pdf", replace
@@ -40,8 +43,8 @@ graph export "$output/figure_binscatter_base_plain.pdf", replace
 binscatter l_mu_E l_mu_A, nq(50) ///
     xtitle("Log markup: Base") ytitle("Log markup: Translog") ///
     title("Base vs. Translog (levels)") ///
-    lcolor(forest_green) mcolor(navy) ///
-    scheme(s2color) graphregion(color(white)) ///
+    lcolor("${markups_green}") mcolor("${markups_blue}") ///
+    scheme(s2color) ${markups_gropts} ///
     absorb(nace2)
 
 graph export "$output/figure_binscatter_base_tl.pdf", replace
@@ -53,8 +56,8 @@ graph export "$output/figure_binscatter_base_tl.pdf", replace
 binscatter l_mu_OLS l_mu_A, nq(50) ///
     xtitle("Log markup: Base") ytitle("Log markup: OLS") ///
     title("Base vs. OLS (levels)") ///
-    lcolor(orange) mcolor(navy) ///
-    scheme(s2color) graphregion(color(white)) ///
+    lcolor("${markups_yellow}") mcolor("${markups_blue}") ///
+    scheme(s2color) ${markups_gropts} ///
     absorb(nace2)
 
 graph export "$output/figure_binscatter_base_ols.pdf", replace
@@ -68,8 +71,8 @@ drop if mi(FD_l_mu_A) | mi(FD_l_mu_D)
 binscatter FD_l_mu_D FD_l_mu_A, nq(50) ///
     xtitle("{&Delta} Log markup: Base") ytitle("{&Delta} Log markup: Plain") ///
     title("Base vs. Plain (first differences)") ///
-    lcolor(cranberry) mcolor(navy) ///
-    scheme(s2color) graphregion(color(white)) ///
+    lcolor("${markups_pink}") mcolor("${markups_blue}") ///
+    scheme(s2color) ${markups_gropts} ///
     absorb(nace2)
 
 graph export "$output/figure_binscatter_fd_base_plain.pdf", replace

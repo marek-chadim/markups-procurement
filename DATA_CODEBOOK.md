@@ -105,6 +105,59 @@ Deflation is NACE2-year specific: each firm's variables are deflated using its o
 
 Key variables: `opre` (operating revenue), `cost` (total costs), `mate` (material costs), `empl` (employees, continuous), `fias` (fixed assets), BVDID, ICO.
 
+### 1.5 External Exogenous Shifters — ABGRS Strong-Exclusion Instruments
+
+**Purpose:** Andrews, Barahona, Gentzkow, Rambachan & Shapiro (2025 QJE) show that structural estimates are robust to misspecification only when the instrument set is large enough to enforce **strong exclusion** — instruments must be functions of excluded variables that are mean-independent of the controls. For the Czech construction production function, this motivates a panel of exogenous cost and supply shifters at the country-year (or finer) level that are pure functions of variables outside the firm's information set.
+
+**Location:** `markups-procurement/0_raw/external/`
+**Fetcher:** `0_raw/external/fetch_external.py` (idempotent, retries Eurostat async 413, handles missing ENTSO-E token gracefully)
+
+| Sub-directory | Source | Files | Coverage | Purpose |
+|-|-|-|-|-|
+| `cnb/` | Czech National Bank | 19 daily FX files | 2005-2023 | CZK exchange rates vs 31 currencies (imported-materials cost shifter) |
+| `eurostat/` | Eurostat dissemination API | 10 JSON datasets | Varies, mostly 1954-2025 | Industry PPI (annual + monthly), construction prices, construction costs, construction production, building permits, non-household electricity, non-household gas, short-term + long-term interest rates |
+| `chmi/` | Open-Meteo historical archive (CHMI proxy) | 3 JSON station files | 2005-2023 daily, 6,939 days each | Daily weather at Prague-Ruzyně, Brno-Tuřany, Ostrava-Mošnov: mean/max/min temp, precipitation, snowfall, wind speed, gusts, sunshine duration |
+| `czso/` | — | — | — | Reserved for future CZSO direct pulls (structural business stats, continuous employment) |
+| `entsoe/` | ENTSO-E Transparency Platform | — | — | Day-ahead wholesale electricity prices for CZ bidding zone; requires free `ENTSOE_API_TOKEN` (README stub in dir) |
+
+**Eurostat datasets (all filtered `geo=CZ`):**
+
+| Dataset ID | Content | Frequency | N obs |
+|-|-|-|-|
+| `sts_inpp_a` | Industry producer prices (all indicators) | Annual | 5,729 |
+| `sts_inpp_m` | Industry producer prices, total `B-E36`, `PRC_PRR` | Monthly | 1,430 |
+| `sts_cc_cs_a` | New-residential construction costs | Annual | Multiple series |
+| `sts_copi_a` | Construction producer prices | Annual | 148 |
+| `sts_copr_a` | Production in construction | Annual | 596 |
+| `sts_cobp_a` | Building permits index | Annual | 972 |
+| `nrg_pc_205` | Non-household electricity prices | Bi-annual | Multiple bands |
+| `nrg_pc_203` | Non-household gas prices | Bi-annual | Multiple bands |
+| `irt_st_a` | Money-market (short-term) interest rates | Annual | 104 |
+| `irt_lt_mcby_a` | Long-term bond rates (Maastricht convergence) | Annual | 25 |
+
+**How these satisfy strong exclusion (ABGRS §III):** The PF moment set needs instruments that are (i) correlated with the firm's variable input choice, (ii) mean-independent of the unobserved productivity residual conditional on the controls, and (iii) sufficiently numerous. Each external shifter above moves construction input costs or demand through a channel outside the firm's productivity process: imported-material cost via CZK FX, energy-intensive inputs via EU gas/electricity prices, weather-driven supply capacity via daily precipitation/temperature, financing cost via CNB/Eurostat policy rates, and pipeline demand via building permits and construction output indices. Together they expand the instrument rank well beyond the minimum needed for just-identification of the output elasticities.
+
+**Aggregated panel outputs:**
+
+| File | Shape | Coverage | Builder |
+|-|-|-|-|
+| `1_data/output/external_panel_annual.csv` | 19 rows × 28 cols | 2005-2023 | `1_data/source/build_external_panel.py` |
+| `1_data/output/external_panel_monthly.csv` | 313 rows × 1 col | 2000-01 to 2026-01 | (same) |
+
+**Annual panel columns (28):**
+- FX (8): `fx_{eur,usd,cny,chf}` + their annual std (volatility proxy); full 19/19 coverage
+- Eurostat prices/output (9): `ppi_industry`, `construction_cost_residential`, `construction_prices_new_resid`, `construction_production_index`, `building_permits_sqm` (all 19/19); `electricity_price_eur_kwh`, `gas_price_eur_gj` (17/19, series starts 2007); `short_rate_3m` (10/19, PRIBOR discontinued in Eurostat after 2014); `long_rate_mcby` (19/19)
+- Weather (11): national-average aggregates over Praha-Ruzyně, Brno-Tuřany, Ostrava-Mošnov — annual mean/max/min temperature, annual sum of precipitation/rain/snowfall, mean wind speed/gust max, sunshine-duration sum, frost-day count (min<0), hot-day count (max>30); all 19/19
+
+**How to use:**
+```python
+import pandas as pd
+panel = pd.read_stata('1_data/output/data_rebuilt.dta')           # firm-year
+external = pd.read_csv('1_data/output/external_panel_annual.csv') # year-level
+merged = panel.merge(external, on='year', how='left')             # now has IVs
+```
+For the ACF estimator, pass the new columns into `adl_instrument_comparison.py`'s `oligopoly_instruments` argument to enlarge the moment set. Compare Hansen J and the premium estimate against the internal-only instrument row.
+
 ---
 
 ## 2. Data Processing Pipeline

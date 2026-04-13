@@ -23,8 +23,8 @@ dis _newline "============================================================"
 dis "  TABLE 1: Production Function Estimates"
 dis "============================================================"
 
-dis _newline "  Spec A (Base: survival + pp in Markov):"
-list nace2 b_k_A se_k_A b_cogs_A se_cogs_A N_obs, noobs
+dis _newline "  Spec A (Base translog: survival + pp in Markov):"
+list nace2 b_k_A se_k_A b_cogs_A se_cogs_A b_k2_A b_cogs2_A b_kcogs_A N_obs, noobs
 
 dis _newline "  Spec B (No survival):"
 list nace2 b_k_B se_k_B b_cogs_B se_cogs_B N_obs, noobs
@@ -35,8 +35,11 @@ list nace2 b_k_C se_k_C b_cogs_C se_cogs_C N_obs, noobs
 dis _newline "  Spec D (Plain ACF):"
 list nace2 b_k_D se_k_D b_cogs_D se_cogs_D N_obs, noobs
 
-dis _newline "  Spec E (Translog):"
-list nace2 b_k_E b_cogs_E b_k2_E b_cogs2_E b_kcogs_E, noobs
+dis _newline "  Spec E (CD base: survival + pp):"
+list nace2 b_k_E se_k_E b_cogs_E se_cogs_E N_obs, noobs
+
+dis _newline "  Translog cross-terms (Spec A):"
+list nace2 b_k2_A se_k2_A b_cogs2_A se_cogs2_A b_kcogs_A se_kcogs_A, noobs
 
 dis _newline "  OLS:"
 list nace2 b_k_OLS b_cogs_OLS, noobs
@@ -141,7 +144,7 @@ file write tab1
     " & NACE 41 & NACE 42 & NACE 43 \\" _newline
     " & (Buildings) & (Civil Eng.) & (Specialized) \\" _newline
     "\midrule" _newline
-    "\multicolumn{4}{l}{\textit{Panel A: Baseline (survival + pp in Markov)}} \\" _newline
+    "\multicolumn{4}{l}{\textit{Panel A: Baseline translog (survival + pp in Markov)}} \\" _newline
 ;
 #delimit cr
 
@@ -175,8 +178,48 @@ forvalues i = 1/3 {
 }
 file write tab1 " \\" _newline
 
+* Translog cross-terms
+file write tab1 "$\hat{\beta}_{k^2}$"
+forvalues i = 1/3 {
+    local b = b_k2_A[`i']
+    file write tab1 " & " %6.4f (`b')
+}
+file write tab1 " \\" _newline
+file write tab1 " "
+forvalues i = 1/3 {
+    local s = se_k2_A[`i']
+    file write tab1 " & (" %6.4f (`s') ")"
+}
+file write tab1 " \\" _newline
+
+file write tab1 "$\hat{\beta}_{c^2}$"
+forvalues i = 1/3 {
+    local b = b_cogs2_A[`i']
+    file write tab1 " & " %6.4f (`b')
+}
+file write tab1 " \\" _newline
+file write tab1 " "
+forvalues i = 1/3 {
+    local s = se_cogs2_A[`i']
+    file write tab1 " & (" %6.4f (`s') ")"
+}
+file write tab1 " \\" _newline
+
+file write tab1 "$\hat{\beta}_{kc}$"
+forvalues i = 1/3 {
+    local b = b_kcogs_A[`i']
+    file write tab1 " & " %6.4f (`b')
+}
+file write tab1 " \\" _newline
+file write tab1 " "
+forvalues i = 1/3 {
+    local s = se_kcogs_A[`i']
+    file write tab1 " & (" %6.4f (`s') ")"
+}
+file write tab1 " \\" _newline
+
 * N
-file write tab1 "$N$"
+file write tab1 _char(36) "N" _char(36)
 forvalues i = 1/3 {
     local nn = N_obs[`i']
     file write tab1 " & " %6.0fc (`nn')
@@ -215,8 +258,8 @@ foreach spec in B C D OLS {
     }
 }
 
-* Translog row
-file write tab1 "Translog"
+* CD base row (Spec E = old Cobb-Douglas baseline for comparison)
+file write tab1 "CD base"
 forvalues i = 1/3 {
     local b = b_cogs_E[`i']
     file write tab1 " & " %6.4f (`b')
@@ -233,9 +276,10 @@ file write tab1 " \\" _newline
 file write tab1
     "\bottomrule" _newline
     "\multicolumn{4}{p{10cm}}{\footnotesize " _newline
-    "Notes: Two-step ACF estimator (Ackerberg et al.\ 2015). "
+    "Notes: Two-step ACF translog estimator (Ackerberg et al.\ 2015) "
+    "with Kim, Luo \& Su (2019) overidentification lags. "
     "Baseline Markov: $\omega_t = \rho\omega_{t-1} + \gamma pp_{t-1} + \delta\hat{p}_{t-1} + \xi_t$. "
-    "Instruments: $(1, k_t, \text{cogs}_{t-1})$. "
+    "Instruments: $(1, k_t, c_{t-1}, k_t^2, c_{t-1}^2, k_t c_{t-1}, k_{t-1}, c_{t-2})$. "
     "Analytical SEs (ACH 2012), clustered by firm.} \\" _newline
     "\end{tabular}" _newline
     "\end{table}" _newline
@@ -279,11 +323,11 @@ file write tab2
 
 * Raw premiums
 foreach spec in A B C D E OLS {
-    if "`spec'" == "A" local slabel "Base (surv.\ + pp)"
+    if "`spec'" == "A" local slabel "Base TL (surv.\ + pp)"
     if "`spec'" == "B" local slabel "No survival"
     if "`spec'" == "C" local slabel "No pp in Markov"
     if "`spec'" == "D" local slabel "Plain ACF"
-    if "`spec'" == "E" local slabel "Translog"
+    if "`spec'" == "E" local slabel "CD base"
     if "`spec'" == "OLS" local slabel "OLS"
 
     * pp_dummy
@@ -310,11 +354,11 @@ file write tab2
 
 * Regression premiums
 foreach spec in A B C D E OLS {
-    if "`spec'" == "A" local slabel "Base (surv.\ + pp)"
+    if "`spec'" == "A" local slabel "Base TL (surv.\ + pp)"
     if "`spec'" == "B" local slabel "No survival"
     if "`spec'" == "C" local slabel "No pp in Markov"
     if "`spec'" == "D" local slabel "Plain ACF"
-    if "`spec'" == "E" local slabel "Translog"
+    if "`spec'" == "E" local slabel "CD base"
     if "`spec'" == "OLS" local slabel "OLS"
 
     xi: qui reg lmu_`spec' pp_dummy k cogs i.year*i.nace2, cluster(id)

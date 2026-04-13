@@ -68,8 +68,9 @@ def main():
     df_nace = df[df['nace2'] == 41].copy()
     print(f'NACE 41 sample: N={len(df_nace)}, firms={df_nace["id"].nunique()}')
 
-    # Estimate ACF spec A (CD with pp_dummy in Markov)
-    form = Formulation(spec='cd', pp_in_markov=True, pp_interactions=True,
+    # Estimate ACF spec A (translog with pp_dummy in Markov)
+    form = Formulation(spec='tl', overidentify=True,
+                       pp_in_markov=True, pp_interactions=True,
                        year_fe=True, nace2_fe=False)
     est = ACFEstimator(
         data=df_nace, formulation=form,
@@ -145,7 +146,8 @@ def main():
         r"of the ACF parameter estimate $\hat{\beta}_k$ to a violation of "
         r"moment condition $m$ (Andrews, Gentzkow, and Shapiro 2017). "
         r"Large $|\Lambda|$ indicates load-bearing moments. Estimated on "
-        r"NACE 41 (buildings), spec A (CD with $pp_{it-1}$ in Markov).",
+        r"NACE 41 (buildings), spec A: translog with Kim, Luo \& Su (2019) "
+        r"overidentification lags $(L.k, L^2.\text{cogs})$ and $pp_{it-1}$ in Markov.",
         r'\end{tablenotes}',
         r'\end{threeparttable}',
         r'\end{table}',

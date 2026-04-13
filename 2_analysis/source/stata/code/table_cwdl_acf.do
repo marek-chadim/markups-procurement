@@ -10,25 +10,62 @@ dis _newline "--- table_cwdl_acf.do ---"
 use "$data/analysis_panel.dta", clear
 xtset id year, yearly
 
-* Ensure variables exist
-cap confirm variable phi Lphi k cogs Lk Lcogs pp_dummy
-if _rc {
-    dis as error "Required variables missing. Run estimate_pf.do first."
-    exit 198
+*-----------------------------------------------------------------------
+* Regenerate ACF first-stage variables locally.
+*
+* estimate_pf.do creates phi/Lphi/Lk/Lcogs inside a `preserve ... restore`
+* block, so they do not persist to analysis_panel.dta. Rather than modify
+* the upstream pipeline (which would ripple through multiple scripts), we
+* reconstruct the variables here using the same first-stage regression
+* specification as estimate_pf.do (xi: reg go c.k*#pp_dummy c.cogs*#pp_dummy
+* i.year, by nace2).
+*-----------------------------------------------------------------------
+cap drop phi Lphi Lk Lcogs Lpp yr_nace const
+gen phi = .
+levelsof nace2, local(nace_list_init)
+foreach n of local nace_list_init {
+    xi: qui reg go c.k*#pp_dummy c.cogs*#pp_dummy i.year if nace2 == `n'
+    cap drop phi_tmp_`n'
+    predict phi_tmp_`n' if nace2 == `n'
+    replace phi = phi_tmp_`n' if nace2 == `n'
+    drop phi_tmp_`n' _I*
 }
+
+* Lags via the panel structure (xtset above)
+gen Lphi  = L.phi
+gen Lk    = L.k
+gen Lcogs = L.cogs
+gen Lpp   = L.pp_dummy
+
+* Year × NACE absorbing interaction (for reghdfe / areg)
+egen yr_nace = group(year nace2)
 
 gen const = 1
 
+* Sanity check (should never trigger after the block above)
+cap confirm variable phi Lphi k cogs Lk Lcogs Lpp pp_dummy yr_nace
+if _rc {
+    dis as error "Required variables missing after regeneration — aborting."
+    exit 198
+}
+
 * CWDL Mata GMM programs
 clear mata
+mata: mata set matastrict off
 mata:
 
 // Plain ACF (no pp in Markov) — CWDL original
+// Note: X and X_lag carry only (k, cogs), no const. The intercept is soaked
+// up by the second-stage Markov regression's constant column C, so putting a
+// const in the first-stage X creates identification redundancy (and mismatches
+// the 2-element optimizer init below, producing a Mata conformability error).
 void CritACF_plain(todo, b, crit, g, H)
 {
     PHI=st_data(.,("phi")); PHI_LAG=st_data(.,("Lphi"))
-    Z=st_data(.,("const","k","Lcogs")); X=st_data(.,("const","k","cogs"))
-    X_lag=st_data(.,("const","Lk","Lcogs")); W=invsym(Z'Z)
+    Z=st_data(.,("const","k","Lcogs"))
+    X=st_data(.,("k","cogs"))
+    X_lag=st_data(.,("Lk","Lcogs"))
+    W=invsym(Z'Z)
     C=st_data(.,("const"))
     OMEGA=PHI-X*b'; OL=PHI_LAG-X_lag*b'
     P=(C,OL); gb=invsym(P'P)*P'OMEGA; XI=OMEGA-P*gb
@@ -39,8 +76,10 @@ void CritACF_plain(todo, b, crit, g, H)
 void CritACF_base(todo, b, crit, g, H)
 {
     PHI=st_data(.,("phi")); PHI_LAG=st_data(.,("Lphi"))
-    Z=st_data(.,("const","k","Lcogs")); X=st_data(.,("const","k","cogs"))
-    X_lag=st_data(.,("const","Lk","Lcogs")); W=invsym(Z'Z)
+    Z=st_data(.,("const","k","Lcogs"))
+    X=st_data(.,("k","cogs"))
+    X_lag=st_data(.,("Lk","Lcogs"))
+    W=invsym(Z'Z)
     C=st_data(.,("const")); PP=st_data(.,("Lpp"))
     OMEGA=PHI-X*b'; OL=PHI_LAG-X_lag*b'
     P=(C,OL,PP); gb=invsym(P'P)*P'OMEGA; XI=OMEGA-P*gb

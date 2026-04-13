@@ -11,15 +11,16 @@ dis _newline "--- table_bh_ri.do ---"
 * Add ado path
 adopath + "$root/ado"
 
-use "$data/analysis_panel.dta", clear
+* Load from markups_panel.dta (created by calculate_markups.do).
+* It has l_mu_A plus pp_dummy, k, cogs, nace2, year, id — everything this
+* script needs. analysis_panel.dta lacks l_mu_A because markup calculation
+* runs after prepare_data.do.
+use "$data/markups_panel.dta", clear
 xtset id year, yearly
 
-* Ensure log markup exists
-cap confirm variable l_mu_A
-if _rc {
-    cap confirm variable markup_A
-    if !_rc gen l_mu_A = ln(markup_A) if markup_A > 0
-}
+* Year × NACE absorbing interaction (for reghdfe / ri_pvalue absorb)
+cap drop yr_nace
+egen yr_nace = group(year nace2)
 
 drop if missing(l_mu_A, pp_dummy, k, cogs)
 

@@ -59,6 +59,17 @@ run_python aggregate_markup_trends.py "${LOGFILE}" || exit 1
 run_python dleu_replication.py "${LOGFILE}" || exit 1
 run_python adl_instrument_comparison.py "${LOGFILE}" || exit 1
 run_python panel_treatment.py "${LOGFILE}" || exit 1
+run_python fiscal_welfare_tenders.py "${LOGFILE}" || exit 1
+run_python contract_level_welfare.py "${LOGFILE}" || exit 1
+
+# Phase 2b: Double/Debiased Machine Learning robustness (§6.8)
+run_python dml_premium.py "${LOGFILE}" || exit 1
+run_python dml_strong_exclusion.py "${LOGFILE}" || exit 1
+run_python dml_iv.py "${LOGFILE}" || exit 1
+run_python dml_cate.py "${LOGFILE}" || exit 1
+run_python dml_sensitivity.py "${LOGFILE}" || exit 1
+run_R grf_heterogeneity.R "${LOGFILE}" || exit 1
+run_R sunab_event_study.R "${LOGFILE}" || exit 1
 
 # Phase 3: Stata table formatting
 run_stata paper_tables.do "${LOGFILE}" || exit 1
@@ -71,17 +82,25 @@ run_stata paper_tables.do "${LOGFILE}" || exit 1
 # run_python dls_table2_replication.py "${LOGFILE}" || exit 1
 # run_python raval_test.py "${LOGFILE}" || exit 1
 # run_python klms_analysis.py "${LOGFILE}" || exit 1
-# run_R fect_estimation.R "${LOGFILE}" || exit 1
+run_R fect_estimation.R "${LOGFILE}" || exit 1
+# run_R trop_estimation.R "${LOGFILE}" || exit 1
+# run_R panelview_diagnostics.R "${LOGFILE}" || exit 1
 # run_python favoritism_decomposition.py "${LOGFILE}" || exit 1
 # run_python orbis_acf_estimation.py "${LOGFILE}" || exit 1
 # run_python strong_exclusion_diagnostic.py "${LOGFILE}" || exit 1
 # run_python acf_strong_exclusion.py "${LOGFILE}" || exit 1
-# run_python borusyak_hull_randomization.py "${LOGFILE}" || exit 1
-# run_python ags_twostep_identification.py "${LOGFILE}" || exit 1
-# run_python misspecification_diagnostics.py "${LOGFILE}" || exit 1
-# run_R lalonde_estimation.R "${LOGFILE}" || exit 1
+run_python borusyak_hull_randomization.py "${LOGFILE}" || exit 1
+run_python ags_twostep_identification.py "${LOGFILE}" || exit 1
+run_python misspecification_diagnostics.py "${LOGFILE}" || exit 1
+run_R lalonde_estimation.R "${LOGFILE}" || exit 1
+run_R lalonde_balance.R "${LOGFILE}" || exit 1
+run_R lalonde_overlap.R "${LOGFILE}" || exit 1
+run_R lalonde_sens.R "${LOGFILE}" || exit 1
+run_R lalonde_placebo.R "${LOGFILE}" || exit 1
+run_R lalonde_catt.R "${LOGFILE}" || exit 1
+run_R lalonde_paired_table.R "${LOGFILE}" || exit 1
 # run_R kitagawa_iv_test.R "${LOGFILE}" || exit 1
-# run_python specification_curve.py "${LOGFILE}" || exit 1
+run_python specification_curve.py "${LOGFILE}" || exit 1
 # (cd source/stata && stata-mp -e do launcher.do)  # Stata replication pipeline
 ) || false
 

@@ -123,9 +123,10 @@ def compute_regression_premium(markups_df, df_orig, treatment_var='pp_dummy'):
 
 SPECS = {
     'A': {
-        'label': 'Base (survival + pp in Markov)',
-        'short': 'Base',
-        'formulation': Formulation(spec='cd', pp_in_markov=True),
+        'label': 'Base translog (survival + pp in Markov)',
+        'short': 'Translog',
+        'formulation': Formulation(spec='tl', overidentify=True,
+                                   pp_in_markov=True),
         'extensions': CWDLExtensions(
             survival_correction=True,
             markov_interactions=True,
@@ -151,16 +152,16 @@ SPECS = {
         ),
     },
     'D': {
-        'label': 'Plain ACF',
-        'short': 'Plain',
+        'label': 'Plain ACF (CD)',
+        'short': 'Plain CD',
         'formulation': Formulation(spec='cd', pp_in_markov=False,
                                    pp_interactions=False),
         'extensions': CWDLExtensions(),
     },
     'E': {
-        'label': 'Translog (survival + pp)',
-        'short': 'Translog',
-        'formulation': Formulation(spec='tl', pp_in_markov=True),
+        'label': 'Cobb-Douglas (survival + pp)',
+        'short': 'CD base',
+        'formulation': Formulation(spec='cd', pp_in_markov=True),
         'extensions': CWDLExtensions(
             survival_correction=True,
             markov_interactions=True,

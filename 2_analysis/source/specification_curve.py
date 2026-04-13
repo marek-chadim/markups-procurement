@@ -12,6 +12,10 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from pathlib import Path
 
+# Shared Healy-inspired style (Paul Tol palette, 300 DPI, white bg, clean axes)
+from style_markups import apply_markups_style, MARKUPS_BLUE, MARKUPS_PINK
+apply_markups_style()
+
 SCRIPT_DIR = Path(__file__).resolve().parent
 OUTPUT_DIR = SCRIPT_DIR.parent / 'output'
 
@@ -175,7 +179,7 @@ def main():
     plt.tight_layout()
     fig_path = OUTPUT_DIR / 'figures' / 'specification_curve.pdf'
     fig_path.parent.mkdir(parents=True, exist_ok=True)
-    plt.savefig(fig_path, dpi=200, bbox_inches='tight')
+    plt.savefig(fig_path, dpi=300, bbox_inches='tight')
     print(f'\nSaved: {fig_path.relative_to(OUTPUT_DIR)}')
 
     data_path = OUTPUT_DIR / 'specification_curve_data.csv'

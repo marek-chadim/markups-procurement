@@ -33,6 +33,10 @@ import pandas as pd
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
+
+# Shared Healy-inspired style (Paul Tol palette, 300 DPI, white bg, clean axes)
+from style_markups import apply_markups_style, MARKUPS_BLUE, MARKUPS_PINK
+apply_markups_style()
 from matplotlib.ticker import MaxNLocator
 from scipy.stats import gaussian_kde
 from pathlib import Path
@@ -387,7 +391,7 @@ def fig1_aggregate_markup(agg, agg_specs):
     ax.legend(loc='best')
     ax.xaxis.set_major_locator(MaxNLocator(integer=True))
     plt.tight_layout()
-    plt.savefig(FIG_DIR / 'dleu_fig1_aggregate_markup.pdf', dpi=200)
+    plt.savefig(FIG_DIR / 'dleu_fig1_aggregate_markup.pdf', dpi=300)
     plt.close()
 
 
@@ -422,7 +426,7 @@ def fig2_sensitivity(agg, panel):
     ax2.xaxis.set_major_locator(MaxNLocator(integer=True))
 
     plt.tight_layout()
-    plt.savefig(FIG_DIR / 'dleu_fig2_sensitivity.pdf', dpi=200)
+    plt.savefig(FIG_DIR / 'dleu_fig2_sensitivity.pdf', dpi=300)
     plt.close()
 
 
@@ -460,7 +464,7 @@ def fig3_distribution(panel, agg):
     ax2.xaxis.set_major_locator(MaxNLocator(integer=True))
 
     plt.tight_layout()
-    plt.savefig(FIG_DIR / 'dleu_fig3_distribution.pdf', dpi=200)
+    plt.savefig(FIG_DIR / 'dleu_fig3_distribution.pdf', dpi=300)
     plt.close()
 
 
@@ -499,7 +503,7 @@ def fig4_decomposition(decomp, agg):
     ax.legend(loc='best')
     ax.xaxis.set_major_locator(MaxNLocator(integer=True))
     plt.tight_layout()
-    plt.savefig(FIG_DIR / 'dleu_fig4_decomposition.pdf', dpi=200)
+    plt.savefig(FIG_DIR / 'dleu_fig4_decomposition.pdf', dpi=300)
     plt.close()
 
 
@@ -544,7 +548,7 @@ def fig5_micro_vs_agg(panel, agg):
     ax.legend(loc='best')
     ax.xaxis.set_major_locator(MaxNLocator(integer=True))
     plt.tight_layout()
-    plt.savefig(FIG_DIR / 'dleu_fig5_micro_vs_agg.pdf', dpi=200)
+    plt.savefig(FIG_DIR / 'dleu_fig5_micro_vs_agg.pdf', dpi=300)
     plt.close()
 
 
@@ -567,7 +571,7 @@ def fig7_cost_shares(panel):
     ax.legend(loc='best')
     ax.xaxis.set_major_locator(MaxNLocator(integer=True))
     plt.tight_layout()
-    plt.savefig(FIG_DIR / 'dleu_fig7_cost_shares.pdf', dpi=200)
+    plt.savefig(FIG_DIR / 'dleu_fig7_cost_shares.pdf', dpi=300)
     plt.close()
 
 
@@ -609,7 +613,7 @@ def fig8_profit_rate(panel):
     ax2.legend()
 
     plt.tight_layout()
-    plt.savefig(FIG_DIR / 'dleu_fig8_profit_rate.pdf', dpi=200)
+    plt.savefig(FIG_DIR / 'dleu_fig8_profit_rate.pdf', dpi=300)
     plt.close()
 
     return pr_df
@@ -661,7 +665,7 @@ def fig12_cost_share_markup(panel, agg):
     ax2.xaxis.set_major_locator(MaxNLocator(integer=True))
 
     plt.tight_layout()
-    plt.savefig(FIG_DIR / 'dleu_fig12_cs_vs_pf.pdf', dpi=200)
+    plt.savefig(FIG_DIR / 'dleu_fig12_cs_vs_pf.pdf', dpi=300)
     plt.close()
 
 
@@ -700,7 +704,7 @@ def fig_industry_trends(panel):
 
     plt.suptitle('Industry-Specific Markups (CZ-NACE F)', fontsize=13, y=1.02)
     plt.tight_layout()
-    plt.savefig(FIG_DIR / 'dleu_fig_industry_trends.pdf', dpi=200,
+    plt.savefig(FIG_DIR / 'dleu_fig_industry_trends.pdf', dpi=300,
                 bbox_inches='tight')
     plt.close()
 
@@ -749,7 +753,7 @@ def fig_procurement_decomposition(panel):
     ax2.xaxis.set_major_locator(MaxNLocator(integer=True))
 
     plt.tight_layout()
-    plt.savefig(FIG_DIR / 'dleu_fig_procurement_split.pdf', dpi=200)
+    plt.savefig(FIG_DIR / 'dleu_fig_procurement_split.pdf', dpi=300)
     plt.close()
 
 
@@ -780,7 +784,7 @@ def fig_labor_capital_shares(panel):
     ax.legend(loc='best')
     ax.xaxis.set_major_locator(MaxNLocator(integer=True))
     plt.tight_layout()
-    plt.savefig(FIG_DIR / 'dleu_fig_factor_shares.pdf', dpi=200)
+    plt.savefig(FIG_DIR / 'dleu_fig_factor_shares.pdf', dpi=300)
     plt.close()
 
 

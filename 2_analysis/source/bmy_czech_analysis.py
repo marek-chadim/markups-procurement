@@ -32,6 +32,10 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from matplotlib.ticker import MaxNLocator
 
+# Shared Healy-inspired style (Paul Tol palette, 300 DPI, white bg, clean axes)
+from style_markups import apply_markups_style, MARKUPS_BLUE, MARKUPS_PINK
+apply_markups_style()
+
 # paths
 SCRIPT_DIR = Path(__file__).resolve().parent
 INPUT_DIR = SCRIPT_DIR.parent / 'input'
@@ -91,7 +95,7 @@ def compute_markups_by_sample(df: pd.DataFrame) -> pd.DataFrame:
             try:
                 print(f"    Estimating {sample_name}/{label} (N={len(sub)})...")
                 _, _, markups = estimate_by_industry(
-                    sub, specs=('cd',),
+                    sub, specs=('tl',),
                     formulation_kwargs=formulation_kw,
                 )
                 # merge go back from sub for sales computation
@@ -144,7 +148,7 @@ def figure_sample_sensitivity(agg: pd.DataFrame):
     ax.xaxis.set_major_locator(MaxNLocator(integer=True))
     ax.set_title('Sample Restriction Sensitivity')
     fig.tight_layout()
-    fig.savefig(OUTPUT_FIG / 'bmy_sample_sensitivity.pdf', dpi=150)
+    fig.savefig(OUTPUT_FIG / 'bmy_sample_sensitivity.pdf', dpi=300)
     plt.close(fig)
     print(f"  Saved: {OUTPUT_FIG / 'bmy_sample_sensitivity.pdf'}")
 
@@ -266,7 +270,7 @@ def figure_decomposition(decomp: pd.DataFrame, filename: str = 'bmy_decompositio
     ax.xaxis.set_major_locator(MaxNLocator(integer=True))
     ax.set_title(title)
     fig.tight_layout()
-    fig.savefig(OUTPUT_FIG / filename, dpi=150)
+    fig.savefig(OUTPUT_FIG / filename, dpi=300)
     plt.close(fig)
     print(f"  Saved: {OUTPUT_FIG / filename}")
 
@@ -308,7 +312,7 @@ def figure_percentiles(mu: pd.DataFrame, filename: str = 'bmy_percentiles.pdf'):
     ax.xaxis.set_major_locator(MaxNLocator(integer=True))
     ax.set_title('Markup Percentiles Over Time')
     fig.tight_layout()
-    fig.savefig(OUTPUT_FIG / filename, dpi=150)
+    fig.savefig(OUTPUT_FIG / filename, dpi=300)
     plt.close(fig)
     print(f"  Saved: {OUTPUT_FIG / filename}")
 
@@ -341,7 +345,7 @@ def figure_variable_input(agg: pd.DataFrame, filename: str = 'bmy_variable_input
     ax2.xaxis.set_major_locator(MaxNLocator(integer=True))
 
     fig.tight_layout()
-    fig.savefig(OUTPUT_FIG / filename, dpi=150)
+    fig.savefig(OUTPUT_FIG / filename, dpi=300)
     plt.close(fig)
     print(f"  Saved: {OUTPUT_FIG / filename}")
 

@@ -269,6 +269,10 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
+# Shared Healy-inspired style (Paul Tol palette, 300 DPI, white bg, clean axes)
+from style_markups import apply_markups_style, MARKUPS_BLUE, MARKUPS_PINK
+apply_markups_style()
+
 df_event = df[df['first_pp_year'].notna()].copy()
 df_event['rel_year'] = (df_event['year'] - df_event['first_pp_year']).astype(int)
 df_event = df_event[df_event['rel_year'].between(-3, 5)].copy()
@@ -326,7 +330,7 @@ if m:
     ax.grid(True, alpha=0.3)
     plt.tight_layout()
     fig_path = OUT + 'figures/dlw_event_study.pdf'
-    plt.savefig(fig_path, dpi=200, bbox_inches='tight')
+    plt.savefig(fig_path, dpi=300, bbox_inches='tight')
     plt.close()
     print(f'\n  Saved: {fig_path}')
 

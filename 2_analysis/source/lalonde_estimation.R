@@ -1,6 +1,6 @@
 ## lalonde_estimation.R
 ## Estimates procurement markup premium using the 11 selection-on-observables
-## estimators from Imbens & Xu (2024) LaLonde replication package.
+## estimators from Imbens & Xu (2025, JEP 39(4)) LaLonde replication package.
 ## Outcome: log(markup_A). Treatment: pp_dummy. Pooled cross-section.
 
 suppressPackageStartupMessages({
@@ -10,7 +10,7 @@ suppressPackageStartupMessages({
 
 input_dir    <- file.path("..", "input")
 output_dir   <- file.path("..", "output")
-lalonde_code <- "/Users/marek/Desktop/io/references/replications/lalonde/code"
+lalonde_code <- "/Users/marek/Desktop/io/project/thesis/observables/code"
 
 ## Source lalonde estimator functions
 source(file.path(lalonde_code, "functions_est.R"))
@@ -147,7 +147,7 @@ tex <- c(tex,
   "\\bottomrule",
   "\\end{tabular}",
   "\\begin{tablenotes}\\footnotesize",
-  "\\item \\textit{Notes:} Eleven selection-on-observables estimators from Imbens and Xu (2024). Outcome: $\\log \\mu^A_{it}$. Treatment: $pp_{it}$. Covariates: $k_{it}$, cogs$_{it}$, employment (midpoint), foreign-ownership dummy, market share, NACE-2 dummies. Pooled cross-section.",
+  "\\item \\textit{Notes:} Eleven selection-on-observables estimators from Imbens and Xu (2025, \\textit{JEP} 39(4)). Outcome: $\\log \\mu^A_{it}$. Treatment: $pp_{it}$. Covariates: $k_{it}$, cogs$_{it}$, employment (midpoint), foreign-ownership dummy, market share, NACE-2 dummies. Pooled cross-section.",
   "\\end{tablenotes}",
   "\\end{threeparttable}",
   "\\end{table}"

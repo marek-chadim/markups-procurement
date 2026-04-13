@@ -1,15 +1,23 @@
 #!/usr/bin/env python3
-"""ADL (2024) instrument comparison on Czech construction data.
+"""Instrument comparison for translog ACF on Czech construction data.
 
-Compares oligopoly instrument sets for production function estimation under
-imperfect competition, following ADL (2024, CEPR DP 19640) Section 5.
+Main specification: translog with Kim-Luo-Su (2019) overidentification,
+comparing seven instrument-set rows that combine internal (ADL 2024)
+accounting moments with external (ABGRS 2025) exogenous shifters.
 
-Instrument rows (ADL Table analogs):
-  Row 1: Competitors' fixed inputs (f_{-j}) — leave-one-out mean of capital
-  Row 2: Own lagged variable input (standard ACF, no oligopoly instruments)
-  Row 3: Competitors' fixed inputs + lagged productivity
+Instrument rows:
+  Row 1-3: Internal accounting instruments (ADL 2024 §5)
+  Row 4-5: Tender-level competition (Datlab N bidders)
+  Row 6:   External raw shifters (year-level, not residualized)
+  Row 7:   Combined internal + external raw
+  Row 8:   External interactions RESIDUALIZED against controls
+           (ABGRS 2025 §IV.D direct procedure for strong exclusion)
+  Row 9:   Row 8 pool + Chamberlain (1987) optimal-instrument sieve
+           compression to K_beta efficient combinations
 
-Each row is estimated with increasing polynomial complexity of instruments.
+External shifters from `1_data/output/external_panel_annual.csv`:
+CZK/EUR, industry PPI, construction cost index, 10Y bond yield,
+building permits, frost days, annual precipitation.
 
 Outputs:
   outputs/tables/adl_instrument_comparison.tex — LaTeX table
@@ -108,9 +116,110 @@ df['n_contracts_log'] = np.log(df['n_contracts'].clip(lower=1))
 print(f'Tender competition coverage: avg_bids non-null = '
       f'{df["avg_bids"].notna().sum():,} / {len(df):,}')
 
+# ── Row 6/7: External exogenous shifters (ABGRS strong exclusion) ─────
+# Built by 1_data/source/build_external_panel.py from Eurostat, CNB FX,
+# and Open-Meteo daily weather. Year-level shifters that are strictly
+# outside the firm's productivity process, hence mean-independent of the
+# ACF innovation xi_jt conditional on market×year controls.
+EXTERNAL_CSV = (SCRIPT_DIR.parent.parent / '1_data' / 'output' /
+                'external_panel_annual.csv')
+ext_z: list[str] = []
+ext_interactions: list[str] = []
+if EXTERNAL_CSV.exists():
+    ext = pd.read_csv(EXTERNAL_CSV)
+    ext['year'] = ext['year'].astype(int)
+    # Curated 7-channel shifter set (all full 2005-2023 coverage)
+    ext_cols = [
+        'fx_eur',                       # imported-materials cost
+        'ppi_industry',                 # upstream PPI (NACE B-E)
+        'construction_cost_residential',  # sector-specific material cost
+        'long_rate_mcby',               # financing (10Y gov yield)
+        'building_permits_sqm',         # downstream demand
+        'weather_frost_days',           # outdoor activity restriction
+        'weather_precipitation_sum',    # supply disruption
+    ]
+    ext = ext[['year'] + ext_cols]
+    df['year'] = df['year'].astype(int)
+    df = df.merge(ext, on='year', how='left')
+    # Standardize to mean 0, std 1 for numerical stability in GMM
+    for c in ext_cols:
+        mu, sd = df[c].mean(), df[c].std()
+        if sd and sd > 0:
+            df[f'{c}_z'] = (df[c] - mu) / sd
+            ext_z.append(f'{c}_z')
+    # Interactions with k for firm-year variation (4 strongest channels)
+    for c in ext_z[:4]:
+        df[f'{c}_x_k'] = df[c] * df['k']
+        ext_interactions.append(f'{c}_x_k')
+    print(f'External shifters merged: {len(ext_z)} linear z-cols, '
+          f'{len(ext_interactions)} k-interactions')
+else:
+    print(f'WARN: {EXTERNAL_CSV} not found — external rows will be empty')
+
 # Filter to firms with competitors
 df = df[df['comp_go_lse'].notna() & (df['comp_n'] > 0)].copy()
 print(f'After filtering: {len(df):,} obs, {df["id"].nunique():,} firms')
+
+# ── Row 8/9: ABGRS §IV.D direct procedure — residualize instruments ───
+# Strong exclusion (ABGRS 2025, Definition 4) requires the excluded
+# moment components to be mean-independent of the included controls X.
+# Year-level shifters alone would be wiped out by year FE, so we form
+# firm-year interactions (z_t × k_it, z_t × L_cogs_it) and then
+# residualize those against the full control set. The OLS residual of
+# (interaction) on (controls) has mean zero conditional on X by
+# construction, satisfying the mean-independence requirement.
+ext_resid_cols: list[str] = []
+if ext_z:
+    # L_cogs is generated inside the ACFEstimator but we need it here
+    if 'L_cogs' not in df.columns:
+        df = df.sort_values(['id', 'year'])
+        df['L_cogs'] = df.groupby('id')['cogs'].shift(1)
+
+    # Build the control matrix X_i: translog-basis inputs (linear only;
+    # quadratic terms are what we're instrumenting for, so we can't
+    # residualize against them), pp_dummy, year FE, NACE FE.
+    year_dummies = pd.get_dummies(
+        df['year'].astype(int), prefix='yr', drop_first=True).astype(float)
+    nace_dummies = pd.get_dummies(
+        df['nace2'].astype(int), prefix='nace', drop_first=True).astype(float)
+    ctrl_df = pd.concat(
+        [df[['k', 'L_cogs', 'pp_dummy']].astype(float).reset_index(drop=True),
+         year_dummies.reset_index(drop=True),
+         nace_dummies.reset_index(drop=True)],
+        axis=1)
+    ctrl_df.index = df.index
+
+    def _residualize(series: pd.Series, X: pd.DataFrame) -> np.ndarray:
+        """OLS residuals of series on [1, X]. NaN-safe; missing rows stay NaN."""
+        y = series.values.astype(float)
+        Xm = X.values.astype(float)
+        mask = ~np.isnan(y) & ~np.any(np.isnan(Xm), axis=1)
+        if mask.sum() < 10:
+            return np.full_like(y, np.nan)
+        y0 = y[mask]
+        X0 = np.column_stack([np.ones(mask.sum()), Xm[mask]])
+        try:
+            beta, *_ = np.linalg.lstsq(X0, y0, rcond=None)
+        except np.linalg.LinAlgError:
+            return np.full_like(y, np.nan)
+        out = np.full_like(y, np.nan)
+        out[mask] = y0 - X0 @ beta
+        return out
+
+    # For each external shifter (z-scored), form z*k and z*L_cogs, then
+    # residualize against the control matrix. These residuals are the
+    # ABGRS-compliant strongly-excluded instruments.
+    for c in ext_z:
+        for interact_with, suffix in [('k', 'k'), ('L_cogs', 'Lcogs')]:
+            raw = df[c] * df[interact_with]
+            resid_col = f'{c}_x_{suffix}_resid'
+            df[resid_col] = _residualize(raw, ctrl_df)
+            ext_resid_cols.append(resid_col)
+
+    n_ctrls = ctrl_df.shape[1]
+    print(f'ABGRS residualized instruments: {len(ext_resid_cols)} cols '
+          f'(7 shifters x 2 interactions), orthogonal to {n_ctrls} controls '
+          f'(k, L_cogs, pp_dummy, year FE, NACE FE)')
 
 # ── Instrument set definitions ───────────────────────────────────────────
 
@@ -150,7 +259,30 @@ instrument_configs = {
     'f_k+N_bids+w_k (full)': ['comp_k_mean', 'comp_Lomega_mean',
                                'avg_bids_filled', 'single_bid_filled',
                                'n_contracts_log'],
+
+    # Row 6: External exogenous shifters (ABGRS strong exclusion)
+    'ext (linear)': list(ext_z),
+    'ext (linear + k interactions)': list(ext_z) + list(ext_interactions),
+
+    # Row 7: Combined — internal accounting + external shifters
+    'f_k+w_k+ext (full ABGRS)':
+        ['comp_k_mean', 'comp_Lomega_mean',
+         'comp_k_mean_sq', 'comp_Lomega_sq',
+         'comp_k_mean_x_k', 'comp_Lomega_x_k'] + list(ext_z),
+
+    # Row 8: ABGRS strong exclusion — residualized interactions
+    'ext_resid (ABGRS direct)': list(ext_resid_cols),
+
+    # Row 9: ABGRS + Chamberlain (1987) optimal-instrument sieve
+    'ext_resid + Chamberlain (optimal)': list(ext_resid_cols),
 }
+
+# Row 9 uses the same IV pool as Row 8 but triggers the Chamberlain
+# `optimal_instruments='replace'` flag in Formulation, which sieve-
+# projects the Jacobian onto the instrument space and returns K_beta
+# optimal combinations. This is the efficient-instrument analog of
+# the ABGRS direct procedure.
+CHAMBERLAIN_LABELS = {'ext_resid + Chamberlain (optimal)'}
 
 # ── Estimation loop ─────────────────────────────────────────────────────
 
@@ -165,8 +297,12 @@ for iv_label, iv_cols in instrument_configs.items():
         sufficient_statistic='comp_go_lse',
         oligopoly_instruments=valid_cols,
     )
-    form = Formulation(spec='cd', pp_in_markov=True, pp_interactions=True,
+    form_kwargs = dict(spec='tl', overidentify=True,
+                       pp_in_markov=True, pp_interactions=True,
                        year_fe=True, nace2_fe=True)
+    if iv_label in CHAMBERLAIN_LABELS:
+        form_kwargs['optimal_instruments'] = 'replace'
+    form = Formulation(**form_kwargs)
 
     try:
         est = ACFEstimator(
@@ -177,13 +313,30 @@ for iv_label, iv_cols in instrument_configs.items():
         )
         res = est.solve()
 
-        # Production function parameters
+        # Production function parameters (linear terms)
         cogs_idx = res.beta_names.index('cogs')
         theta_v = res.betas[cogs_idx]
         se_v = res.se[cogs_idx]
         k_idx = res.beta_names.index('k')
         theta_k = res.betas[k_idx]
         se_k = res.se[k_idx]
+
+        # For translog, report mean firm-year output elasticity of cogs:
+        #   ∂ log y / ∂ log cogs = θ_c + 2·θ_cc·cogs + θ_kc·k
+        # This is the primitive that enters the markup formula μ = θ/α.
+        if form.spec == 'tl' and 'cogs2' in res.beta_names:
+            try:
+                c2_idx = res.beta_names.index('cogs2')
+                kc_idx = res.beta_names.index('kcogs')
+                d_all = res.data
+                elast_c = (res.betas[cogs_idx]
+                           + 2 * res.betas[c2_idx] * d_all['cogs']
+                           + res.betas[kc_idx] * d_all['k'])
+                theta_v_mean = float(elast_c.mean())
+            except Exception:
+                theta_v_mean = float(theta_v)
+        else:
+            theta_v_mean = float(theta_v)
 
         # Markov parameters
         markov_rho = (res.markov_coefs[1]
@@ -208,6 +361,7 @@ for iv_label, iv_cols in instrument_configs.items():
             'instruments': iv_label,
             'n_oligo_iv': len(valid_cols),
             'theta_cogs': theta_v, 'se_cogs': se_v,
+            'theta_cogs_mean': theta_v_mean,
             'theta_k': theta_k, 'se_k': se_k,
             'rho': markov_rho, 'gamma_pp': markov_pp,
             'premium': premium,
@@ -215,12 +369,14 @@ for iv_label, iv_cols in instrument_configs.items():
             'n_overid': res.n_overid, 'N': res.n_obs,
         })
         print(f'  theta_cogs={theta_v:.4f} (SE {se_v:.4f}), '
+              f'mean elast={theta_v_mean:.4f}, '
               f'premium={premium:.4f}, J={hj:.3f} p={hp:.3f}')
     except Exception as e:
         print(f'  FAILED: {e}')
         results.append({
             'instruments': iv_label, 'n_oligo_iv': len(valid_cols),
             'theta_cogs': np.nan, 'se_cogs': np.nan,
+            'theta_cogs_mean': np.nan,
             'theta_k': np.nan, 'se_k': np.nan,
             'rho': np.nan, 'gamma_pp': np.nan,
             'premium': np.nan,
@@ -336,6 +492,20 @@ row5_labels = {
     'f_k+N_bids (linear)': 'Linear',
     'f_k+N_bids+w_k (full)': 'Full combined',
 }
+row6_labels = {
+    'ext (linear)': 'Linear z-scored',
+    'ext (linear + k interactions)': r'Linear $+$ $k$ interactions',
+}
+row7_labels = {
+    'f_k+w_k+ext (full ABGRS)': 'Combined full',
+}
+row8_labels = {
+    'ext_resid (ABGRS direct)': 'Residualized (ABGRS direct, 14 IVs)',
+}
+row9_labels = {
+    'ext_resid + Chamberlain (optimal)':
+        r'Residualized $+$ Chamberlain sieve (optimal)',
+}
 
 lines.append(r'\addlinespace')
 lines.append(
@@ -371,20 +541,105 @@ for key, label in row5_labels.items():
         f'& {_fmt(r["hansen_p"], 3)} \\\\'
     )
 
+lines.append(r'\addlinespace')
+lines.append(
+    r'\multicolumn{8}{l}{\textit{Row 6: External exogenous shifters '
+    r'(ABGRS strong exclusion)}} \\'
+)
+for key, label in row6_labels.items():
+    r = rdf[rdf['instruments'] == key]
+    if r.empty:
+        continue
+    r = r.iloc[0]
+    lines.append(
+        f'{label} & {_fmt(r["theta_cogs"])} & {_fmt(r["se_cogs"])} '
+        f'& {_fmt(r["rho"], 3)} & {_fmt(r["gamma_pp"], 3)} '
+        f'& {_fmt(r["premium"], 3)} & {_fmt(r["hansen_j"], 2)} '
+        f'& {_fmt(r["hansen_p"], 3)} \\\\'
+    )
+
+lines.append(r'\addlinespace')
+lines.append(
+    r'\multicolumn{8}{l}{\textit{Row 7: Internal accounting $+$ external '
+    r'shifters (raw, not residualized)}} \\'
+)
+for key, label in row7_labels.items():
+    r = rdf[rdf['instruments'] == key]
+    if r.empty:
+        continue
+    r = r.iloc[0]
+    lines.append(
+        f'{label} & {_fmt(r["theta_cogs"])} & {_fmt(r["se_cogs"])} '
+        f'& {_fmt(r["rho"], 3)} & {_fmt(r["gamma_pp"], 3)} '
+        f'& {_fmt(r["premium"], 3)} & {_fmt(r["hansen_j"], 2)} '
+        f'& {_fmt(r["hansen_p"], 3)} \\\\'
+    )
+
+lines.append(r'\addlinespace')
+lines.append(
+    r'\multicolumn{8}{l}{\textit{Row 8: ABGRS direct procedure --- '
+    r'external interactions residualized against $X_i$}} \\'
+)
+for key, label in row8_labels.items():
+    r = rdf[rdf['instruments'] == key]
+    if r.empty:
+        continue
+    r = r.iloc[0]
+    lines.append(
+        f'{label} & {_fmt(r["theta_cogs"])} & {_fmt(r["se_cogs"])} '
+        f'& {_fmt(r["rho"], 3)} & {_fmt(r["gamma_pp"], 3)} '
+        f'& {_fmt(r["premium"], 3)} & {_fmt(r["hansen_j"], 2)} '
+        f'& {_fmt(r["hansen_p"], 3)} \\\\'
+    )
+
+lines.append(r'\addlinespace')
+lines.append(
+    r'\multicolumn{8}{l}{\textit{Row 9: Chamberlain (1987) optimal '
+    r'instruments --- Row 8 pool sieve-compressed to $K_\beta$}} \\'
+)
+for key, label in row9_labels.items():
+    r = rdf[rdf['instruments'] == key]
+    if r.empty:
+        continue
+    r = r.iloc[0]
+    lines.append(
+        f'{label} & {_fmt(r["theta_cogs"])} & {_fmt(r["se_cogs"])} '
+        f'& {_fmt(r["rho"], 3)} & {_fmt(r["gamma_pp"], 3)} '
+        f'& {_fmt(r["premium"], 3)} & {_fmt(r["hansen_j"], 2)} '
+        f'& {_fmt(r["hansen_p"], 3)} \\\\'
+    )
+
 lines.extend([
     r'\bottomrule',
     r'\end{tabular}',
     r'\begin{tablenotes}\footnotesize',
-    r'\item \textit{Notes:} ACF Cobb-Douglas with $pp_{it-1}$ in Markov, '
-    r'year $\times$ NACE FE, pooled construction (NACE 41--43). '
-    r'Sufficient statistic (comp.\ deflated revenue) included in first '
-    r'stage for all specifications. Oligopoly instruments added to the '
-    r'standard ACF instrument set. Row 4 uses average number of bidders '
-    r'from the Datlab procurement register (filled with 0 for non-procurement '
-    r'firms). Row 5 combines accounting-based and tender-level instruments. '
-    r'$\rho$: productivity persistence. '
-    r'$\gamma_{pp}$: procurement effect on productivity dynamics. Premium: raw '
-    r'log markup difference. $J$: '
+    r'\item \textit{Notes:} ACF \textbf{translog} ($Y = \theta_k k + '
+    r'\theta_c c + \theta_{kk} k^2 + \theta_{cc} c^2 + \theta_{kc} kc + '
+    r'\omega$) with Kim, Luo \& Su (2019) overidentification lags '
+    r'($L.k, L^2.c$), $pp_{it-1}$ in Markov, year $\times$ NACE FE, pooled '
+    r'construction (NACE 41--43). Column $\hat{\theta}^V$ is the linear '
+    r'cogs coefficient $\theta_c$; the firm-year output elasticity is '
+    r'$\theta_c + 2\theta_{cc} c_{it} + \theta_{kc} k_{it}$ and is used to '
+    r'compute the firm-specific markup $\mu_{it} = \theta^V_{it}/\alpha_{it}$. '
+    r'Sufficient statistic (competitors'' deflated revenue) included in '
+    r'first stage for all specifications. '
+    r'Rows 1--5 use internal accounting instruments (ADL 2024 \S5). '
+    r'Row 4 uses average number of bidders from the Datlab procurement '
+    r'register. Row 6 uses seven external exogenous shifters (EUR/CZK, '
+    r'industry PPI, construction cost index, 10Y bond yield, building '
+    r'permits, frost days, precipitation), z-scored and merged on year. '
+    r'Row 8 implements the \emph{direct procedure} of ABGRS (2025, '
+    r'\S IV.D): each interaction $z_t \times k_{it}$ and $z_t \times '
+    r'L.c_{it}$ is OLS-residualized against the controls $X_i = (k, L.c, '
+    r'pp, \text{year FE}, \text{NACE FE})$ so that the moment function is '
+    r'mean-independent of $X_i$ by construction, enforcing ABGRS strong '
+    r'exclusion (Definition 4) and hence approximate causal consistency. '
+    r'Row 9 passes the same Row 8 pool through the Chamberlain (1987) '
+    r'optimal-instrument sieve via \texttt{optimal\_instruments=''replace''}: '
+    r'the 14 residualized instruments are compressed to the $K_\beta = 6$ '
+    r'efficient combinations $Z^* = \widehat{E}[\partial\xi/\partial\beta|Z]$. '
+    r'$\rho$: productivity persistence. $\gamma_{pp}$: procurement effect '
+    r'on productivity dynamics. Premium: mean log-markup difference. $J$: '
     r'Hansen overidentification test ($p$-value).',
     r'\end{tablenotes}',
     r'\end{threeparttable}',

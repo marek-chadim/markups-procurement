@@ -201,9 +201,10 @@ def main():
 
     j_results = []
 
-    # Spec A: CD, pp in Markov, NACE 41
+    # Spec A: translog, pp in Markov, NACE 41
     df_41 = df[df['nace2'] == 41].copy()
-    form_a = Formulation(spec='cd', pp_in_markov=True, pp_interactions=True,
+    form_a = Formulation(spec='tl', overidentify=True,
+                         pp_in_markov=True, pp_interactions=True,
                          year_fe=True, nace2_fe=False)
     est_a = ACFEstimator(
         data=df_41, formulation=form_a,
@@ -213,10 +214,10 @@ def main():
     )
     res_a = est_a.solve()
     j_results.append(compute_j_diagnostic(est_a, res_a.betas,
-                                          'Spec A (CD, NACE 41)'))
+                                          'Spec A (TL, NACE 41)'))
 
-    # Spec E: Translog, pp in Markov, NACE 41
-    form_e = Formulation(spec='tl', pp_in_markov=True, pp_interactions=True,
+    # Spec E: CD base, pp in Markov, NACE 41
+    form_e = Formulation(spec='cd', pp_in_markov=True, pp_interactions=True,
                          year_fe=True, nace2_fe=False)
     est_e = ACFEstimator(
         data=df_41, formulation=form_e,
@@ -226,10 +227,11 @@ def main():
     )
     res_e = est_e.solve()
     j_results.append(compute_j_diagnostic(est_e, res_e.betas,
-                                          'Spec E (TL, NACE 41)'))
+                                          'Spec E (CD, NACE 41)'))
 
     # Pooled construction (all NACE, with nace2 FE)
-    form_pool = Formulation(spec='cd', pp_in_markov=True, pp_interactions=True,
+    form_pool = Formulation(spec='tl', overidentify=True,
+                            pp_in_markov=True, pp_interactions=True,
                             year_fe=True, nace2_fe=True)
     est_pool = ACFEstimator(
         data=df, formulation=form_pool,
