@@ -24,6 +24,7 @@ echo -e "\n\nMaking module \033[35m${MODULE}\033[0m with shell ${SHELL}"
 # Load settings & tools
 source "${REPO_ROOT}/local_env.sh"
 source "${REPO_ROOT}/lib/shell/run_python.sh"
+source "${REPO_ROOT}/lib/shell/run_stata.sh"
 
 # Clear output directory
 # (Guarantees that all output is produced from a clean run of the code)
@@ -45,6 +46,17 @@ mkdir -p "${MAKE_SCRIPT_DIR}/output"
 cd "${MAKE_SCRIPT_DIR}/source"
 
 run_python rebuild_data.py "${LOGFILE}" || exit 1
+run_python build_external_panel.py "${LOGFILE}" || exit 1
+
+# Stata data-build scripts live under 1_data/source/stata/. They use the
+# `$data` global for output; point it at this module's output directory
+# before calling so the firm-year profitability panel lands in
+# 1_data/output/ for 2_analysis to consume via get_inputs.sh.
+(
+cd stata
+run_stata build_magnusweb_profit.do "${LOGFILE}" || exit 1
+)
+
 # build_orbis_panel.py disabled: 0_raw/orbis/*.csv are stale symlinks to a
 # removed thesis-replication path. No currently enabled 2_analysis script
 # consumes orbis_panel outputs (orbis_acf_estimation.py, klms_analysis.py,

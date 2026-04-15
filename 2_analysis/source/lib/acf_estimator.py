@@ -256,8 +256,19 @@ class CWDLExtensions:
         Include predicted survival probability in Markov process
         (CWDL 2015, AER). Requires ``'survival'`` column. Default False.
     weighting : str
-        GMM weighting matrix: ``'optimal'`` for inv(Z'Z), ``'identity'``
-        for I. Default ``'optimal'``.
+        GMM weighting matrix.
+
+        - ``'optimal'`` (default) — one-step W = inv(Z'Z), 2SLS-style.
+          Consistent but NOT efficient (Conlon gmmnotes line 168).
+        - ``'identity'`` — one-step W = I_q, equally weights all moments.
+        - ``'two_step'`` — Conlon's textbook efficient procedure
+          (gmmnotes lines 141-148): solve with W_0 = inv(Z'Z), update
+          W = pinv(S_hat) where S_hat is the de-meaned cluster-robust
+          moment covariance at theta_hat_step1, then re-solve from the
+          step-1 best as a starting value (single polish, no multi-start).
+          Adds one optimization pass; sandwich SEs are computed at the
+          final W. Records `betas_step1` and `delta_step` in
+          ``ACFResults`` for transparency.
     markov_controls : list of str
         Additional variables to include in the Markov process. Lagged
         values will be used. Default [].
@@ -400,6 +411,17 @@ class ACFResults:
     n_overid: int = 0
     markov_coefs: Optional[Array] = None
     markov_names: Optional[List[str]] = None
+    weighting: str = 'optimal'
+    """GMM weighting strategy that produced ``betas`` (one of
+    ``'optimal'``, ``'identity'``, ``'two_step'``)."""
+    betas_step1: Optional[Array] = None
+    """Step-1 GMM coefficients before two-step weight update. Only
+    populated when ``weighting='two_step'``; ``None`` otherwise."""
+    delta_step: Optional[float] = None
+    """Maximum absolute change ``max|betas - betas_step1|`` from step 1
+    to step 2. ``None`` for one-step estimators. Conlon line 168 says
+    asymptotically ``betas`` and ``betas_step1`` should agree, so this
+    quantifies the finite-sample correction."""
 
     def __repr__(self) -> str:
         lines = [
@@ -564,6 +586,52 @@ class ACFEstimator:
         # Stage 2: multi-start GMM
         betas, criterion, diagnostics = self._multi_start_gmm()
 
+        # ---- Two-step efficient weighting (Conlon gmmnotes 141-148) ----
+        # Opt-in via CWDLExtensions.weighting='two_step'. The initial pass
+        # above used W_0 = inv(Z'Z) (or I); we now update W = pinv(S_hat)
+        # with the de-meaned cluster-robust moment covariance at the
+        # step-1 betas, then re-solve from the step-1 best (single polish,
+        # no multi-start — Conlon line 168 says step-2 is consistent with
+        # step-1 in large samples, so multi-start would just re-find it).
+        betas_step1: Optional[Array] = None
+        delta_step: Optional[float] = None
+        if self._extensions.weighting == 'two_step':
+            betas_step1 = betas.copy()
+            _output("\n  --- Two-step efficient weighting "
+                    "(Conlon gmmnotes 141-148) ---")
+            # Use the un-centered cluster-sum formulation (standard
+            # cluster-robust GMM — Hansen 2002, Cameron-Miller 2015).
+            # Conlon's de-meaning prescription (gmmnotes line 137-139) is
+            # iid-context; for clustered data with thin N_c per NACE the
+            # de-meaned S_hat was empirically unstable (delta_step = 11
+            # on NACE 42, 2.7 pooled — see conlon_gmm_bootstrap_eval.md).
+            S_hat = self._compute_clustered_S(betas_step1, demean=False)
+            cond_S = np.linalg.cond(S_hat)
+            if cond_S > options.singular_tol:
+                warnings.warn(f"S_hat condition number ({cond_S:.2e}) "
+                              f"exceeds tolerance — using pinv")
+            try:
+                if options.pseudo_inverses:
+                    W_step2 = np.linalg.pinv(S_hat)
+                else:
+                    W_step2 = np.linalg.inv(S_hat)
+            except np.linalg.LinAlgError:
+                W_step2 = np.linalg.pinv(S_hat)
+            self._W = W_step2
+
+            # Re-solve from step-1 best as the starting value.
+            betas_step2, criterion_step2, diag_step2 = (
+                self._run_single_optimization(betas_step1, label='step2')
+            )
+            delta_step = float(np.max(np.abs(betas_step2 - betas_step1)))
+            _output(f"  step1 criterion: {criterion:.6e}")
+            _output(f"  step2 criterion: {criterion_step2:.6e}")
+            _output(f"  delta_step (max |Δβ|): {delta_step:.6f}")
+
+            betas = betas_step2
+            criterion = criterion_step2
+            diagnostics.append(diag_step2)
+
         # Chamberlain (1987) optimal instruments: two-step procedure
         oi_mode = self._formulation.optimal_instruments
         if oi_mode in ('replace', 'augment'):
@@ -654,6 +722,9 @@ class ACFEstimator:
             n_overid=n_overid,
             markov_coefs=markov_coefs,
             markov_names=markov_names,
+            weighting=self._extensions.weighting,
+            betas_step1=betas_step1,
+            delta_step=delta_step,
         )
 
         _output(f"\n{results}")
@@ -868,21 +939,34 @@ class ACFEstimator:
             for oi in ic.oligopoly_instruments:
                 if oi not in lag_vars and oi in df.columns:
                     lag_vars.append(oi)
+
+        # Time-based lag: value at (id, year - k), NaN if no such row.
+        # Matches Stata's `L.var` under `xtset id year` — respects panel
+        # gaps, unlike groupby().shift() which is position-based and
+        # silently uses the previous-position value when a year is missing.
+        def _tlag(dframe, col, k=1):
+            lag_df = dframe[['id', 'year', col]].copy()
+            lag_df['year'] = lag_df['year'] + k
+            lag_df = lag_df.rename(columns={col: f'__lag_{col}_{k}'})
+            merged = dframe[['id', 'year']].merge(
+                lag_df, on=['id', 'year'], how='left')
+            return merged[f'__lag_{col}_{k}'].values
+
         for v in lag_vars:
-            df[f'L{v}'] = df.groupby('id')[v].shift(1)
+            df[f'L{v}'] = _tlag(df, v, 1)
 
         # deeper lags for overidentification (Kim, Luo & Su 2019)
         if form.overidentify and form.spec == 'tl':
-            df['L2cogs'] = df.groupby('id')['cogs'].shift(2)
+            df['L2cogs'] = _tlag(df, 'cogs', 2)
 
         if ext.survival_correction and 'survival' in df.columns:
-            df['Lsurvival'] = df.groupby('id')['survival'].shift(1)
+            df['Lsurvival'] = _tlag(df, 'survival', 1)
 
         # lags for additional inputs
         for ai in form.additional_inputs:
             if ai in df.columns and ai not in lag_vars:
                 lag_vars.append(ai)
-                df[f'L{ai}'] = df.groupby('id')[ai].shift(1)
+                df[f'L{ai}'] = _tlag(df, ai, 1)
 
         # translog terms (always generated, used only if spec='tl')
         df['k2'] = df['k'] ** 2
@@ -1339,13 +1423,76 @@ class ACFEstimator:
             G[:, j] = (self._moment_vector(bp) - self._moment_vector(bm)) / (2 * h)
         return G
 
+    def _compute_clustered_S(self, betas: Array,
+                              demean: bool = False) -> Array:
+        """Cluster-robust moment covariance matrix S = E[g g'].
+
+        Forms the cluster-sum vectors g_c = Σ_{i∈c} z_i ξ_i (one K-vector
+        per cluster) and returns the small-sample-corrected outer-product
+        matrix used as the "meat" in the sandwich SE formula and as the
+        target inverse for the two-step efficient weighting matrix.
+
+        Parameters
+        ----------
+        betas : Array
+            Current parameter vector at which to evaluate the moments.
+        demean : bool
+            If True, subtract the cluster-mean of moment vectors from each
+            cluster sum before forming outer products. Conlon gmmnotes
+            lines 137-139 explicitly recommend this for the two-step
+            weight matrix update because at $\\hat\\theta$ the FOC implies
+            $g_N(\\hat\\theta) \\approx 0$, making the centered form the
+            theoretically careful choice. The default ``False`` reproduces
+            the standard cluster-robust sandwich meat formula used by
+            ``_analytical_vcov`` (preserves headline SEs).
+
+        Returns
+        -------
+        S : Array
+            K_z × K_z cluster-robust moment covariance matrix with the
+            small-sample correction $N_c / (N_c - 1)$ applied.
+        """
+        xi = self._compute_xi(betas)
+        Z_xi = self._Z * xi.reshape(-1, 1)
+        K_z = self._Z.shape[1]
+
+        # Build cluster sums (one K_z-vector per cluster). The accumulator
+        # form is mathematically equivalent to the M.T @ M form where
+        # M[i, :] = cluster_sums[i, :], but the explicit loop matches the
+        # original inlined computation in _analytical_vcov to preserve
+        # byte-identical output.
+        cluster_sums = np.zeros((self._N_clusters, K_z),
+                                 dtype=options.dtype)
+        for i, c in enumerate(self._unique_clusters):
+            sel = self._cluster_ids == c
+            cluster_sums[i] = Z_xi[sel].sum(axis=0)
+
+        if demean:
+            g_bar = cluster_sums.mean(axis=0)
+            centered = cluster_sums - g_bar
+        else:
+            centered = cluster_sums
+
+        # Sum of outer products via accumulator (preserves original
+        # summation order so the sandwich SEs are byte-identical).
+        S = np.zeros((K_z, K_z), dtype=options.dtype)
+        for i in range(self._N_clusters):
+            S += np.outer(centered[i], centered[i])
+
+        N_c = self._N_clusters
+        S = S / self._N * (N_c / (N_c - 1))
+        return S
+
     def _analytical_vcov(self, betas: Array) -> Tuple[Array, Array]:
         """GMM sandwich VCV with firm-level clustering.
 
         V = (1/N) inv(G'WG) G'W S W G inv(G'WG)
 
         where G is the Jacobian, W is the weighting matrix, and S is the
-        clustered meat matrix with small-sample correction.
+        clustered meat matrix with small-sample correction. The meat
+        computation is delegated to ``_compute_clustered_S`` so the same
+        helper can be reused (with ``demean=True``) for the two-step
+        efficient weighting matrix update in ``solve()``.
 
         Returns
         -------
@@ -1355,19 +1502,11 @@ class ACFEstimator:
             Standard errors (K,).
         """
         G = self._numerical_jacobian(betas)
-        xi = self._compute_xi(betas)
         N = self._N
 
-        # clustered meat
-        Z_xi = self._Z * xi.reshape(-1, 1)
-        K_z = self._Z.shape[1]
-        S = np.zeros((K_z, K_z), dtype=options.dtype)
-        for c in self._unique_clusters:
-            sel = self._cluster_ids == c
-            mc = Z_xi[sel].sum(axis=0)
-            S += np.outer(mc, mc)
+        # Clustered meat (uncentered cluster formulation, as before).
+        S = self._compute_clustered_S(betas, demean=False)
         N_c = self._N_clusters
-        S = S / N * (N_c / (N_c - 1))
 
         # sandwich
         GWG = G.T @ self._W @ G
@@ -1795,10 +1934,13 @@ def hall_decomposition(
 if __name__ == '__main__':
     import sys
 
-    # Prefer rebuilt data (has mktshare, additional variables)
+    # Prefer rebuilt data (has mktshare, additional variables).
+    # This file lives at 2_analysis/source/lib/, so climb two levels
+    # (lib -> source -> 2_analysis) to find input/.
     from pathlib import Path as _Path
     _script_dir = _Path(__file__).resolve().parent
-    _input_dir = _script_dir.parent / 'input'
+    _module_dir = _script_dir.parent.parent
+    _input_dir = _module_dir / 'input'
     rebuilt_path = str(_input_dir / 'data_rebuilt.dta')
     orig_path = str(_input_dir / 'data.dta')
     import os
@@ -1892,7 +2034,7 @@ if __name__ == '__main__':
         hall_decomposition(firm_means.values, label=f'{spec.upper()} all')
 
     # save
-    _output_dir = _script_dir.parent / 'output'
+    _output_dir = _module_dir / 'output'
     out_path = str(_output_dir / 'acf_python_markups.csv')
     markups.to_csv(out_path, index=False)
     print(f'\nMarkups saved to {out_path}')

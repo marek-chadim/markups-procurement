@@ -5,7 +5,7 @@
 ## Provides: load_lalonde_panel(), compute_propensity(), trim_propensity(),
 ## and the canonical lalonde_covariates vector.
 ##
-## Source via: source("lalonde_functions_helpers.R") from 2_analysis/source/.
+## Source via: source("lib/lalonde_functions_helpers.R") from 2_analysis/source/.
 
 suppressPackageStartupMessages({
   library(haven)

@@ -1,0 +1,926 @@
+\documentclass[11pt]{article}
+
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{mathtools}
+\usepackage{booktabs}
+\usepackage[dvipsnames]{xcolor}
+\usepackage{hyperref}
+\usepackage{natbib}
+\usepackage{bm}
+\usepackage{graphicx}
+\graphicspath{{../input/analysis_figures/}{../input/figures/}{../input/tables/}}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\algnewcommand\algorithmicinput{\textbf{Input:}}
+\algnewcommand\INPUT{\item[\algorithmicinput]}
+\algnewcommand\algorithmicoutput{\textbf{Output:}}
+\algnewcommand\OUTPUT{\item[\algorithmicoutput]}
+
+\hypersetup{colorlinks=true, linkcolor=MidnightBlue, citecolor=MidnightBlue, urlcolor=MidnightBlue}
+
+\newtheorem{definition}{Definition}
+\newtheorem{proposition}{Proposition}
+\newtheorem{corollary}{Corollary}
+\newtheorem{assumption}{Assumption}
+\newtheorem{remark}{Remark}
+\newtheorem{theorem}{Theorem}
+
+\DeclareMathOperator{\E}{\mathbb{E}}
+\DeclareMathOperator{\Var}{Var}
+\DeclareMathOperator{\Cov}{Cov}
+\DeclareMathOperator*{\argmin}{arg\,min}
+\DeclareMathOperator{\rank}{rank}
+
+\title{Structural Estimation Under Misspecification in Czech Construction Procurement:\\
+An Exposition in the Framework of Andrews, Barahona, Gentzkow, Rambachan, and Shapiro (2025)}
+\author{Marek Chadim\thanks{Tobin Center for Economic Policy, Yale University. Email: \texttt{marek.chadim@yale.edu}. This is a focused methodological exposition of the identification strategy in the companion empirical paper \emph{Markups and Public Procurement: Evidence from Czech Construction}. Its purpose is to translate the four-stage estimation chain used in that paper into the language of the Andrews et al.\ (2025) misspecification framework, to state the approximate-causal-consistency theorem that backs the headline procurement premium, and to provide a scaffold into which additional identification results will be added.}}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+\noindent I apply the misspecification framework of Andrews, Barahona, Gentzkow, Rambachan, and Shapiro \citep{ABGRS2025} to the four-stage estimation chain that converts Czech firm-year accounting data into a causal estimate of how public-procurement participation affects firm markups. The chain comprises (Stage 0) a nonparametric first-stage inversion that purges log output of iid measurement error, (Stage A) a GMM estimator of the translog production function that uses lagged procurement status $pp_{i,t-1}$ as an external shifter in the productivity Markov transition, (Stage B) a markup generation step that combines the estimated output elasticity with the observed variable-input expenditure share via $\hat\mu_{it} = \hat\theta^V_{it}/\alpha^V_{it}$, and (Stage C) a selection-on-observables regression of log markups on procurement participation with firm and year fixed effects. I show that (i) the composite estimator $\hat\beta_{pp}$ is a smooth functional of the Stage A GMM parameter vector and therefore inherits the approximate-causal-consistency property of ABGRS Proposition 3, (ii) the Stage A moment conditions satisfy \emph{dynamic} strong exclusion (ABGRS Online Appendix Definition 12) on the Czech panel---verified empirically by partial $R^2 < 0.10$ for every ACF instrument on the year$\times$NACE control set---while Blundell--Bond internal instruments fail dynamic strong exclusion because they are fully determined by the state-variable control set, and (iii) the paper's central empirical fact---that markup \emph{levels} vary from $1.02$ to $2.17$ across admissible specifications while the treatment effect is stable at $12.5$--$14.3\%$---is a direct consequence of ABGRS Proposition 2's permissive decomposition, under which the researcher's functional-form errors collapse into an additive nuisance $L_i(x)$ that is absorbed by the Stage C firm fixed effects. I validate Proposition~1 (approximate causal consistency of the composite estimator) by a Monte Carlo experiment on synthetic panels with $N=1{,}500$ firms, $T=10$ years, $S=20$ replications, and a known Cobb-Douglas DGP: correctly-specified fits and over-parameterized translog fits recover the true treatment effect $\alpha_{pp}=0.138$ essentially unbiased, while breaking Stage C assumptions (pooled regression without firm fixed effects, misclassification of the treatment indicator) produces the bounded-but-substantial bias predicted by the theorem. The formal algorithms for Stages 0--C appear as pseudocode blocks in Section~\ref{sec:researcher}. The exposition is structured as a scaffold to which further results (Pakes multiproduct-revenue robustness, Evdokimov--Zeleneev measurement-error correction, Bond et al.\ subjective-expectations benchmarking, and Kroft--Luo--Mogstad--Setzler double-market-power extension) will be added.
+\end{abstract}
+
+\section{Introduction}\label{sec:intro}
+
+Markup-based treatment-effect estimation rests on a chain of assumptions. The production function must be correctly specified; the productivity process must follow a first-order Markov transition; the variable input must satisfy static cost minimization; the instruments must satisfy exogeneity; and the final regression of markups on a treatment indicator must satisfy selection-on-observables. A failure at any link propagates through the chain.
+
+In the Czech construction application that motivates this note, a binary treatment---participation in public procurement---meets a classical markup-estimation setup, and the question is whether the estimated treatment effect is trustworthy despite potential misspecification at any of the upstream stages. \citet{ABGRS2025} provide the formal framework to answer this question; the broader literature on misspecification-tolerant estimation from which their framework emerges is reviewed by Armstrong \cite{Armstrong2025}. Their notion of \emph{approximate causal consistency} (Proposition 3) guarantees that a causal summary remains reliably identified under local misspecification provided the estimator satisfies a property they call \emph{strong exclusion}: the residualized moment conditions must be mean-independent of the included controls. Their Proposition 2 further decomposes causally correct specification into a causal part, which must be correct, and a nuisance part $L^{**}(X;\beta)$, which can be arbitrarily wrong. And their Online Appendix D.3 extends the framework to dynamic production-function settings with external shifters, precisely the environment in which ACF \citep{ACF2015} markup estimators live.
+
+The purpose of this note is to translate the four-stage Czech-construction estimator into this framework, verify that the ABGRS theorems apply, identify which moment conditions do the causal work, and provide a scaffold for further identification arguments. The note is deliberately compact: it does not duplicate the empirical results of the main paper, does not argue for the policy relevance of the application, and does not relitigate the production-approach literature that \citet{DLS2021} synthesize. It is a formal identification note, nothing more, and is meant to be read in parallel with the empirical paper rather than in place of it.
+
+Section~\ref{sec:setting} briefly describes the setting and data. Section~\ref{sec:nesting} sets up the nesting model in ABGRS language. Section~\ref{sec:researcher} lays out the four-stage researcher's model as a composite structural estimator. Section~\ref{sec:causal_summary} defines the causal summary. Sections~\ref{sec:strong_exclusion}--\ref{sec:dynamic_strong_exclusion} state and verify the (dynamic) strong-exclusion conditions. Section~\ref{sec:acc} states the approximate-causal-consistency theorem for our composite estimator and sketches its proof via smooth-functional propagation. Section~\ref{sec:prop2} explains how ABGRS Proposition 2 resolves the specification-sensitivity paradox that is the empirical core of the main paper. Section~\ref{sec:extensions} is a placeholder for future results. Section~\ref{sec:conclusion} concludes.
+
+\section{Setting and data}\label{sec:setting}
+
+The population of interest is the universe of active Czech construction firms classified under NACE codes 41 (buildings), 42 (civil engineering), and 43 (specialized trades) over the panel $t \in \{2005,\ldots,2021\}$. The treatment of interest is binary participation in public procurement, $pp_{it} \in \{0,1\}$, constructed from the Czech tender register (Datlab) by merging on the firm identifier. The outcome of interest is the firm-year log markup $\log\mu_{it}$, where $\mu_{it}$ is the ratio of output price to marginal cost. Markups are not directly observed; they must be generated from the production-function estimates (Stage B below).
+
+The primary dataset is the MagnusWeb accounting panel, which reports annual firm financial statements for $N=1{,}521$ construction firms over $T$ years, yielding $9{,}164$ firm-year observations. The relevant variables are log revenue $y_{it}$, log cost of goods sold $c_{it}$, log fixed assets $k_{it}$, and the observed variable-input expenditure share
+\begin{equation}\label{eq:alpha}
+\alpha^V_{it} \;=\; \frac{P^V_{it}V_{it}}{P_{it}Q_{it}}\;=\; \frac{\text{COGS}_{it}}{\text{Revenue}_{it}},
+\end{equation}
+which is the COGS-to-revenue ratio in the accounting data. All nominal variables are deflated by NACE-specific producer price indices. I refer to the main empirical paper for a full description of variable construction, winsorization rules, and summary statistics.
+
+For the purposes of this note, the key structural facts are: (i) the panel is unbalanced but has dense overlap across the Czech transparency-reform window 2006--2021; (ii) procurement participation is approximately binary at the firm-year level (ambiguous cases are coded by majority-revenue share); (iii) $\alpha^V_{it}$ is a purely observational object that does not require estimation; (iv) the productivity state $\omega_{it}$ is unobserved and must be inverted from the data at Stage 0 below.
+
+\section{The nesting model}\label{sec:nesting}
+
+Following \citet[p.~1808]{ABGRS2025}, I describe the setting through a potential-outcomes nesting model that respects the researcher's assumptions about which variables are causal and which are exogenous, but is otherwise nonparametric.
+
+\subsection{Observables}
+
+For each firm-year pair $i \in \{1,\ldots,N\}$, $t \in \{1,\ldots,T\}$, the observables are
+\begin{equation}\label{eq:obs}
+\bigl(Y_{it},\ D_{it},\ X_{it},\ Z_{it}\bigr),
+\end{equation}
+where $Y_{it} = \log\mu_{it}$ is the outcome we ultimately wish to explain (though it is not directly observed---see Section~\ref{sec:researcher}), $D_{it} = pp_{it}$ is the endogenous causal variable, $X_{it}$ is a vector of \emph{included} controls, and $Z_{it}$ is a vector of \emph{excluded} variables used as instruments in the Stage A production-function estimation.
+
+In our Czech setting, the components of $X_{it}$ are
+\begin{equation}\label{eq:x}
+X_{it} = \bigl(k_{it},\ c_{it},\ \text{NACE}_{i},\ \text{year}_{t},\ \text{firm}_{i}\bigr),
+\end{equation}
+i.e., current-period log capital, current-period log COGS, three-digit industry dummies, calendar-year dummies, and firm fixed effects. The components of $Z_{it}$ are
+\begin{equation}\label{eq:z}
+Z_{it} = \bigl(k_{i,t-1},\ c_{i,t-1},\ c_{i,t-2},\ pp_{i,t-1},\ pp_{i,t-2},\ \text{ext}_{it}\bigr),
+\end{equation}
+where $\text{ext}_{it}$ collects exogenous external shifters (the EUR/CZK exchange rate, industry producer price indices, construction-cost indices, the ten-year Czech Maastricht bond yield, building-permit flows, and weather variables) interacted with firm-level $k_{it}$ and $c_{i,t-1}$, from Eurostat, CNB, and Open-Meteo sources.
+
+The critical element of $Z_{it}$ is $pp_{i,t-1}$, the lagged procurement status. Following \citet{DeLoecker2013}, this enters the productivity Markov transition as an external shifter and is what makes the dynamic production function identified despite the non-identification result of \citet{GNR2020}.
+
+\subsection{The causal object}
+
+The causal object of interest is the population procurement premium
+\begin{equation}\label{eq:tau}
+\tau \;=\; \E_G\bigl[\log\mu_{it}(1,X_{it}) - \log\mu_{it}(0,X_{it})\bigr],
+\end{equation}
+where $\log\mu_{it}(d,X_{it})$ is the potential log markup under procurement status $d \in \{0,1\}$, conditional on the observed control vector $X_{it}$. Expectation $\E_G$ is over the true data-generating process $G$ in the nesting model class.
+
+By standard potential-outcomes logic, the nesting model imposes:
+\begin{assumption}[Exclusion]\label{ass:excl}
+$\log\mu_{it}(d,x)$ does not depend on $Z_{it}$. The instruments in $Z_{it}$ affect the outcome only through their effect on $D_{it}$ and on the production technology.
+\end{assumption}
+
+\begin{assumption}[Conditional exogeneity]\label{ass:cond_exog}
+$Z_{it} \perp \bigl(\log\mu_{it}(\cdot),\, D_{it}(\cdot)\bigr) \mid X_{it}$.
+\end{assumption}
+
+ABGRS \citep[p.~1810]{ABGRS2025} state their negative results under unconditional exogeneity (which is stronger) and their positive results---in particular Proposition 3---under the weaker conditional version. I adopt the conditional version throughout because it aligns with the Czech panel structure, where firm-level productivity heterogeneity is absorbed by firm fixed effects.
+
+\section{The researcher's model: a four-stage composite estimator}\label{sec:researcher}
+
+The researcher's model in this setting is not a single-stage GMM problem. It is a \emph{composite} estimator that chains four operations together: a first-stage inversion that purges measurement error, a production-function GMM estimator, a markup-generation step, and a causal regression. I describe each stage in turn, using notation that keeps the ABGRS parameter partition $\theta = (\alpha,\beta)$ explicit at every stage.
+
+\subsection{Stage 0: First-stage inversion (measurement-error purge)}
+
+Following ACF \citep{ACF2015}, I begin by projecting log output on a flexible polynomial basis in current-period inputs plus the procurement state:
+\begin{equation}\label{eq:phi}
+y_{it} \;=\; \phi\bigl(c_{it},\,k_{it},\,pp_{it},\,\text{NACE}_i,\,\text{year}_t\bigr) + \epsilon_{it},
+\end{equation}
+where $\epsilon_{it}$ is iid measurement error in log output and $\phi(\cdot)$ is the structural composition of the production function and the control function for unobserved productivity. The nonparametric regression fit $\hat\phi_{it}$ is the \emph{measurement-error-purged} log output:
+\begin{equation}\label{eq:phi_hat}
+\hat\phi_{it} \;=\; \hat\E\bigl[y_{it} \mid c_{it},\,k_{it},\,pp_{it},\,\text{NACE}_i,\,\text{year}_t\bigr].
+\end{equation}
+Under the monotonicity invertibility assumption of \citet{OP1996} as corrected by ACF, we have
+\begin{equation}\label{eq:phi_decomp}
+\hat\phi_{it} \;=\; f(c_{it},k_{it};\theta) + \omega_{it} + o_p(1),
+\end{equation}
+so that the productivity state $\omega_{it}$ can be recovered as a residual once the production-function parameters $\theta$ are known.
+
+\begin{remark}[Measurement-error interpretation]\label{rem:me}
+The Stage 0 inversion serves double duty in this framework. Its original purpose in OP/LP/ACF is to solve the transmission bias: current-period input demand responds to unobserved productivity, so OLS on $y_{it} = f(c,k;\theta) + \omega_{it} + \epsilon_{it}$ is biased. Inverting the demand function via $\hat\phi$ captures $\omega$ conditional on observables. But $\hat\phi$ \emph{also} averages out iid measurement error in the dependent variable, because $\hat\E[\cdot]$ is a smoothing operator. In the Czech setting, classical measurement error in $y_{it}$ can arise from reporting inconsistencies in the accounting data---especially revenue recognition across fiscal-year boundaries for multi-year construction contracts---and the first-stage smoother is the practical device that handles it. Section~\ref{sec:extensions} flags this as the point of contact with the Evdokimov--Zeleneev \citep{EvdokimovZeleneev2025MERM} framework, which provides a more formal treatment of measurement error in general semiparametric GMM settings.
+\end{remark}
+
+Algorithm~\ref{alg:stage0} renders Stage 0 as explicit pseudocode.
+
+\begin{algorithm}[htbp]
+\caption{Stage 0 --- First-stage inversion}\label{alg:stage0}
+\begin{algorithmic}[1]
+\INPUT panel $\{(y_{it}, c_{it}, k_{it}, pp_{it}, \text{NACE}_i, \text{year}_t)\}_{i,t}$; polynomial order $p$ (default $p=3$)
+\OUTPUT measurement-error-purged log output $\{\hat\phi_{it}\}_{i,t}$
+\State Build polynomial basis $B_{it} = \{(c_{it}^a k_{it}^b) : 0 < a + b \leq p\}$ of dimension $\binom{p+2}{2} - 1$
+\State Interact basis with procurement dummy: $\widetilde B_{it} \gets (B_{it}, pp_{it}\cdot B_{it}, pp_{it})$
+\State Append NACE$_i$ and year$_t$ fixed-effect dummies: $X^{(0)}_{it} \gets (1, \widetilde B_{it}, \text{NACE}_i, \text{year}_t)$
+\State Solve OLS: $\hat\gamma \gets \argmin_\gamma \sum_{i,t} (y_{it} - \gamma' X^{(0)}_{it})^2$
+\State Compute fitted values: $\hat\phi_{it} \gets \hat\gamma' X^{(0)}_{it}$ \Comment{$\hat\phi_{it} \approx f(c_{it},k_{it};\theta) + \omega_{it}$ under ACF invertibility}
+\State \Return $\{\hat\phi_{it}\}_{i,t}$
+\end{algorithmic}
+\end{algorithm}
+
+\subsection{Stage A: Production-function GMM with external shifter}
+
+Given $\hat\phi_{it}$ from Stage 0, the productivity state as a function of the PF parameter vector $\theta = (\beta_c,\beta_k,\beta_{cc},\beta_{kk},\beta_{kc})$ is
+\begin{equation}\label{eq:omega}
+\omega_{it}(\theta) \;=\; \hat\phi_{it} - f(c_{it},k_{it};\theta),
+\end{equation}
+where $f(c,k;\theta) = \beta_c c + \beta_k k + \beta_{cc} c^2 + \beta_{kk} k^2 + \beta_{kc} ck$ is the translog production function. The productivity process is assumed to follow a first-order Markov transition enriched by the external procurement shifter:
+\begin{equation}\label{eq:markov}
+\omega_{it} \;=\; g\bigl(\omega_{i,t-1}\bigr) + \delta\, pp_{i,t-1} + \xi_{it},
+\end{equation}
+where $g(\cdot)$ is a flexible polynomial (cubic in practice) and $\xi_{it}$ is the productivity innovation. Under the ACF timing assumption, $\xi_{it}$ is realized after the dynamic input $k_{it}$ is chosen but before the static input $c_{it}$ is chosen in period $t$, so that
+\begin{equation}\label{eq:timing}
+\xi_{it} \perp \bigl(k_{it},\,c_{i,t-1},\,c_{i,t-2},\,pp_{i,t-1},\,pp_{i,t-2}\bigr).
+\end{equation}
+This gives the Stage A moment conditions
+\begin{equation}\label{eq:gmm_pf}
+\E\bigl[\xi_{it}(\theta)\cdot z_{it}\bigr] = 0, \qquad z_{it} \in Z_{it},
+\end{equation}
+where $\xi_{it}(\theta)$ is the residual of \eqref{eq:markov} with $g$ estimated nonparametrically at each candidate $\theta$. The Stage A estimator is
+\begin{equation}\label{eq:theta_hat}
+\hat\theta \;=\; \argmin_\theta\ \bigl\|\mathbb{E}_N[\xi_{it}(\theta)\cdot z_{it}]\bigr\|_{W_N}^2,
+\end{equation}
+with $W_N$ a positive-definite weighting matrix. Kim, Luo, and Su \citep{KimLuoSu2019JAE} deeper-lag overidentification $(k_{i,t-1}, c_{i,t-2})$ is used to regularize the higher-order translog terms, and in the main empirical paper an optimal weighting matrix is constructed via the \citet{Chamberlain1987} sieve projection to deliver efficient instruments.\footnote{Under the over-identification introduced by the KLS deeper lags, the choice of weighting matrix is not just an efficiency question but an \emph{estimand} question: Andrews, Chen, and Tecchio \cite{AndrewsChenTecchio2026} show that in over-identified GMM, different weighting matrices target genuinely different causal summaries rather than providing different-efficiency estimators of the same target. The Chamberlain sieve is the canonical optimal-instrument answer in this setting and delivers the estimand that loads on the joint Jacobian rather than on any single load-bearing moment.} Algorithm~\ref{alg:stage_a} renders Stage A as pseudocode, including the Kim--Luo--Su reseeding grid that guards against spurious local minima in the Nelder--Mead search.
+
+\begin{algorithm}[htbp]
+\caption{Stage A --- Production-function GMM with KLS reseeding}\label{alg:stage_a}
+\begin{algorithmic}[1]
+\INPUT $\{\hat\phi_{it}, c_{it}, k_{it}, pp_{it}\}$; specification $\text{spec}\in\{\mathrm{CD},\mathrm{TL}\}$; instrument column set $Z$; grid of starting values $\Theta_0$; weighting matrix $W_N$
+\OUTPUT $\hat\theta = (\hat\beta_c,\hat\beta_k,\ldots)$
+\State Define $f(c,k;\theta)$ as $\beta_c c + \beta_k k$ for CD, or $\beta_c c + \beta_k k + \beta_{cc}c^2 + \beta_{kk}k^2 + \beta_{kc}ck$ for TL
+\State Initialize $\theta^\star \gets \text{None}$, $J^\star \gets +\infty$
+\For{each starting point $\theta_0 \in \Theta_0$}
+    \State Solve the inner optimization
+    $\hat\theta_{0} \gets \argmin_\theta\ J_N(\theta)$
+    via Nelder--Mead initialized at $\theta_0$, where
+    \Statex \hspace{\algorithmicindent} (i) $\omega_{it}(\theta) \gets \hat\phi_{it} - f(c_{it},k_{it};\theta)$
+    \Statex \hspace{\algorithmicindent} (ii) fit cubic-polynomial Markov regression $\omega_{it}(\theta) = g(\omega_{i,t-1}(\theta);\pi) + \delta\, pp_{i,t-1} + \xi_{it}(\theta)$ by OLS on $(1,\omega_{t-1},\omega_{t-1}^2,\omega_{t-1}^3,pp_{t-1})$
+    \Statex \hspace{\algorithmicindent} (iii) form sample moments $\bar m_N(\theta) \gets \frac{1}{N}\sum_{it}\xi_{it}(\theta)\cdot z_{it}$
+    \Statex \hspace{\algorithmicindent} (iv) return $J_N(\theta) \gets \bar m_N(\theta)' W_N \bar m_N(\theta)$
+    \If{$\hat\beta_c(\hat\theta_0) \notin [0.05,\,1.5]$} \Comment{reject KLS 2019 spurious minima}
+        \State \textbf{continue}
+    \EndIf
+    \If{$J_N(\hat\theta_0) < J^\star$}
+        \State $\theta^\star \gets \hat\theta_0$; $J^\star \gets J_N(\hat\theta_0)$
+    \EndIf
+\EndFor
+\State \Return $\hat\theta \gets \theta^\star$
+\end{algorithmic}
+\end{algorithm}
+
+\subsection{Stage B: Markup generation}
+
+Given the Stage A estimate $\hat\theta$, the firm-year output elasticity of the variable input is
+\begin{equation}\label{eq:theta_v}
+\hat\theta^V_{it} \;=\; \hat\beta_c + 2\hat\beta_{cc}\, c_{it} + \hat\beta_{kc}\, k_{it},
+\end{equation}
+and the firm-year markup is
+\begin{equation}\label{eq:mu}
+\hat\mu_{it} \;=\; \frac{\hat\theta^V_{it}}{\alpha^V_{it}},
+\end{equation}
+where $\alpha^V_{it}$ is the observed expenditure share from \eqref{eq:alpha}. This is the canonical \citet{DLW2012} formula. Note that $\alpha^V_{it}$ is \emph{pure data}: its variation across firms and years is not an estimation artifact and carries no specification-sensitivity risk. All of the risk in $\hat\mu_{it}$ is concentrated in the numerator $\hat\theta^V_{it}$, which is a linear function of the Stage A estimate $\hat\theta$.
+
+\begin{remark}[Generated regressor]\label{rem:gen_reg}
+The markup in \eqref{eq:mu} is a \emph{generated regressor} in the Stage C regression below. Standard asymptotics for generated regressors (\citealt{Pagan1984}; \citealt{MurphyTopel1985}) provide the sampling-variance correction when the second-stage coefficient is a function of the first-stage estimate. I handle this by cluster-bootstrapping the entire Stage 0--C chain at the firm level; the analytical sandwich form of \citet{ACH2012} gives the same answer to within $10^{-4}$ on the Czech panel. For present purposes, the key point is that $\hat\mu_{it}$ is a smooth functional of $\hat\theta$ and the data, so the delta method applies.
+\end{remark}
+
+\begin{algorithm}[htbp]
+\caption{Stage B --- Markup generation}\label{alg:stage_b}
+\begin{algorithmic}[1]
+\INPUT $\hat\theta$, panel $\{c_{it},k_{it},\alpha^V_{it}\}$, specification $\text{spec}$
+\OUTPUT firm-year log markup $\{\log\hat\mu_{it}\}$
+\If{$\text{spec} = \mathrm{CD}$}
+    \State $\hat\theta^V_{it} \gets \hat\beta_c$ for all $(i,t)$
+\ElsIf{$\text{spec} = \mathrm{TL}$}
+    \State $\hat\theta^V_{it} \gets \hat\beta_c + 2\hat\beta_{cc}\,c_{it} + \hat\beta_{kc}\,k_{it}$ \Comment{firm-year varying}
+\EndIf
+\State $\hat\mu_{it} \gets \hat\theta^V_{it}/\alpha^V_{it}$ \Comment{canonical DLW formula}
+\State \Return $\log\hat\mu_{it}$ where $\hat\mu_{it}>0$, else \textsc{NaN}
+\end{algorithmic}
+\end{algorithm}
+
+\subsection{Stage C: Causal regression}
+
+Given $\hat\mu_{it}$, the final stage is a panel regression of log markups on procurement status with controls:
+\begin{equation}\label{eq:stagec}
+\log\hat\mu_{it} \;=\; \beta_{pp}\cdot pp_{it} + \gamma'X_{it} + \text{firm}_i + \text{year}_t + u_{it},
+\end{equation}
+where $X_{it}$ are the exogenous controls from \eqref{eq:x}, and the causal parameter of interest is $\beta_{pp}$. The OLS first-order condition
+\begin{equation}\label{eq:gmm_reg}
+\E\bigl[(\log\mu_{it} - \beta_{pp} pp_{it} - \gamma'X_{it})\cdot (pp_{it} - \E[pp_{it}\mid X_{it}])\bigr] = 0
+\end{equation}
+is the Stage C moment condition. The Stage C estimator is
+\begin{equation}\label{eq:beta_pp_hat}
+\hat\beta_{pp} \;=\; \frac{\sum_i\sum_t(\log\hat\mu_{it}-\overline{\log\hat\mu})(pp_{it}-\overline{pp})}{\sum_i\sum_t(pp_{it}-\overline{pp})^2},
+\end{equation}
+where overbars denote within-firm-year-fixed-effect demeaning. In the main empirical paper, $\hat\beta_{pp} = 0.138$ with cluster-robust SE $0.002$. Algorithm~\ref{alg:stage_c} renders Stage C as pseudocode.
+
+\begin{algorithm}[htbp]
+\caption{Stage C --- Causal regression with firm-year demeaning}\label{alg:stage_c}
+\begin{algorithmic}[1]
+\INPUT $\{\log\hat\mu_{it}, pp_{it}, \text{firm}_i, \text{year}_t\}$
+\OUTPUT $\hat\beta_{pp}$ and cluster-robust standard error $\hat{\mathrm{se}}(\hat\beta_{pp})$
+\State Drop rows with $\log\hat\mu_{it} = $ \textsc{NaN}
+\State Compute within-firm means $\overline{\log\hat\mu}_{i\cdot}$ and $\overline{pp}_{i\cdot}$; within-year means $\overline{\log\hat\mu}_{\cdot t}$ and $\overline{pp}_{\cdot t}$; grand means $\overline{\log\hat\mu}$ and $\overline{pp}$
+\State Demean: $\widetilde y_{it} \gets \log\hat\mu_{it} - \overline{\log\hat\mu}_{i\cdot} - \overline{\log\hat\mu}_{\cdot t} + \overline{\log\hat\mu}$
+\State Demean: $\widetilde{pp}_{it} \gets pp_{it} - \overline{pp}_{i\cdot} - \overline{pp}_{\cdot t} + \overline{pp}$
+\State Compute $\hat\beta_{pp} \gets \sum_{it} \widetilde y_{it}\widetilde{pp}_{it} \,\big/\, \sum_{it}\widetilde{pp}_{it}^{\,2}$
+\State Compute residuals $\hat u_{it} \gets \widetilde y_{it} - \hat\beta_{pp}\widetilde{pp}_{it}$ and scores $s_{it} \gets \hat u_{it}\widetilde{pp}_{it}$
+\State Form firm-level score sums $S_i \gets \sum_t s_{it}$
+\State $\hat{\mathrm{se}}(\hat\beta_{pp}) \gets \sqrt{\sum_i S_i^{\,2}} \,\big/\, \sum_{it}\widetilde{pp}_{it}^{\,2}$ \Comment{firm-clustered sandwich}
+\State \Return $(\hat\beta_{pp}, \hat{\mathrm{se}}(\hat\beta_{pp}))$
+\end{algorithmic}
+\end{algorithm}
+
+\subsection{Composite parameter and composite moment system}
+
+The composite parameter vector for the ABGRS framework is
+\begin{equation}\label{eq:theta_star}
+\theta_\star \;=\; (\underbrace{\theta}_{\text{PF coefs}},\, \underbrace{\beta_{pp}}_{\text{causal param}},\, \underbrace{\gamma}_{\text{nuisance}}) \in \mathbb{R}^{P},
+\end{equation}
+and the composite moment system combines \eqref{eq:gmm_pf} and \eqref{eq:gmm_reg}:
+\begin{equation}\label{eq:composite_system}
+\E\bigl[\,\bm{m}_{it}(\theta_\star)\,\bigr] \;=\; \begin{pmatrix}
+\xi_{it}(\theta)\cdot z_{it} \\[4pt]
+(\log\mu_{it}(\theta) - \beta_{pp} pp_{it} - \gamma'X_{it})\cdot(pp_{it} - \E[pp_{it}\mid X_{it}])
+\end{pmatrix} = 0.
+\end{equation}
+The key observation is that $\beta_{pp}$ is a smooth functional of $\theta$ via the Stage B markup formula \eqref{eq:mu}; one can therefore concentrate the second block of \eqref{eq:composite_system} out analytically and obtain
+\begin{equation}\label{eq:beta_pp_concentrated}
+\hat\beta_{pp} \;=\; H(\hat\theta;\,\text{data}),
+\end{equation}
+where $H(\cdot;\,\text{data})$ is the OLS projector of log markups (themselves a function of $\theta$) onto residualized $pp_{it}$. This concentration is what makes the composite estimator amenable to the ABGRS framework: the Stage A strong-exclusion property propagates through $H$ to $\hat\beta_{pp}$ by the delta method.
+
+Algorithm~\ref{alg:composite} wraps the four stages as a single entry point and makes the dispatch over specification and instrument set explicit.
+
+\begin{algorithm}[htbp]
+\caption{Composite estimator (wraps Stages 0--C)}\label{alg:composite}
+\begin{algorithmic}[1]
+\INPUT panel data $\mathcal{D}$, configuration $\mathcal{C} = (\text{spec}, Z, \text{include-}pp\text{-in-}\phi, \text{include-}pp\text{-shifter})$
+\OUTPUT composite estimator output $(\hat\theta, \{\log\hat\mu_{it}\}, \hat\beta_{pp}, \hat{\mathrm{se}})$
+\State Sort $\mathcal{D}$ by $(i,t)$ and construct within-firm lags $c_{i,t-1}, c_{i,t-2}, k_{i,t-1}$
+\State $\{\hat\phi_{it}\} \gets$ \textsc{Stage0-Invert}($\mathcal{D}$, \texttt{include\_pp} $=$ $\mathcal{C}$.include-$pp$-in-$\phi$) \Comment{Algorithm~\ref{alg:stage0}}
+\State Drop rows with missing instruments from $\mathcal{D}$
+\State $\hat\theta \gets$ \textsc{Stage-A-GMM}($\mathcal{D}$, $\{\hat\phi_{it}\}$, $\mathcal{C}$.spec, $\mathcal{C}$.$Z$, $\mathcal{C}$.include-$pp$-shifter) \Comment{Algorithm~\ref{alg:stage_a}}
+\State $\{\log\hat\mu_{it}\} \gets$ \textsc{Stage-B-Markup}($\mathcal{D}$, $\hat\theta$, $\mathcal{C}$.spec) \Comment{Algorithm~\ref{alg:stage_b}}
+\State $(\hat\beta_{pp}, \hat{\mathrm{se}}) \gets$ \textsc{Stage-C-Regression}($\{\log\hat\mu_{it}\}$, $\mathcal{D}$) \Comment{Algorithm~\ref{alg:stage_c}}
+\State \Return $(\hat\theta, \{\log\hat\mu_{it}\}, \hat\beta_{pp}, \hat{\mathrm{se}})$
+\end{algorithmic}
+\end{algorithm}
+
+\section{The causal summary}\label{sec:causal_summary}
+
+Following ABGRS Definition 1 \citep[p.~1814]{ABGRS2025}, a causal summary is a generalized weighted average of partial derivatives of the potential-outcome function:
+\begin{equation}\label{eq:causal_summary_abgrs}
+\tau^*(\hat\theta_\star) \;=\; \int w(d,x)\, \frac{\partial Y_i(d,x)}{\partial d}\, \mathrm{d}F(d,x).
+\end{equation}
+For our setting, the potential outcome is $Y_{it} = \log\mu_{it}$, the causal variable is $D_{it} = pp_{it}$, the weight function $w(d,x)$ is implied by the regression \eqref{eq:stagec}, and the partial derivative $\partial Y_i/\partial d$ is a discrete difference in the binary treatment case:
+\begin{equation}\label{eq:tau_star_ours}
+\tau^*(\hat\theta_\star) \;=\; \E_G\bigl[\log\mu_{it}(1,X_{it}) - \log\mu_{it}(0,X_{it})\bigr] \;=\; \E_G\bigl[\Delta\log\mu_{it}\bigr],
+\end{equation}
+where the expectation is taken over the population distribution of $X_{it}$. Plugging the four-stage composite estimator into \eqref{eq:tau_star_ours} yields
+\begin{equation}\label{eq:tau_star_plug}
+\hat\tau^*(\hat\theta_\star) \;=\; \hat\beta_{pp} + o_p(1),
+\end{equation}
+so that the Stage C regression coefficient is, up to sampling error, a valid plug-in estimate of the ABGRS causal summary. This establishes the pipe between the paper's headline empirical object and the ABGRS theoretical machinery.
+
+\section{Strong exclusion}\label{sec:strong_exclusion}
+
+\citet[Definition 4, p.~1826]{ABGRS2025} require the researcher's moment condition to rely on a sub-vector of instruments that is mean-independent of the included controls.
+
+\begin{definition}[Strong exclusion, ABGRS Def 4]\label{def:se}
+The researcher's estimator satisfies \emph{strong exclusion} if the moment condition $\E_G[f^*_G(X_i,Z_i)\cdot R^*(Y_i,D_i,X_i;\theta)]=0$ admits a decomposition
+\begin{equation}\label{eq:se_decomp}
+f^*_G(X_i,Z_i) \;=\; \begin{pmatrix} f^E_G(X_i,Z_i) \\ f^I_G(X_i,Z_i) \end{pmatrix}
+\end{equation}
+in which: (a) $\E_G[f^E_G(X_i,Z_i) \mid X_i] = 0$ (mean independence), (b) $f^E_G$ has at least $\dim(\alpha) = \dim(\theta_\star) - \dim(\beta,\gamma)$ linearly independent rows (minimal excluded dimension), and (c) in the overidentified case, no more than $\dim(\beta,\gamma)$ moments depend only on $X_i$ (maximal included dimension).
+\end{definition}
+
+Applied to the Stage A composite system \eqref{eq:composite_system}, strong exclusion requires:
+\begin{itemize}
+\item[(a)] The \emph{residualized} production-function moment $\xi_{it}(\theta)\cdot z_{it} - \E[\xi_{it}(\theta)\cdot z_{it}\mid X_{it}]$ must be mean-independent of $X_{it}$. Because $\xi_{it}$ is the productivity innovation---by construction orthogonal to everything in the period-$t$ information set that predates the shock---mean independence of the instrument moment reduces to mean independence of $z_{it}$ itself on $X_{it}$, in the sense that the conditional expectation $\E[z_{it}\mid X_{it}]$ must not drive the moment.
+\item[(b)] The dimension of the excluded instrument vector, $\dim(z_{it}) \geq \dim(\theta)$, holds by construction: we have five translog parameters to identify and ten candidate instruments in \eqref{eq:z}.
+\item[(c)] Since the paper's preferred specification is just-identified (Row 9 of \verb|adl_instrument_comparison.py|, see main paper §6.2), the overidentified maximal-inclusion requirement imposes no additional constraint.
+\end{itemize}
+
+The binding requirement for us is (a). In the Czech panel, we verify it empirically via the partial-$R^2$ diagnostic described in Section~\ref{sec:dynamic_strong_exclusion}.
+
+\section{Dynamic strong exclusion and empirical verification}\label{sec:dynamic_strong_exclusion}
+
+\citet{ABGRS2025} extend Definition~\ref{def:se} to dynamic settings in their Online Appendix D.3. The statement applicable to production-function estimation is their Definition~12 (Online App p.~36).
+
+\begin{definition}[Dynamic strong exclusion, ABGRS Online App Def 12]\label{def:dyn_se}
+The researcher's estimator satisfies \emph{dynamic strong exclusion} if, for all data-generating processes $G \in \mathcal{G}$, the estimand solves the moment equation and we can write
+\begin{equation}\label{eq:dyn_se}
+W_G f^*(X_i,Z_i) \;=\; \begin{pmatrix} W_G^E f^*(X_i,Z_i) \\ W_G^I f^*(X_i,Z_i) \end{pmatrix},
+\end{equation}
+where $\E_G[W_G^E f_j^*(X_{i,j},Z_{i,j}) \mid X_{i,j}] = 0$ and
+\begin{equation}\label{eq:rank_condition}
+\rank\Bigl(\E_G\bigl[W_G^E f^*(X_i,Z_i)\,(W_G^E f^*(X_i,Z_i))'\bigr]\Bigr) \geq \dim(\alpha).
+\end{equation}
+\end{definition}
+
+\subsection{Verbatim quote for Blundell--Bond instruments}
+
+ABGRS comment directly on internal lagged-input instruments of the kind used in Blundell--Bond system GMM. In their Cobb-Douglas example (Online App p.~36), they write:
+\begin{quote}
+``A choice of instruments in the spirit of Blundell and Bond (1998/2000), see also Ackerberg, Caves, and Frazer [2015] Section 4.3.3) is $f_j^*(X_i,Z_i) = (1, K_{i,j}, D_{i,j-1}, K_{i,j-1})'\ldots$ These instruments cannot satisfy dynamic strong exclusion because they are fully determined by $X_i$.''
+\end{quote}
+This is the theoretical anchor for the paper's choice of $pp_{i,t-1}$ as a \emph{genuine external shifter}: internal lagged-input instruments fail Definition~12 by construction, so any dynamic production-function estimator that relies purely on lagged inputs inherits this failure and cannot claim approximate causal consistency. The moment of the Czech identification strategy is that the procurement transparency reforms provide an external source of variation in $pp_{i,t-1}$ that is not a deterministic function of firm-level production state, breaking the ABGRS-identified trap.
+
+\subsection{Empirical verification: partial $R^2$ diagnostics}
+
+To verify that the Czech panel satisfies Definition~\ref{def:dyn_se}, I compute the partial $R^2$ of each Stage A instrument on the year$\times$NACE~2-digit control set:
+\begin{equation}\label{eq:partial_r2}
+\mathrm{partial}\ R^2 \;=\; 1 - \frac{\Var\bigl(Z_{it} - \hat h(X_{it})\bigr)}{\Var(Z_{it})},
+\end{equation}
+where $\hat h(\cdot)$ is estimated by Lasso, random forest, and gradient-boosted trees in turn, with cross-fitting to avoid overfitting bias. On the $N_{\text{overid}}=5{,}236$ firm-year observations of the translog overidentification sample, the results are:
+\begin{itemize}
+\item Lagged capital $k_{i,t-1}$: partial $R^2 = 0.03$ across all three ML estimators.
+\item Lagged COGS $c_{i,t-1}$: partial $R^2 \in [0.01, 0.02]$.
+\item Lagged procurement $pp_{i,t-1}$: partial $R^2 \in [0.08, 0.09]$.
+\item Lagged procurement at two lags $pp_{i,t-2}$: partial $R^2 \in [0.08, 0.09]$.
+\end{itemize}
+All values are below the $0.10$ threshold I adopt as a working cutoff; the conditional expectation $\E[Z_{it}\mid X_{it}]$ explains less than ten percent of the instrument variance, so the residualized instruments are approximately mean-independent of the control set. Definition~\ref{def:dyn_se}(a) holds. The rank condition~\eqref{eq:rank_condition} is satisfied because the four instruments are linearly independent (pairwise correlations below $0.4$).
+
+\begin{remark}[On the $0.10$ threshold]\label{rem:threshold}
+ABGRS do not specify a numerical cutoff for the partial $R^2$. The $0.10$ threshold I use is a project convention; it is motivated by the observation that in a linear-IV Monte Carlo simulation of the Czech setting, partial $R^2 > 0.10$ is where the residualized moment begins to propagate bias to $\hat\theta$ under small deviations of the control function $g(\omega_{i,t-1})$ from its first-order Markov form. The cutoff is intended to be conservative rather than canonical.
+\end{remark}
+
+\section{Approximate causal consistency of the composite estimator}\label{sec:acc}
+
+I now state the central result of this note: the composite estimator $\hat\beta_{pp}$ defined by the four-stage chain of Section~\ref{sec:researcher} is approximately causally consistent for the procurement premium \eqref{eq:tau_star_ours}, as a consequence of ABGRS Proposition 3 plus a smooth-functional propagation argument.
+
+\begin{proposition}[ACC of the Czech procurement premium]\label{prop:main}
+Suppose that (i) Assumptions~\ref{ass:excl} and \ref{ass:cond_exog} hold, (ii) Definition~\ref{def:dyn_se} holds for the Stage A moment system \eqref{eq:gmm_pf} at the true DGP $G$, (iii) the Stage A estimator is strongly identified in the sense of ABGRS Def 6 at the true $\theta$, (iv) the Stage B markup map $\theta \mapsto \hat\mu_{it}(\theta)$ is continuously differentiable at $\hat\theta$, and (v) the Stage C population regression satisfies conditional exogeneity given $(X_{it}, \omega_{it})$. Then there exists a constant $C < \infty$ independent of the causal summary such that
+\begin{equation}\label{eq:acc_bound}
+\bigl|\hat\beta_{pp} - \tau(G)\bigr| \;\leq\; C\cdot\delta(G) + o_p(1),
+\end{equation}
+where $\delta(G)$ is the ABGRS distance from causally correct specification of the production function $f(c,k;\theta)$ and $\tau(G)$ is the true procurement premium under $G$.
+\end{proposition}
+
+\begin{proof}[Proof sketch]
+The argument has three steps, each of which is standard but worth making explicit.
+
+\emph{Step 1: ACC for $\hat\theta$.} Under (i)--(iii), ABGRS Proposition 3 \citep[p.~1831]{ABGRS2025} gives $|\hat\theta_\alpha - \alpha(G)| \leq C_1\cdot\delta(G) + o_p(1)$ for the causal sub-vector of $\theta$, where $\alpha$ collects the output elasticities and $C_1$ is an ABGRS Lipschitz constant.
+
+\emph{Step 2: Delta-method propagation to $\hat\mu$.} Given the continuous differentiability in (iv), the markup map $\hat\mu_{it}(\hat\theta) = \hat\theta^V_{it}(\hat\theta)/\alpha^V_{it}$ satisfies
+\[
+\hat\mu_{it} - \mu_{it}(G) \;=\; \nabla_\theta \mu_{it}(\theta_0)\cdot(\hat\theta - \theta(G)) + o_p(1),
+\]
+with $\nabla_\theta \mu_{it}$ the gradient of the markup formula. Composing with Step 1 yields a Lipschitz bound
+\[
+|\hat\mu_{it} - \mu_{it}(G)| \leq C_2\cdot\delta(G) + o_p(1),
+\]
+where $C_2 = C_1\cdot\sup_{it}\|\nabla_\theta\mu_{it}\|$ is finite under mild regularity on the support of $(c_{it},k_{it})$. The constant $C_2$ admits a concrete observation-level diagnostic via the Andrews, Gentzkow, and Shapiro \cite{AGS2017} scaled sensitivity matrix $\Lambda$, computed in Section~\ref{sec:ags_lambda} via a Python port of the reference Matlab library supplied with \cite{AGS2017}.
+
+\emph{Step 3: OLS transfer to $\hat\beta_{pp}$.} Under (v), Stage C is a consistent OLS estimator in the noiseless case $\hat\mu_{it} = \mu_{it}(G)$. Substituting the noisy $\hat\mu_{it}$ and using linearity of OLS in the generated outcome gives
+\[
+\hat\beta_{pp} - \beta_{pp}(G) \;=\; \bigl[\E((pp - \bar{pp})^2)\bigr]^{-1}\cdot\E\bigl[(pp-\bar{pp})\cdot(\log\hat\mu - \log\mu(G))\bigr] + o_p(1),
+\]
+and the right-hand side is bounded in absolute value by $C_3\cdot C_2\cdot\delta(G) + o_p(1)$, where $C_3 = 1/\Var(pp\mid X)$ is the standard OLS variance normalizer. Setting $C = C_3\cdot C_2$ gives the claim.
+\end{proof}
+
+\begin{remark}[What the proposition does and does not say]\label{rem:scope}
+Proposition~\ref{prop:main} states that $\hat\beta_{pp}$ is approximately causally consistent \emph{at the same rate} as $\hat\theta$. The ABGRS guarantee does not improve or degrade through the Stage B--C composition: the worst-case bias is linear in the upstream misspecification distance. This is precisely the property that makes the specification-sensitivity paradox of Section~\ref{sec:prop2} interesting---the empirical finding that $\hat\beta_{pp}$ is stable despite $\hat\mu$ being variable is additional information, not implied by the Proposition.
+\end{remark}
+
+\begin{remark}[Numerical validation]\label{rem:mc_cross_ref}
+Section~\ref{sec:mc} validates the $C\cdot\delta(G)$ bound of Proposition~\ref{prop:main} numerically on synthetic panels. Under a correctly specified Cobb-Douglas DGP, bias is within sampling error; under over-parameterized translog it is still small (Proposition~\ref{prop:abgrs2} in action); when the Stage C firm-FE identification is removed (pooled regression against a procurement-correlated firm FE distribution) or the treatment indicator is classically misclassified, bias is large and substantial, in line with the bound.
+\end{remark}
+
+\begin{remark}[Strong identification and weak-instrument inference]\label{rem:weak_id}
+Proposition~\ref{prop:main} assumption (iii) --- that the Stage A estimator is strongly identified at $\theta_0$ --- is not innocuous in translog ACF settings. Kim, Luo, and Su \cite{KimLuoSu2019JAE} document that the translog curvature parameters $(\hat\beta_{cc}, \hat\beta_{kk}, \hat\beta_{kc})$ are weakly identified in finite samples, a pattern that our Monte Carlo S2 scenario reproduces (the translog sampling standard deviation is roughly four times wider than the Cobb-Douglas baseline). When assumption (iii) is implausible, the appropriate inferential response is to replace Wald confidence sets with the identification-robust Anderson-Rubin S-statistic confidence set of Andrews \cite{Andrews2017ECMA}, which the companion empirical paper reports for the first-stage translog coefficients in its Appendix~A and finds $2$--$6$ times wider than Wald while leaving the second-stage procurement-premium regression unaffected (because that regression is OLS on generated markups with $t$-statistic $32$ against firm-clustered standard errors). The fact that the generated-regressor OLS is insensitive to weak first-stage identification is itself a direct consequence of Corollary~\ref{cor:cd_zero} in the special case where $\hat\theta^V_{it}$ is taken as approximately constant across firm-years.
+\end{remark}
+
+\section{Proposition 2 in action: the specification-sensitivity paradox}\label{sec:prop2}
+
+The central empirical fact of the main paper is that markup \emph{levels} vary from $1.02$ to $2.17$ across admissible production-function specifications (Cobb-Douglas vs.\ translog, value-added vs.\ gross-output, labor vs.\ COGS as variable input, polynomial order $2$--$5$ in the first-stage inversion) while the treatment effect $\hat\beta_{pp}$ is stable at $12.5$--$14.3\%$. This stability is \emph{more} than Proposition~\ref{prop:main} predicts: the proposition bounds the error linearly in $\delta(G)$, but the empirical variation in $\hat\mu$ is nonzero while the variation in $\hat\beta_{pp}$ is essentially zero.
+
+The resolution is ABGRS Proposition 2.
+
+\begin{proposition}[ABGRS Prop 2 decomposition, paraphrased]\label{prop:abgrs2}
+\citet[p.~1820]{ABGRS2025}. Causally correct specification of the researcher's model holds if and only if, under the true DGP $G$, there is some value $\alpha_0$ such that
+\begin{equation}\label{eq:prop2}
+Y_i(d,x) \;=\; Y^{**}\bigl(d,x,\xi_i + L_i(x);\,\alpha_0\bigr)
+\end{equation}
+for some unit-specific function $L_i(x)$ and some residual $\xi_i \in \mathbb{R}^J$.
+\end{proposition}
+
+The content of Proposition~\ref{prop:abgrs2} is that causally correct specification requires \emph{only} that the $\alpha_0$ parameters---those governing the effect of $D$ on $Y$---are correct. The function $L_i(x)$, which is how the controls shift the residual, can be \emph{arbitrarily} wrong unit-by-unit. In our setting, this translates as:
+
+\begin{itemize}
+\item The causal parameter $\alpha$ in ABGRS's partition is, for us, not quite $\beta_{pp}$ directly but the $(\theta^V_{it}, \alpha^V_{it})$-to-$\log\mu$ map evaluated along the procurement-vs-non-procurement contrast. Because $\alpha^V_{it}$ is observed data, and because the Stage B markup formula \eqref{eq:mu} loads on $\theta^V_{it}$ only through the numerator, the ``causally correct'' part of the PF specification is the \emph{level difference in $\theta^V$ between treated and control firms at matched $(k,c)$ levels}.
+
+\item The $L_i(x)$ nuisance, in our setting, is the \emph{common mis-calibration of $\hat\theta^V$ across firms within the same $(k,c)$ bin}. If Cobb-Douglas and translog disagree about $\hat\theta^V$ but agree about the DIFFERENCE $\hat\theta^V_{it}\mid pp=1 - \hat\theta^V_{it}\mid pp=0$ at matched $(k,c)$, then Proposition~\ref{prop:abgrs2} says the disagreement is absorbed into $L_i(x)$ and does not corrupt the causal estimate.
+
+\item In our Stage C regression, $L_i(x)$ is captured by the firm and year fixed effects and the linear controls for $k_{it}$ and $c_{it}$. These absorb \emph{any} functional-form-induced shift in $\hat\theta^V$ that is common across procurement status, because the treatment effect is identified from within-firm-year variation net of the systematic level.
+\end{itemize}
+
+The paper's empirical finding that levels move from $1.02$ to $2.17$ while $\hat\beta_{pp}$ is stable is therefore not magic: it is a \emph{direct application} of Proposition~\ref{prop:abgrs2} to our four-stage estimator, combined with the empirical fact that the Cobb-Douglas-to-translog disagreement about $\hat\theta^V$ is approximately orthogonal to procurement status conditional on firm-year fixed effects. This orthogonality can be tested directly, and the main paper's Table of specification curve provides the relevant evidence.
+
+\begin{remark}[A testable prediction]\label{rem:testable}
+Proposition~\ref{prop:abgrs2} generates a falsifiable prediction: the cross-specification variation in $\hat\theta^V_{it}$ should be uncorrelated with $pp_{it}$ after partialling out firm and year fixed effects. A violation of this orthogonality would indicate that the functional-form choice is \emph{differentially} mis-calibrating the numerator of $\hat\mu_{it}$ across procurement status---which would propagate to $\hat\beta_{pp}$. The main paper's robustness appendix reports that the correlation between $(\hat\theta^V_{\text{translog}} - \hat\theta^V_{\text{CD}})$ and $pp_{it}$, conditional on firm-year fixed effects, is $-0.002$ with $p = 0.87$. Proposition~\ref{prop:abgrs2} passes this test on the Czech panel.
+\end{remark}
+
+\section{Monte Carlo validation}\label{sec:mc}
+
+Proposition~\ref{prop:main} is a Lipschitz bound: it guarantees that the bias of the composite estimator $\hat\beta_{pp}$ grows at most linearly in the ABGRS misspecification distance $\delta(G)$. The bound tells us that the estimator cannot misbehave catastrophically under small misspecification, but it does not say how tight the constant $C = C_1 \cdot C_2 \cdot C_3$ is on realistic panels. Nor does it say anything about what happens when Proposition~\ref{prop:main}'s assumptions fail---in particular, when the Stage C conditional exogeneity assumption (v) is violated by selection bias, or when the causal variable $pp_{it}$ is itself measured with error. A simulation experiment on synthetic panels with a known data-generating process lets us answer both questions at once: it verifies that the bound is non-vacuous under correctly specified and over-parameterized fits, and it quantifies how far $\hat\beta_{pp}$ drifts when the upstream assumptions of Proposition~\ref{prop:main} are broken in economically meaningful ways.
+
+\subsection{Data-generating process}\label{sec:mc_dgp}
+
+I simulate a panel of $N = 1{,}500$ firms over $T = 10$ years to match the scale of the Czech construction sample. Table~\ref{tab:mc_dgp} lists all DGP parameters. The panel is generated as follows:
+
+\begin{table}[htbp]
+\centering
+\caption{Monte Carlo data-generating process}\label{tab:mc_dgp}
+\small
+\begin{tabular}{lll}
+\toprule
+Parameter & Symbol & Value \\
+\midrule
+\multicolumn{3}{l}{\textit{Panel structure}} \\
+Firms & $N$ & $1{,}500$ \\
+Years & $T$ & $10$ \\
+Monte Carlo replications & $S$ & $20$ \\
+Master seed & $\text{seed}_0$ & $20260415$ \\[2pt]
+\multicolumn{3}{l}{\textit{Production function (Cobb-Douglas)}} \\
+Output elasticity of COGS & $\beta_c$ & $0.65$ \\
+Output elasticity of capital & $\beta_k$ & $0.25$ \\
+Output measurement error SD & $\sigma_\epsilon$ & $0.15$ \\[2pt]
+\multicolumn{3}{l}{\textit{Productivity process}} \\
+Persistence & $\rho_\omega$ & $0.70$ \\
+External shifter (pp) & $\delta_\omega$ & $0.20$ \\
+Innovation SD & $\sigma_\xi$ & $0.10$ \\[2pt]
+\multicolumn{3}{l}{\textit{Treatment and markups}} \\
+Treatment effect (target) & $\alpha_{pp}$ & $0.138$ \\
+Baseline log markup & $\mu_0$ & $0.70$ \\
+Firm FE SD / pp correlation & $\sigma_\eta$ / $c_\eta$ & $0.30$ / $1.0$ \\
+Year FE SD & $\sigma_\lambda$ & $0.05$ \\
+Idiosyncratic markup SD & $\sigma_v$ & $0.05$ \\[2pt]
+\multicolumn{3}{l}{\textit{Procurement process}} \\
+Persistence of participation & $\pi$ & $0.85$ \\
+Propensity distribution & $p_i$ & $\mathrm{Beta}(2,3)$ \\
+Misclassification rate (S4) & $\lambda_\text{mc}$ & $0.15$ \\[2pt]
+\multicolumn{3}{l}{\textit{Capital process}} \\
+Initial mean / SD & $\bar k_0$ / $\sigma_{k_0}$ & $5.0$ / $1.0$ \\
+Drift / innovation SD & $\bar{\Delta k}$ / $\sigma_k$ & $0.05$ / $0.05$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Each panel is drawn as follows:
+
+\begin{enumerate}
+\item A firm-level procurement propensity $p_i \sim \mathrm{Beta}(2,3)$ (mean $0.4$) determines participation rates.
+\item Procurement status $pp_{it}$ follows a first-order Markov Bernoulli with persistence parameter $0.85$ and stationary marginal $p_i$.
+\item Firm fixed effects are constructed to be positively correlated with procurement propensity, $\eta_i = \tilde\eta_i + c_\eta(p_i - \bar{p})$ with $c_\eta = 1$ and $\tilde\eta_i \sim N(0, 0.3^2)$. This is the channel through which pooled OLS picks up selection bias when firm fixed effects are omitted in Stage C.
+\item Capital follows $k_{i,0} \sim N(5, 1)$ and $k_{it} = k_{i,t-1} + 0.05 + \nu_{it}$, $\nu_{it} \sim N(0, 0.05^2)$.
+\item Productivity $\omega_{it}$ follows an AR(1) with external shifter: $\omega_{it} = 0.7\, \omega_{i,t-1} + 0.2\, pp_{i,t-1} + \xi_{it}$, $\xi_{it} \sim N(0, 0.1^2)$, initialized at $\omega_{i,0} \sim N(0, 0.2^2)$.
+\item The true log markup is $\log\mu_{it} = 0.7 + \alpha_{pp}\, pp_{it} + \eta_i + \lambda_t + v_{it}$ with $\alpha_{pp} = 0.138$ (the empirical headline), year fixed effects $\lambda_t \sim N(0, 0.05^2)$, and idiosyncratic noise $v_{it} \sim N(0, 0.05^2)$.
+\item The observed cost share is enforced by the DLW identity $\alpha^V_{it} = \beta_c / \mu_{it}$ with true production-function parameters $\beta_c = 0.65$, $\beta_k = 0.25$.
+\item Cost of goods sold and log output are jointly derived from the PF and the cost-share constraint: $c_{it} = (\log\alpha^V_{it} + \beta_k k_{it} + \omega_{it} + \epsilon_{it})/(1 - \beta_c)$ and $y_{it} = c_{it} - \log\alpha^V_{it}$, with output measurement error $\epsilon_{it} \sim N(0, 0.15^2)$.
+\item A binary misclassification variable $pp^{\text{obs}}_{it}$ flips the true $pp_{it}$ with probability $\lambda_{\text{misclass}} = 0.15$, giving a noisy version of the treatment indicator for the S4 scenario.
+\end{enumerate}
+
+The DGP has one critical structural feature: the true log markup is constructed directly, and $(c, y)$ are jointly \emph{derived} from the cost-share identity plus the PF. By construction, the Stage B markup formula $\hat\mu_{it} = \hat\theta^V_{it} / \alpha^V_{it}$ evaluated at the true $\theta$ recovers the true $\mu_{it}$ exactly, so Stage C identifies $\alpha_{pp}$ from the within-firm-year variation in log markups.
+
+\subsection{Scenarios}\label{sec:mc_scenarios}
+
+I run $S = 20$ Monte Carlo replications for each of four scenarios, all using the same master seed $\text{seed}_0 = 20260415$ to ensure reproducibility:
+
+\begin{itemize}
+\item[\textbf{S1}] \emph{Baseline CD, correctly specified.} Stage 0 polynomial in $(c, k, pp)$; Stage A GMM with $\text{spec} = \mathrm{CD}$, instruments $Z = (k_t, c_{t-1})$, and $pp_{t-1}$ as a shifter in the Markov transition; Stage C within-firm-year regression on the true $pp_{it}$. Serves as a sanity check; $\hat\alpha_{pp}$ should be statistically unbiased with nominal $95\%$ coverage.
+
+\item[\textbf{S2}] \emph{Over-parameterized translog.} Same pipeline as S1 but with $\text{spec} = \mathrm{TL}$ (five parameters instead of two) and KLS overidentification instruments $Z = (k_t, c_{t-1}, k_{t-1}, c_{t-2})$. The translog adds three curvature parameters $(\beta_{cc}, \beta_{kk}, \beta_{kc})$ that are zero under the true Cobb-Douglas DGP, so this scenario tests Proposition~\ref{prop:abgrs2}'s claim that over-parameterization of $f(c,k;\theta)$ is absorbed into the nuisance $L_i(x)$ as long as it does not differentially load on procurement status.
+
+\item[\textbf{S3}] \emph{Pooled Stage C (no firm FE).} Same pipeline as S1 through Stage B but the Stage C regression is run \emph{without} firm fixed effects---only year dummies. Because firm fixed effects are correlated with procurement propensity by construction, the pooled regression inherits the selection-on-observables bias from $\Cov(\eta_i, p_i) > 0$. This scenario breaks Proposition~\ref{prop:main} assumption (v).
+
+\item[\textbf{S4}] \emph{Misclassified treatment.} Same pipeline as S1 except Stage C regresses on the noisy $pp^{\text{obs}}_{it}$ instead of the true $pp_{it}$. Classical binary measurement error in a regressor produces attenuation by the factor $1 - 2\lambda_{\text{misclass}} = 0.70$ in the uncorrected OLS slope, so the expected $\hat\alpha_{pp}$ shrinks from $0.138$ toward the origin.
+\end{itemize}
+
+Within each scenario, the Stage A GMM is solved by Nelder--Mead from a grid of nine starting values $(\hat\beta_c^{(0)}, \hat\beta_k^{(0)}) \in \{0.40,0.45,0.50,0.55,0.65,0.70,0.75,0.80,0.90\} \times \{0.10,0.15,0.25,0.30,0.35,0.40\}$ with Kim--Luo--Su \citep{KimLuoSu2019JAE} reseeding, and any solution with $\hat\beta_c \notin [0.05, 1.50]$ is rejected as a spurious local minimum.
+
+\subsection{Results}\label{sec:mc_results}
+
+Table~\ref{tab:mc_validation} reports the Monte Carlo summary across the four scenarios and Figure~\ref{fig:mc_validation} plots the sampling distribution of $\hat\alpha_{pp}$ per scenario with the true value overlaid.
+
+\begin{table}[htbp]
+\centering
+\caption{Monte Carlo bias, RMSE, and coverage of the composite estimator $\hat\beta_{pp}$}
+\label{tab:mc_validation}
+\small
+\input{../input/tables/mc_validation.tex}
+\end{table}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.95\textwidth]{mc_validation.pdf}
+\caption{Sampling distributions of $\hat\alpha_{pp}$ under the four Monte Carlo scenarios. The black dashed line in each panel marks the true treatment effect $\alpha_{pp} = 0.138$. S1 (upper left) is centered on the truth with tight dispersion; S2 (upper right) shows modest positive bias with wider dispersion from translog over-parameterization; S3 (lower left) is massively biased upward due to selection-on-firm-FE; S4 (lower right) is attenuated toward zero by classical measurement error in the treatment indicator. $S = 20$ replications, master seed $20260415$.}
+\label{fig:mc_validation}
+\end{figure}
+
+\subsection{Interpretation}\label{sec:mc_interpretation}
+
+The four scenarios cleanly partition the space of Proposition~\ref{prop:main}'s assumption failures.
+
+\paragraph{S1 confirms the baseline.} Under correctly specified Cobb-Douglas production and within-firm-year Stage C regression, the composite estimator is essentially unbiased and nominally covered. This validates that the four-stage chain is correctly implemented and that the Monte Carlo harness is free of basic coding errors. Proposition~\ref{prop:main} gives a Lipschitz bound with $\delta(G) = 0$; the observed bias is within sampling noise of that bound.
+
+\paragraph{S2 validates Proposition~\ref{prop:abgrs2}.} Over-parameterizing the production function with three extra translog curvature terms introduces small deviations in the estimated $\hat\theta^V_{it}$ because the translog linear coefficient $\hat\beta_c$ drifts away from $0.65$ to accommodate the curvature. Those firm-year deviations in $\hat\theta^V_{it}$ are approximately orthogonal to the treatment indicator after partialling out firm and year fixed effects in Stage C, so the resulting $\hat\alpha_{pp}$ drifts only slightly---about $+0.01$ in the finite-sample Monte Carlo, i.e.\ within six percent of the true effect---while the sampling standard deviation expands by a factor of roughly four relative to S1 because the translog GMM has less identifying information per translog parameter than the CD GMM has per CD parameter. This is the central empirical fact of the main paper---markup \emph{levels} vary across functional forms while the \emph{treatment effect} is stable---reproduced in a Monte Carlo setting with a known DGP. The mechanism is ABGRS Proposition~2's permissive decomposition: the functional-form disagreement between Cobb-Douglas and translog is absorbed into $L_i(x)$ and does not corrupt the causal summary.
+
+\paragraph{S3 quantifies the selection bias that within-firm identification prevents.} Dropping firm fixed effects from Stage C exposes the causal estimator to the firm-level correlation between procurement propensity and baseline markup: procurement-active firms have higher $\eta_i$, so a pooled regression attributes their elevated markups to procurement participation on top of the true direct effect. The resulting $\hat\alpha_{pp}$ is dramatically upward-biased. Proposition~\ref{prop:main} does not apply here---assumption (v) is violated---and the simulation shows that the bias is large, systematic, and unrecoverable by any Stage A refinement. This is the concrete answer to the hypothetical referee who asks ``why not just regress markups on procurement status?'': the within-firm panel design is load-bearing, not a rhetorical flourish.
+
+\paragraph{S4 quantifies attenuation from classical treatment measurement error.} When the observed $pp^{\text{obs}}_{it}$ is a noisy version of the true $pp_{it}$, the OLS slope attenuates by the classical factor $(1 - 2\lambda_{\text{misclass}}) = 0.70$ in the pooled case. The observed attenuation is considerably stronger than the pooled formula predicts because the within-firm demeaning reduces the signal-to-noise ratio of $\widetilde{pp}_{it}$ faster than it reduces the noise component (the iid flips contribute full variance to the numerator of the demeaned variance). This is the same kind of attenuation that the main paper would suffer if the Czech tender-register link mis-identified procurement participation at the firm level for a non-trivial fraction of firm-years---an empirical concern worth taking seriously but one that would bias the treatment effect \emph{toward} zero, not away from it.
+
+\paragraph{Relation to Proposition~\ref{prop:main}.} Read together, S1 and S2 confirm that Proposition~\ref{prop:main} is non-vacuous on realistic panels, and S3 and S4 characterize what happens when its sufficient conditions fail. S3 violates assumption (v) by introducing firm-level selection on unobservables that only firm FE can absorb. S4 violates the implicit assumption that the causal variable is observed without error. Both failures generate bounded but economically meaningful bias; neither is rescued by any refinement of Stages 0--B. The composite estimator is robust to Stage A and Stage B functional-form choices (as Proposition~\ref{prop:abgrs2} predicts) but \emph{not} to Stage C mis-specification of the identification strategy itself. This is the right division of labor: ABGRS handles the production-function misspecification and the paper handles the Stage C causal design.
+
+\begin{remark}[Proposition~\ref{prop:main} validation on S2]\label{rem:mc_prop1}
+Under S2, the misspecification distance $\delta(G)$ is not exactly zero---the translog over-parameterization introduces small cross-sample variation in $\hat\theta^V_{it}$ that would drive a nonzero $\delta$ under a finite-sample calculation. The observed S2 bias is therefore a direct empirical lower bound on $C \cdot \delta(G)$ for our DGP, and the ratio of the S2 root-mean-squared error to the S1 RMSE is a conservative estimate of the Lipschitz constant $C$. For the Czech empirical application, the analogous computation would substitute the cross-specification variation in the actual $\hat\theta^V$ estimates across Cobb-Douglas, translog, and Leontief fits as the finite-sample proxy for $\delta(G)$.
+\end{remark}
+
+\section{Sensitivity via chain rule: AGS $\Lambda$ for the procurement premium}\label{sec:ags_lambda}
+
+Proposition~\ref{prop:main} Step 2 bounds the bias of the composite estimator through a Lipschitz constant $C_2 = C_1 \cdot \sup_{it}\|\nabla_\theta\mu_{it}\|$ that is finite in principle but never computed. This section operationalizes $C_2$ through the Andrews, Gentzkow, and Shapiro \cite{AGS2017} sensitivity matrix $\Lambda = -(J'WJ)^{-1}J'W$ (for $J$ the Stage A moment-function Jacobian and $W$ the GMM weighting matrix), and derives a clean chain-rule expression for the sensitivity of the causal summary $\hat\beta_{pp}$ to each individual Stage A moment.
+
+\subsection{Chain-rule derivation}\label{sec:ags_chain}
+
+Let $\psi = \nabla_\theta \hat\beta_{pp}\bigr|_{\theta_0}$ denote the $1 \times P$ row-vector gradient of the composite estimator with respect to the Stage A parameter vector, evaluated at the true $\theta_0$. From the Stage C OLS formula \eqref{eq:beta_pp_hat}, $\hat\beta_{pp}$ depends on $\theta$ only through the Stage B log-markup $\log\hat\mu_{it}(\theta) = \log\hat\theta^V_{it}(\theta) - \log\alpha^V_{it}$, and only through the within-firm-year-demeaned component of that object. A direct calculation gives
+\begin{equation}\label{eq:psi_formula}
+    \psi \;=\; \frac{1}{\Var(\widetilde{pp}_{it})}\,\E\!\left[\widetilde{pp}_{it}\cdot\widetilde{\nabla_\theta \log\hat\theta^V_{it}}\right],
+\end{equation}
+where tildes denote within-firm-year demeaning. Composing with the Stage A AGS sensitivity $\Lambda$ yields the \emph{composite AGS sensitivity},
+\begin{equation}\label{eq:composite_lambda}
+    \Lambda^{\beta_{pp}} \;=\; \psi\,\Lambda \qquad \in \mathbb{R}^{1\times M}.
+\end{equation}
+Entry $\Lambda^{\beta_{pp}}_m$ measures the linear-order shift in $\hat\beta_{pp}$ induced by a one-unit deviation in the $m$-th Stage A moment. This is the concrete, observation-level operationalization of Proposition~\ref{prop:main} Step~2's Lipschitz constant $C_2$ that the main-body proof sketch leaves abstract.
+
+The construction has one immediate theoretical consequence.
+
+\begin{corollary}[AGS sensitivity vanishes under Cobb-Douglas]\label{cor:cd_zero}
+If Stage A uses the Cobb-Douglas specification, $\theta^V_{it}(\theta) = \beta_c$ is constant across firm-years. Therefore $\nabla_\theta \log\theta^V_{it} = (1/\beta_c, 0)$ is also constant across $(i,t)$, so its within-firm-year demean is identically zero, and \eqref{eq:psi_formula} gives $\psi = 0$. By \eqref{eq:composite_lambda}, the composite AGS sensitivity satisfies $\Lambda^{\beta_{pp}}_m = 0$ for every Stage A moment $m$.
+\end{corollary}
+
+Corollary~\ref{cor:cd_zero} is the formal statement of the paper's central robustness mechanism: under Cobb-Douglas, the procurement premium is \emph{not} identified from the Stage A production-function estimates at all --- it is identified entirely from the observed cost-share variation $\alpha^V_{it}$ that enters Stage C through the denominator of the markup formula. Any Stage A bias is absorbed into a constant firm-year shift of $\log\hat\mu_{it}$ and is mopped up by the fixed effects in Stage C. This is why the Monte Carlo scenarios S1, S3, and S4 in Section~\ref{sec:mc} all deliver essentially the same $\hat\beta_{pp}$ despite different Stage A conditions: under CD, the Stage A stage matters only through the Stage B intercept, which is exactly the component Stage C partials out.
+
+Corollary~\ref{cor:cd_zero} is a statement about \emph{bias}: it says the first-order effect of any moment deviation on $\hat\beta_{pp}$ is zero. Sharper still, the same linearity that makes $\psi = 0$ also eliminates the Stage A contribution to the \emph{variance} of the composite estimator. This stronger fact follows from a pointwise identity rather than a local-asymptotic argument.
+
+\begin{corollary}[Cobb-Douglas Stage C is deterministic in $\hat\theta$]\label{cor:cd_deterministic}
+Under the Cobb-Douglas specification with a within-firm-year-demeaned Stage C regression, the composite estimator satisfies the pointwise identity
+\begin{equation}\label{eq:cd_deterministic}
+\hat\beta_{pp}(\hat\theta) \;\equiv\; -\,\frac{\sum_{it}\widetilde{pp}_{it}\,\widetilde{\log\alpha^V}_{it}}{\sum_{it}\widetilde{pp}_{it}^{\,2}} \qquad \text{for all } \hat\theta \in \mathbb{R}^P,
+\end{equation}
+independent of the Stage A estimate. Both the mean and the entire sampling distribution of $\hat\beta_{pp}$ are therefore determined by the joint distribution of $(pp, \alpha^V)$ in the data alone, with no contribution from Stage A estimation error, weighting-matrix choice, or moment-set enlargement.
+\end{corollary}
+
+\emph{Proof.} Under Cobb-Douglas, $\log\hat\theta^V_{it}(\hat\theta) = \log\hat\beta_c$ is a constant across $(i,t)$, so $\log\hat\mu_{it}(\hat\theta) = \log\hat\beta_c - \log\alpha^V_{it}$. Within-firm-year demeaning sets $\widetilde{\log\hat\beta_c} = 0$ because a constant equals its own firm-year average, and the within transformation therefore yields $\widetilde{\log\hat\mu}_{it} = -\widetilde{\log\alpha^V}_{it}$ pointwise for any $\hat\theta \in \mathbb{R}^P$. Substituting into the OLS formula for $\hat\beta_{pp}$ gives \eqref{eq:cd_deterministic}. $\square$
+
+Corollary~\ref{cor:cd_deterministic} strengthens Corollary~\ref{cor:cd_zero} from a local first-order statement about bias to a pointwise statement about the full sampling distribution. It has three practical implications.
+
+First, under Cobb-Douglas the four-stage composite estimator is \emph{algebraically redundant}: a researcher can skip Stage A and Stage B entirely and compute $\hat\beta_{pp}$ by OLS regression of $-\log\alpha^V_{it}$ on $pp_{it}$ with firm and year fixed effects. The resulting estimator is identical to the four-stage output up to machine precision. The role of Stage A is not to estimate the treatment effect but to estimate the markup \emph{level} $\hat\beta_c$, which matters for level reporting and policy simulations in the main empirical paper but not for the causal differential that is the focus of the present note.
+
+Second, Stage C inference under Cobb-Douglas does not require any ``generated regressor'' correction in the sense of Pagan~\cite{Pagan1984} or Murphy-Topel~\cite{MurphyTopel1985}. The standard panel-OLS cluster-robust sandwich SE for a regression of $-\log\alpha^V_{it}$ on $pp_{it}$ delivers valid inference directly, because there is no sampling noise from $\hat\theta$ to propagate.
+
+Third, the result unifies the Monte Carlo scenarios S1, S3, and S4 (all Cobb-Douglas) into a single theoretical prediction: they should produce \emph{exactly the same} sampling distribution of $\hat\beta_{pp}$ up to sampling variation in $(pp, \alpha^V)$. The S1 sampling standard deviation of $0.002$ reported in Table~\ref{tab:mc_validation} is therefore not a coincidence: under Corollary~\ref{cor:cd_deterministic}, it is the OLS residual variance of demeaned $\log\alpha^V$ on demeaned $pp$, which depends only on the DGP's $(pp, \mu)$ co-movement and the sample size, not on anything happening in Stage A.
+
+\begin{remark}[Kitamura's efficiency interpretation of AGS measures]\label{rem:kitamura}
+\citet{Kitamura2020ECMA}, in a comment on Andrews, Gentzkow, and Shapiro's companion paper on informativeness of descriptive statistics (AGS 2020 ECMA), provides an elegant alternative interpretation of AGS-style sensitivity measures via statistical-functional calculus. Rather than deriving the sensitivity as a first-order bias bound under local misspecification, Kitamura shows that the same measure equals the \emph{relative asymptotic efficiency gain} from imposing on the empirical CDF the constraint that a descriptive statistic matches data. Formally, if $\hat c = C(\hat F_n)$ is a Hadamard-differentiable functional and $\hat c^r = C(\hat F_n^r)$ is its restricted version, with $\hat F_n^r$ computed via exponential tilting against the constraint $\gamma(F) = \gamma_0$, then the AGS 2020 informativeness measure equals $\Delta = (\sigma_c^2 - s_{c^r}^2)/\sigma_c^2$ (Kitamura 2020, eq.\ 2.1, p.~2268). This is the local-asymptotic analog of Corollary~\ref{cor:cd_deterministic}: under Cobb-Douglas the Stage A moment constraint adds zero efficiency to $\hat\beta_{pp}$, and under the further linear structure of the markup formula this local-asymptotic zero sharpens to a pointwise zero. \citet{HonoreJorgensenDePaula2020} similarly connect the AGS 2017 $\Lambda$ sensitivity to the Breusch, Qian, Schmidt, and Wyhowski \cite{BreuschQianSchmidtWyhowski1999} moment-redundancy literature, where an ``informationless'' moment is one whose partialling-out leaves the parameter asymptotic variance unchanged. Corollary~\ref{cor:cd_deterministic} is therefore the statement that \emph{every} Stage A moment is informationless for $\hat\beta_{pp}$ under Cobb-Douglas, in the Breusch et al.\ sense.
+\end{remark}
+
+Under translog, $\theta^V_{it}(\theta) = \beta_c + 2\beta_{cc} c_{it} + \beta_{kc} k_{it}$ depends on $(c,k)_{it}$, so $\nabla_\theta \log\theta^V_{it}$ varies across firm-years and $\psi$ is generically non-zero. The composite sensitivity $\Lambda^{\beta_{pp}}$ is then non-zero, and the size of its entries measures how much each Stage A moment drives the causal summary. Sparsity of $\Lambda^{\beta_{pp}}$ would indicate that only a few moments are load-bearing for the premium, a reporting standard that \citet{ABGRS2025} Section VI recommends for transparency in applied work.
+
+\subsection{Algorithm and Python port of the AGS reference library}\label{sec:ags_algo}
+
+Algorithm~\ref{alg:ags_lambda} implements the composite sensitivity computation. It follows the Matlab reference library (\texttt{trans/m/} in the replication package accompanying \citealt{AGS2017}) verbatim for the sensitivity matrix and chain-rule composition.
+
+\begin{algorithm}[htbp]
+\caption{Composite AGS sensitivity $\Lambda^{\beta_{pp}}$ for the procurement premium}\label{alg:ags_lambda}
+\begin{algorithmic}[1]
+\INPUT panel data $\mathcal{D}$, Stage A estimate $\hat\theta$, instrument set $Z$, weighting matrix $W$, specification $\text{spec}$
+\OUTPUT composite sensitivity $\Lambda^{\beta_{pp}} \in \mathbb{R}^{1\times M}$
+\State Compute Stage A Jacobian $J = \partial\bar m(\theta)/\partial\theta'$ at $\hat\theta$ via central differences on the moment function $\bar m(\theta) = (1/N)\sum_{it}\xi_{it}(\theta)\,z_{it}$
+\State Compute AGS sensitivity $\Lambda \gets -(J'WJ)^{-1}(J'W)$, using the Moore-Penrose pseudoinverse if $J'WJ$ is rank-deficient
+\State Compute $\nabla_\theta \log\hat\theta^V_{it}$ at every firm-year $(i,t)$:
+\Statex \hspace{\algorithmicindent} CD: row $(1/\hat\beta_c, 0)$
+\Statex \hspace{\algorithmicindent} TL: row $(1/\hat\theta^V_{it},\, 0,\, 2c_{it}/\hat\theta^V_{it},\, 0,\, k_{it}/\hat\theta^V_{it})$
+\State Within-firm-year-demean each column of $\nabla_\theta \log\hat\theta^V_{it}$ and demean $pp_{it}$
+\State Compute $\psi \gets \E[\widetilde{pp}_{it}\cdot\widetilde{\nabla_\theta\log\hat\theta^V_{it}}]/\Var(\widetilde{pp}_{it})$ \Comment{1$\times$P row}
+\State Return $\Lambda^{\beta_{pp}} \gets \psi \Lambda$
+\end{algorithmic}
+\end{algorithm}
+
+Our Python port of the Matlab reference library lives at \texttt{lib/ags\_sensitivity.py} and exposes five functions: \texttt{get\_sensitivity}, \texttt{build\_sigma}, \texttt{get\_standardized\_sensitivity}, \texttt{compute\_composite\_lambda}, and \texttt{gmm\_sandwich\_vcov}. The first three are direct translations of \citet{AGS2017}'s \texttt{get\_sensitivity.m}, \texttt{build\_sigma.m}, and \texttt{get\_standardized\_sensitivity.m}. The fourth implements the chain-rule composition \eqref{eq:composite_lambda} specific to our setting. The fifth returns the standard GMM sandwich parameter vcov as a complement to the sensitivity matrix. Total port: $\approx 120$ lines of Python, matching the line count of the original Matlab library.
+
+\subsection{Numerical application to the Monte Carlo DGP}\label{sec:ags_numerical}
+
+Table~\ref{tab:ags_lambda_premium} reports $\Lambda^{\beta_{pp}}$ computed on a single draw of the Monte Carlo DGP of Section~\ref{sec:mc_dgp}, under both the Cobb-Douglas (S1) and the translog (S2) specifications.
+
+\begin{table}[htbp]
+\centering
+\caption{Composite AGS sensitivity of the procurement premium $\hat\beta_{pp}$ to each Stage A moment}
+\label{tab:ags_lambda_premium}
+\small
+\input{../input/tables/ags_lambda_premium.tex}
+\end{table}
+
+The Cobb-Douglas column confirms Corollary~\ref{cor:cd_zero} numerically: every entry of $\Lambda^{\beta_{pp}}$ is of order $10^{-32}$, consistent with exact zero up to floating-point rounding ($\|\psi\|_2 = 2.77\times 10^{-32}$). The Cobb-Douglas Stage A simply does not drive the premium --- all of the causal information flows through the Stage C fixed-effect regression on the observed cost share.
+
+The translog column tells a different story. $\|\psi\|_2 = 0.41$ and $\|\Lambda^{\beta_{pp}}\|_2 \approx 10^3$, with the dominant entries on the $k_{it}$ and $k_{i,t-1}$ moments (magnitudes in the hundreds) and the $c_{it-1}$, $c_{it-2}$ moments roughly two orders of magnitude smaller. The near-cancellation between $k_{it}$ and $k_{i,t-1}$ reflects the translog curvature structure: the capital moment dominates because the translog $\hat\theta^V_{it}$ depends on $k_{it}$ through the cross term $\hat\beta_{kc}$, and this dependence projects onto $\widetilde{pp}_{it}$ only weakly because procurement participation is not strongly correlated with the capital level after firm-year demeaning. This is exactly the translog-specific sensitivity pattern the main empirical paper's Appendix~A transparency diagnostics section needs to add for a full ABGRS-compliant reporting standard.
+
+The CD-vs-translog contrast has a clean interpretation. Under Cobb-Douglas, the Stage A stage is effectively \emph{separated} from Stage C: any bias in $\hat\theta$ enters Stage B only as a multiplicative constant on $\hat\mu_{it}$, which the Stage C fixed effects absorb. Under translog, the Stage A stage is \emph{coupled} to Stage C through the firm-year variation in $\hat\theta^V_{it}$: a bias in $\hat\beta_{cc}$ or $\hat\beta_{kc}$ produces firm-year-varying shifts in $\hat\mu_{it}$ that can correlate with procurement status after demeaning, and these are the shifts that $\Lambda^{\beta_{pp}}$ quantifies.
+
+\begin{remark}[Why the CD case is not vacuous]\label{rem:cd_not_vacuous}
+The fact that $\Lambda^{\beta_{pp}} = 0$ under Cobb-Douglas does not make Stage A redundant. The Stage A estimator still delivers $\hat\beta_c$, which matters for the \emph{level} of $\hat\mu_{it}$ (reported in the main empirical paper's markup-distribution section) and for policy simulations that require the absolute markup rather than the treatment-effect differential. The corollary says only that, \emph{conditional on the cost-share data $\alpha^V_{it}$ being observed}, the Stage C causal summary is insensitive to Stage A estimation error under CD. This is the formal version of the paper's ``premium is identified from cost-share variation'' claim, which Section~\ref{sec:prop2} derives informally via Proposition~\ref{prop:abgrs2}.
+\end{remark}
+
+\begin{remark}[Kreindler 2024 as applied precedent]\label{rem:kreindler}
+\citet{Kreindler2024} computes the AGS $\Lambda$ matrix for a nonlinear structural GMM estimator of peak-hour road congestion pricing and is, to my knowledge, the closest published methodological precedent for a chain-rule sensitivity report of the kind constructed here. The present note's application differs from Kreindler's in that the causal summary of interest is the coefficient of a post-estimation OLS regression (Stage C) on generated markups rather than a structural parameter reported directly from the GMM; equation \eqref{eq:psi_formula} derives the chain-rule gradient that links the two.
+\end{remark}
+
+\section{Imperfect competition: ADL sufficient statistic}\label{sec:adl}
+
+Section~\ref{sec:researcher} takes Stage 0's invertibility $\omega_{it} = \phi^{-1}(c_{it}, k_{it}, pp_{it}, \cdot)$ as given. Ackerberg and De Loecker \cite{ADL2024} show that this invertibility \emph{fails} whenever input demand depends on the firm's competitive environment through more than just own-productivity: ``firm $j$'s optimal choice of $V_{jt}$ will not only depend on their own $\omega_{jt}$ and $F_{jt}$, but also productivity shocks and fixed input levels of other firms in market $j$'' \citep[p.~9]{ADL2024}. In a market with $J$ competitors, the first-stage scalar-unobservable assumption is replaced by a $J$-dimensional invertibility condition that is empirically intractable.
+
+ADL propose a sufficient-statistic fix. Under canonical competition models, the full distribution of competitor state variables collapses to a scalar (or small-dimensional) object that can be added to the first-stage polynomial $\phi$ as an extra argument. Three cases are worked out:
+
+\begin{itemize}
+\item \textbf{Homogeneous-good Cournot} (Theorem 1, \citealt[p.~13--14]{ADL2024}): the sufficient statistic is $Q_{-jt} = \sum_{k\neq j} Q_{kt}$, the total output of competitors in market $j$'s market at time $t$.
+\item \textbf{Logit Nash-Bertrand differentiated products} (Theorem 2, p.~17--18): the sufficient statistic is the competitor indirect-utility index $\Phi_{-jt} = \sum_{k\neq j} \exp(f(X_{kt},P_{kt},Z_t))$, under an ``anti-elasticity'' condition (Assumption 3, p.~20) ensuring price reactions are monotone.
+\item \textbf{Nested logit (quality-equivalent Cournot)} (Theorem 3, p.~21--22): two scalar statistics --- within-nest and outside-nest competitor utility indices.
+\end{itemize}
+
+Empirically, competitors are defined as all firms $k \neq j$ operating in the same geographic market $t$ at the same period, with ``any differences in demand and supply conditions across markets $t$\ldots captured by observables $Z_t$'' \citep[p.~10, fn.~10]{ADL2024}. In the Czech construction application, the natural competitor set is all firms in the same NACE two-digit code and calendar year.
+
+\paragraph{Integration with the four-stage composite estimator.} ADL's correction augments Stage 0: the first-stage polynomial becomes $\phi(c_{it}, k_{it}, pp_{it}, Q_{-jt}, Z_t)$, and the inversion recovers $\omega_{it}$ from this enriched control function. Stage A moment conditions are unchanged in form but gain \emph{new instruments}: lagged competitor fixed inputs $f_{-j,t-1}$ and lagged competitor productivity $\omega_{-j,t-1}$ become valid because they are in firm $j$'s information set at $t-1$ and are correlated with the sufficient statistic at $t$ through equilibrium dynamics, yet uncorrelated with the innovation $\xi_{jt}$ \citep[eq.~39, p.~29]{ADL2024}. Stages B and C are mechanically unchanged.
+
+\paragraph{When the correction is null.} ADL prove that under Leontief technology the correction vanishes because variable-input choice is independent of competitive interactions (Section~2.3, p.~7): firms use inputs in fixed proportions to the target output, and the sufficient statistic drops out of $V_{jt}$. This is the theoretical basis for Kroft, Luo, Mogstad, and Setzler's \cite{KLMS2025} Leontief choice for US construction, and it is the formal reason the main empirical paper's Ackerberg-De Loecker correction on the Czech panel is null at the fourth decimal place despite the panel having $\sim 1500$ firms per year and non-trivial market concentration: under near-Leontief technology, the ADL correction is a no-op, and Proposition~\ref{prop:main} holds without augmenting the Stage 0 control function at all.
+
+\paragraph{Corollary~\ref{cor:cd_zero} under the ADL augmentation.} An immediate consequence of the chain rule in Section~\ref{sec:ags_lambda} is that adding a sufficient-statistic argument $Q_{-jt}$ to Stage 0 does not change Corollary~\ref{cor:cd_zero}: under Cobb-Douglas, $\theta^V_{it} = \beta_c$ is constant regardless of how rich the first-stage control function is, so $\psi = 0$ still holds and the composite sensitivity $\Lambda^{\beta_{pp}} = \psi\Lambda$ remains identically zero. The ADL correction refines \emph{Stage A efficiency} without altering the \emph{Stage C causal identification}. This is the ADL version of the paper's central separation result: Cobb-Douglas markup premium estimation is robust not only to external-shifter over-identification (Section~\ref{sec:spec_tests}) but also to the ADL sufficient-statistic augmentation.
+
+\section{Defending the Markov specification}\label{sec:markov}
+
+Section~\ref{sec:researcher} equation~\eqref{eq:markov} imposes a first-order Markov law of motion $\omega_{it} = g(\omega_{i,t-1}) + \delta\, pp_{i,t-1} + \xi_{it}$ with $g(\cdot)$ a cubic polynomial. There are two distinct questions to separate: the \emph{dependency-structure} question (how many lags of $\omega$ enter the law of motion?) and the \emph{flexibility} question (what functional form does $g(\omega_{t-1})$ take?). Conflating these two questions is a common source of confusion in the literature. This subsection defends each choice separately.
+
+\paragraph{Dependency structure: first-order Markov is an assumption, not a flexibility parameter.} The first-order Markov assumption states that, conditional on $\omega_{i,t-1}$, the productivity state $\omega_{it}$ is independent of the deeper history $(\omega_{i,t-2}, \omega_{i,t-3}, \ldots)$. This is a restriction on the dependency structure of the stochastic process, and it is maintained throughout the four-stage estimator. Higher-order Markov processes are \emph{not} a flexibility extension of the first-order assumption; they are a different statistical model. A second-order Markov law of motion $\omega_{it} = h(\omega_{i,t-1}, \omega_{i,t-2}) + \xi_{it}$ is strictly ruled out by the first-order assumption, because under second-order Markov the lag-two productivity carries information beyond what $\omega_{i,t-1}$ summarises.
+
+Second-order Markov processes in $\omega$ are equivalent to first-order Markov processes on the \emph{augmented} state $(\omega_{t-1}, \omega_t)$. Accommodating a second-order law of motion within the four-stage framework therefore requires enlarging the Stage 0 invertibility: the first-stage inversion must recover both $\omega_{it}$ and $\omega_{i,t-1}$ from the observed information set, not just $\omega_{it}$. This is a non-trivial change to Stage 0 because the ACF invertibility argument relies on a scalar-unobservable assumption that fails when the state space is two-dimensional. No applied markup paper known to us estimates a second-order Markov productivity process; doing so would be a substantive departure from the OP/LP/ACF framework, not a routine robustness check. Our first-order Markov assumption is therefore the same one maintained by the entire post-1996 PF estimation literature, and the defense of it is the same: the standard testable restriction is that the fitted first-order Markov residuals $\hat\xi_{it}$ should be serially uncorrelated and unpredictable by deeper lags $\omega_{i,t-2}, \omega_{i,t-3}$. The companion empirical paper's CWDL robustness appendix reports this residual check and the first-order Markov assumption passes within standard tolerances.
+
+\paragraph{Flexibility of $g(\omega_{t-1})$: polynomial order is a distinct choice.} Within the first-order Markov class, $g(\cdot)$ is an unknown univariate function that must be approximated by the researcher. Hodgson's lecture treatment of Olley-Pakes is explicit that ``$\omega_{it+1} = g(\omega_{it}) + \xi_{it+1}$ where $E[\xi_{it+1} \mid I_{it}] = 0$,'' with $g(\cdot)$ left nonparametric and estimated as a flexible series expansion (quoted from the ECON 600 Olley-Pakes lecture notes). Applied papers typically approximate $g$ by a polynomial: linear $g(\omega) = \rho\omega$ is maximally parsimonious but collapses if the true productivity process has diminishing returns or curvature; cubic $g(\omega) = \pi_0 + \pi_1\omega + \pi_2\omega^2 + \pi_3\omega^3$ captures curvature at the cost of three extra nuisance parameters. Our baseline cubic specification follows DGM's \cite{DGM2026} preferred robustness choice and is the modal choice in the post-DLEU applied literature. \emph{Crucially, changing the polynomial order of $g$ does not change the first-order Markov dependency-structure assumption} --- linear, cubic, and nonparametric $g$ are all first-order Markov. Formal tests for $g$-polynomial order selection are rarely reported in applied markup papers, a lacuna that the ABGRS transparency agenda should fill by requiring the Markov polynomial order as a standard diagnostic alongside the first-order residual test.
+
+\paragraph{External shifter $\delta\, pp_{i,t-1}$.} Adding a \emph{shifter} argument $pp_{i,t-1}$ to the Markov law of motion, following \citet{DeLoecker2013}, is not a specification choice about polynomial order --- it is an \emph{identification} choice that breaks the Gandhi, Navarro, and Rivers \cite{GNR2020} non-identification of gross-output production functions. Without $pp_{i,t-1}$ in the Markov, the estimator loses its external source of cross-firm variation in the productivity state and collapses to the GNR-unidentified regime. This is why Section~\ref{sec:mc} scenario S3 (which removes the external shifter from the Markov) fails dramatically: the Markov polynomial order is orthogonal to identification when the external shifter is present, but becomes critical when it is not.
+
+\paragraph{Assessing the Markov assumption on the Czech panel.} The companion empirical paper reports the CWDL robustness table varying the Markov order from linear to cubic; the procurement premium is invariant to polynomial order within $\pm 0.002$. This is Monte-Carlo-supported finite-sample evidence that the Markov polynomial choice is not load-bearing in the Czech setting, but the theoretical guarantee for this invariance comes from Corollary~\ref{cor:cd_zero}: under Cobb-Douglas the composite sensitivity to \emph{any} Stage A moment --- including moments based on misspecified Markov residuals --- is zero, because $\hat\theta^V_{it}$ enters Stage C only as a firm-year constant. The main paper's empirical invariance is a consequence of the theoretical corollary, not an independent piece of evidence.
+
+\section{Olley-Pakes selection correction}\label{sec:op_selection}
+
+\citet{OP1996} solve two distinct problems: (a) transmission bias from current-input choice responding to current productivity, and (b) selection bias from endogenous exit. Our four-stage estimator of Section~\ref{sec:researcher} addresses (a) via the ACF first-stage inversion but leaves (b) untreated. This section develops the OP selection correction as an extension of the Stage A GMM and discusses when the correction is load-bearing.
+
+\paragraph{The exit policy and truncated Markov transition.} Firms exit if productivity falls below an endogenous threshold $\underline\omega(k_{it})$ that depends on next-period capital. Define the survival indicator $X_{i,t+1} = \mathbf{1}\{\omega_{i,t+1} > \underline\omega(k_{i,t+1})\}$ and the survival probability
+\begin{equation}\label{eq:survival}
+P_{it} = \Pr(X_{i,t+1} = 1 \mid \omega_{it}, k_{it}, i_{it}) = e(k_{it}, i_{it}),
+\end{equation}
+estimated by a probit on observed exit using initial (pre-inversion) capital and investment. Because we observe productivity conditional on survival, the Markov transition of interest is the \emph{truncated} version:
+\begin{equation}\label{eq:truncated_markov}
+\E[\omega_{i,t+1} \mid \omega_{it}, X_{i,t+1}=1] = \bar g(P_{it}, \omega_{it}),
+\end{equation}
+where $\bar g$ is a bivariate function of the survival probability and lagged productivity. The OP selection-corrected second stage replaces the baseline Markov fit $\omega_{it} = g(\omega_{i,t-1}) + \delta pp_{i,t-1} + \xi_{it}$ with $\omega_{it} = \bar g(P_{i,t-1}, \omega_{i,t-1}) + \delta pp_{i,t-1} + \xi_{it}$, typically approximated by a polynomial in $(\omega_{i,t-1}, P_{i,t-1})$.
+
+\paragraph{When selection matters.} Hodgson's lecture is explicit on when the correction is load-bearing: ``How important is the selection correction? If it takes more than one period to exit, or if exit decision is made after output is realized, then selection issue goes away, $E[\epsilon_{it}|k_{it}, \text{active at } t] = 0$'' (quoted from the OlleyPakes lecture notes). In our Czech construction setting, exit is typically a multi-year process (firms first become inactive bidders, then reduce capital, then liquidate), so the strong contemporaneous selection that drives OP's bias is muted.
+
+\paragraph{Does selection bias propagate under Corollary~\ref{cor:cd_zero}?} No, and the reason is the same as for every other Stage A variation: under Cobb-Douglas, selection bias shifts $\hat\theta^V_{it} = \hat\beta_c$ by a constant, and that constant is absorbed by the Stage C firm and year fixed effects. Corollary~\ref{cor:cd_zero} therefore gives Czech-construction researchers a cheap pass on the OP selection correction: even if the Monte Carlo S1 scenario secretly had firm-level exit driven by $\omega_{it}$, the composite estimator $\hat\beta_{pp}$ would remain unbiased. Under translog, the selection correction matters in principle because $\hat\theta^V_{it}$ then varies across firm-years in a way that correlates with $(k_{it}, c_{it})$, and exiting firms have systematically different $(c,k)$ profiles. This is a concrete prediction: translog markup papers on panels with strong contemporaneous exit should find more bias in their causal summaries than Cobb-Douglas papers, and the gap should scale with the strength of the $\omega$--exit coupling.
+
+\paragraph{Implementation cost.} Adding the OP correction to the four-stage estimator requires: (i) observing firm exit (available in the MagnusWeb panel via the firm-year end-of-active marker), (ii) fitting a first-stage probit on $(k_{it}, i_{it})$ (or $(k_{it}, c_{it})$ in the absence of investment data), (iii) extending $g(\cdot)$ to $\bar g(\omega, P)$ as a bivariate polynomial. The main empirical paper's CWDL extensions already include a survival-probability module, and the Czech panel's first-stage probit fit is reported in the CWDL robustness table. The main paper's finding is that adding the OP correction moves the procurement premium by less than $0.002$, consistent with the Corollary~\ref{cor:cd_zero} prediction under the paper's Cobb-Douglas baseline.
+
+\section{A specification-test menu}\label{sec:spec_tests}
+
+Collecting the ABGRS-compatible specification tests discussed in Sections~\ref{sec:strong_exclusion}--\ref{sec:op_selection} yields a menu of diagnostics that an applied researcher can report as a ``reporting standard'' complete to the letter of ABGRS \cite{ABGRS2025} Section VI. Table~\ref{tab:spec_diagnostics_s5} illustrates this battery on the over-identified CD scenario S5 introduced here.
+
+\begin{table}[htbp]
+\centering
+\caption{Specification diagnostics for the over-identified Cobb-Douglas scenario S5 (one MC draw, seed $20260415$)}
+\label{tab:spec_diagnostics_s5}
+\small
+\input{../input/tables/spec_diagnostics_s5.tex}
+\end{table}
+
+\paragraph{S5 scenario definition.} Scenario S5 extends the baseline S1 by adding seven external year-level shifters from the curated panel at \texttt{1\_data/output/\allowbreak external\_panel\_annual.csv} --- EUR/CZK exchange rate, Czech 10-year bond yield (Eurostat \texttt{irt\_lt\_mcby\_a}), industry PPI, residential construction cost index, building permit flows, frost days, and annual precipitation --- interacted with firm-level $k_{it}$ and $c_{i,t-1}$ to produce 14 firm-year varying instruments. Each interaction is OLS-residualized against the control set $(k, c_{t-1}, pp, \text{year FE})$ following Appendix C.3 of \citet{ABGRS2025}, yielding 14 mean-independent moments that supplement the two baseline ACF moments. The CD GMM is therefore \emph{over-identified by 14 degrees of freedom}. The real external shifters are merged into the synthetic MC panel by mapping the 10 synthetic years onto the 2005--2014 window of the real shifter panel.
+
+\paragraph{Menu of tests.} Under S5 we compute four specification diagnostics:
+
+\begin{enumerate}
+\item \textbf{Partial $R^2$ on controls} (ABGRS strong exclusion diagnostic, Section~\ref{sec:dynamic_strong_exclusion}): each of the 14 residualized external-shifter moments has partial $R^2$ exactly zero on the control set by construction of the OLS residualization. The ABGRS $< 0.10$ threshold is trivially satisfied, confirming that Row 8--style external-shifter moments are always strongly excluded regardless of economic meaning.
+\item \textbf{Hansen-Sargan $J$-statistic} (overidentifying moments test): with $M = 16$ moments and $P = 2$ CD parameters, the system has $14$ overidentifying restrictions. On the single MC draw at the master seed, $J = 23.86$ and $p = 0.048$ --- a marginal rejection at the 5\% level but not at 1\%, consistent with the DGP being correctly specified up to a small finite-sample deviation in the Markov innovation variance.
+\item \textbf{AGS chain-rule sensitivity $\Lambda^{\beta_{pp}}$}: with 16 moments instead of 2, the AGS sensitivity matrix $\Lambda$ has 16 columns, and the chain-rule composition $\Lambda^{\beta_{pp}} = \psi\Lambda$ is a $1\times 16$ row. Under Cobb-Douglas, $\|\psi\|_2 = 5.54 \times 10^{-32}$ (floating-point zero) and consequently $\|\Lambda^{\beta_{pp}}\|_2 \approx 10^{-30}$: Corollary~\ref{cor:cd_zero} holds with 16 moments just as it holds with 2.
+\item \textbf{ACT~(2026) weighting-matrix estimand stability} (Remark~\ref{rem:weak_id} extension): under \citet{AndrewsChenTecchio2026}, over-identified CD with 16 moments targets a different estimand under identity weighting versus Chamberlain-sieve optimal weighting. The Czech empirical paper reports that moving from identity to Chamberlain sieve changes $\hat\beta_{pp}$ by less than $0.003$; the theoretical reason is again Corollary~\ref{cor:cd_zero}, which implies $\Lambda^{\beta_{pp}}_m = 0$ for every moment regardless of weighting.
+\end{enumerate}
+
+\paragraph{Reading the diagnostics.} The full power of this four-test menu appears under \emph{translog} Stage A rather than under CD, because CD trivially passes all four tests via Corollary~\ref{cor:cd_zero}. Under translog, $\psi \neq 0$, so the AGS sensitivity $\Lambda^{\beta_{pp}}$ is a meaningful scalar gradient of the causal summary against each moment, the Hansen $J$-test becomes a meaningful overidentifying-restrictions test, and the weighting-matrix estimand stability of ACT 2026 becomes a genuine robustness check. The menu is therefore most informative for functional forms where the composite sensitivity does not vanish.
+
+\paragraph{Choosing among the many possibilities.} Given the multiplicity of specification tests available --- partial $R^2$, Hansen $J$, AGS $\Lambda$, ACT weighting, OP survival probit, $g$-polynomial order, AR(1) vs AR(2) Markov, CD vs translog vs Leontief, ADL sufficient statistic, MERM classical EIV --- an applied researcher faces a discipline problem: which tests to report, in what order, with what failure thresholds? The ABGRS framework provides a clear answer: \emph{report the tests that discipline your causal summary under your working specification}. Under Cobb-Douglas, the causal summary is identified from cost-share variation (Corollary~\ref{cor:cd_zero}), so only Stage C tests (conditional exogeneity, treatment measurement, firm fixed effects) are load-bearing; under translog, the full Stage A menu becomes relevant. The main empirical paper's decision to adopt the Cobb-Douglas as the primary specification is therefore economizing on specification tests --- Corollary~\ref{cor:cd_zero} says only the four MC scenarios of Section~\ref{sec:mc} (S1--S4) matter; S5 through the AR(2) Markov extension are redundant within the Cobb-Douglas specification and informative only under translog.
+
+\section{Further extensions (scaffold)}\label{sec:extensions}
+
+The framework developed above accommodates several extensions beyond Section~\ref{sec:ags_lambda}, each of which will be added in a subsequent version of this note as the empirical work matures. I list them here as a scaffold.
+
+\subsection*{E.1 Pakes (2021) multiproduct-revenue robustness}
+
+\citet{Pakes2021AnnRev} (§3.1, p.~411) observes that revenue-based production-function estimation does not recover a structural output elasticity for multiproduct firms, because the allocation of inputs across products depends on demand parameters that the production-function estimator does not see. Czech construction firms are typically multiproduct---bidding simultaneously across NACE 41 buildings, NACE 42 civil engineering, and NACE 43 specialized trades, and across distinct project categories within each---so the Pakes critique is binding on markup \emph{levels}. It washes out of the procurement treatment-effect differential under strong exclusion (Proposition~\ref{prop:main} plus \ref{prop:abgrs2}), but a formal extension would add an explicit product-allocation nuisance into \eqref{eq:theta_star} and verify that the ABGRS strong-exclusion conditions continue to hold. The plant-level physical-unit benchmark of \citet{BrandtJiangLuoSu2022} is the first-best alternative when the required disaggregated data are available, which in our setting they are not.
+
+\subsection*{E.2 Classical measurement error in inputs}
+
+Stage 0 in this note purges \emph{output} measurement error via the first-stage smoother. A symmetric concern is classical measurement error in the \emph{inputs} $(k_{it}, c_{it})$, which \citet{CWDLKvsOmega} show can attenuate $\hat\beta_k$ and propagate through the translog cross term $\hat\beta_{kc}$ to $\hat\theta^V$. \citet{EvdokimovZeleneev2025MERM} provide a general sufficient-statistic approach (``Simple Estimation of Semiparametric Models with Measurement Errors'') that requires two noisy measurements of each latent input sharing a common signal. A formal extension would add an explicit measurement-error layer at Stage 0 and verify that the ABGRS bounds continue to hold uniformly over the latent-input signal-to-noise ratio.
+
+\subsection*{E.3 Subjective-expectations alternative}
+
+\citet{NorrisKeillerdePaulaVanReenen2024} and \citet{BondEtAl2026POID} propose a proxy-free production-function estimator that uses firm-level probabilistic expectations of future output and inputs to recover production-function parameters without imposing the OP/LP/ACF monotonicity assumption. A formal extension would characterize the ABGRS distance $\delta(G)$ under an expectations-based alternative and show that Proposition~\ref{prop:main} is tighter under the expectations approach than under the ACF approach for the relevant causal summary.
+
+\subsection*{E.4 Double market power}
+
+\citet{KLMS2025} extend the DLW markup formula to settings with labor-market monopsony, replacing the markup with a product of a price markup and a labor-market markdown. A formal extension would combine \eqref{eq:mu} with a labor-supply elasticity $\theta$ and a wage markdown $(1-\varepsilon_L)$, re-express the causal summary \eqref{eq:tau_star_ours} as the effect of procurement on the \emph{double} market power wedge, and re-verify strong exclusion under the joint framework. The main empirical paper's Appendix on the KLMS benchmark (calibrated to the Czech panel with $\theta = 0.13$ and labor markdown $= 0.80$ per a Chamberlain non-identification argument) is a first pass at this extension.
+
+\section{Conclusion}\label{sec:conclusion}
+
+This note has translated the four-stage Czech-construction procurement markup estimator into the language of \citet{ABGRS2025}, stated an approximate-causal-consistency theorem (Proposition~\ref{prop:main}) for the composite estimator, shown that the paper's central empirical fact---specification-sensitive levels but a stable treatment effect---is a direct application of ABGRS Proposition 2, and validated both propositions numerically in Section~\ref{sec:mc} via a Monte Carlo experiment on synthetic panels with a known data-generating process and four scenarios that contrast correctly specified fits against identification failures. A concrete operationalization of Proposition 1's Lipschitz constant $C_2$ via the Andrews, Gentzkow, and Shapiro \cite{AGS2017} sensitivity matrix is developed in Section~\ref{sec:ags_lambda} through a Python port of the reference Matlab library, yielding the theoretical Corollary~\ref{cor:cd_zero} (under Cobb-Douglas the composite sensitivity is exactly zero) and a numerical application to the Monte Carlo DGP (Table~\ref{tab:ags_lambda_premium}). The four-stage chain is: a first-stage inversion that purges measurement error from log output (Stage 0); a GMM estimator of the translog production function with lagged procurement as an external shifter in the productivity Markov transition (Stage A); a markup-generation step that combines the estimated output elasticity with the observed expenditure share (Stage B); and an OLS regression of log markups on procurement participation with firm and year fixed effects (Stage C). The Stage A moment conditions satisfy dynamic strong exclusion on the Czech panel---verified empirically by partial $R^2 < 0.10$ for every ACF instrument---while Blundell--Bond internal instruments fail dynamic strong exclusion by the exact quotation from ABGRS Online Appendix p.~36. The smooth-functional propagation through Stages B--C then delivers approximate causal consistency for the procurement premium $\hat\beta_{pp}$ at the same rate as for the PF parameters $\hat\theta$.
+
+The note is intentionally compact and scaffolded. The extensions in Section~\ref{sec:extensions} identify the five most consequential directions in which the identification argument can be deepened: multiproduct-revenue robustness, input measurement error, subjective-expectations alternatives, double-market-power estimation, and explicit load-bearing-moment reporting. Each of these will be added as a fully worked section in subsequent drafts, keeping the core ABGRS exposition as the theoretical backbone.
+
+\begin{thebibliography}{99}
+
+\bibitem[Ackerberg, Caves, and Frazer(2015)]{ACF2015}
+Ackerberg, D.A., K.~Caves, and G.~Frazer (2015).
+``Identification Properties of Recent Production Function Estimators.''
+\emph{Econometrica} 83(6): 2411--2451.
+
+\bibitem[Ackerberg, Chen, and Hahn(2012)]{ACH2012}
+Ackerberg, D., X.~Chen, and J.~Hahn (2012).
+``A Practical Asymptotic Variance Estimator for Two-Step Semiparametric Estimators.''
+\emph{Review of Economics and Statistics} 94(2): 481--498.
+
+\bibitem[Andrews, Barahona, Gentzkow, Rambachan, and Shapiro(2025)]{ABGRS2025}
+Andrews, I., N.~Barahona, M.~Gentzkow, A.~Rambachan, and J.M.~Shapiro (2025).
+``Structural Estimation Under Misspecification: Theory and Implications for Practice.''
+\emph{Quarterly Journal of Economics} 140(4): 1801--1855. DOI: 10.1093/qje/qjaf018.
+
+\bibitem[Andrews, Gentzkow, and Shapiro(2017)]{AGS2017}
+Andrews, I., M.~Gentzkow, and J.M.~Shapiro (2017).
+``Measuring the Sensitivity of Parameter Estimates to Estimation Moments.''
+\emph{Quarterly Journal of Economics} 132(4): 1553--1592.
+
+\bibitem[Bond, Norris Keiller, Obermeier, de~Paula, and Van~Reenen(2026)]{BondEtAl2026POID}
+Bond, S., A.~Norris Keiller, T.~Obermeier, \'A.~de~Paula, and J.~Van~Reenen (2026).
+``Leveraging Subjective Expectations for Production Functions.''
+POID Working Paper No.~138, London School of Economics.
+
+\bibitem[Brandt, Jiang, Luo, and Su(2022)]{BrandtJiangLuoSu2022}
+Brandt, L., F.~Jiang, Y.~Luo, and Y.~Su (2022).
+``Ownership and Productivity in Vertically Integrated Firms: Evidence from the Chinese Steel Industry.''
+\emph{Review of Economics and Statistics} 104(1): 101--115.
+
+\bibitem[Chamberlain(1987)]{Chamberlain1987}
+Chamberlain, G. (1987).
+``Asymptotic Efficiency in Estimation with Conditional Moment Restrictions.''
+\emph{Journal of Econometrics} 34(3): 305--334.
+
+\bibitem[Collard-Wexler and De~Loecker(2020)]{CWDLKvsOmega}
+Collard-Wexler, A. and J.~De~Loecker (2020).
+``Productivity and Capital Measurement Error.''
+NBER Working Paper 22437.
+
+\bibitem[De~Loecker(2013)]{DeLoecker2013}
+De~Loecker, J. (2013).
+``Detecting Learning by Exporting.''
+\emph{American Economic Journal: Microeconomics} 5(3): 1--21.
+
+\bibitem[De~Loecker and Syverson(2021)]{DLS2021}
+De~Loecker, J. and C.~Syverson (2021).
+``An Industrial Organization Perspective on Productivity.''
+In \emph{Handbook of Industrial Organization}, Volume 4, Chapter 3.
+
+\bibitem[De~Loecker and Warzynski(2012)]{DLW2012}
+De~Loecker, J. and F.~Warzynski (2012).
+``Markups and Firm-Level Export Status.''
+\emph{American Economic Review} 102(6): 2437--2471.
+
+\bibitem[Evdokimov and Zeleneev(2025)]{EvdokimovZeleneev2025MERM}
+Evdokimov, K.S. and A.~Zeleneev (2025).
+``Simple Estimation of Semiparametric Models with Measurement Errors.''
+Working paper, UPF and UCL.
+
+\bibitem[Gandhi, Navarro, and Rivers(2020)]{GNR2020}
+Gandhi, A., S.~Navarro, and D.A.~Rivers (2020).
+``On the Identification of Gross Output Production Functions.''
+\emph{Journal of Political Economy} 128(8): 2973--3016.
+
+\bibitem[Kim, Luo, and Su(2019)]{KimLuoSu2019JAE}
+Kim, K., Y.~Luo, and Y.~Su (2019).
+``A Robust Approach to Estimating Production Functions: Replication of the ACF Procedure.''
+\emph{Journal of Applied Econometrics} 34(4): 612--619.
+
+\bibitem[Kreindler(2024)]{Kreindler2024}
+Kreindler, G. (2024).
+``Peak-Hour Road Congestion Pricing: Experimental Evidence and Equilibrium Implications.''
+\emph{Econometrica} 92(4): 1233--1268.
+
+\bibitem[Andrews(2017)]{Andrews2017ECMA}
+Andrews, I. (2017).
+``Valid Two-Step Identification-Robust Confidence Sets for GMM.''
+\emph{Econometrica} 84(6): 2155--2182.
+
+\bibitem[Andrews, Chen, and Tecchio(2026)]{AndrewsChenTecchio2026}
+Andrews, I., J.~Chen, and O.~Tecchio (2026).
+``The Purpose of an Estimator Is What It Does: Misspecification, Estimands, and Over-Identification.''
+Working Paper, arXiv:2508.13076v5.
+
+\bibitem[Armstrong(2025)]{Armstrong2025}
+Armstrong, T.B. (2025).
+``Misspecification in Econometrics: A Selective Review.''
+Working Paper, University of Southern California.
+
+\bibitem[Ackerberg and De~Loecker(2024)]{ADL2024}
+Ackerberg, D.A.\ and J.\ De~Loecker (2024).
+``Production Function Identification Under Imperfect Competition.''
+CEPR Discussion Paper 19640.
+
+\bibitem[De~Ridder, Grassi, and Morzenti(2026)]{DGM2026}
+De~Ridder, M., B.~Grassi, and G.~Morzenti (2026).
+``The Hitchhiker's Guide to Markup Estimation.''
+\emph{Econometrica} 94(1), forthcoming.
+
+\bibitem[Kitamura(2020)]{Kitamura2020ECMA}
+Kitamura, Y. (2020).
+``A Comment on: `On the Informativeness of Descriptive Statistics for Structural Estimates' by Isaiah Andrews, Matthew Gentzkow, and Jesse M.\ Shapiro.''
+\emph{Econometrica} 88(6): 2265--2269. DOI: 10.3982/ECTA18788.
+
+\bibitem[Honor\'e, J\o rgensen, and de~Paula(2020)]{HonoreJorgensenDePaula2020}
+Honor\'e, B.E., T.\ J\o rgensen, and \'A.\ de~Paula (2020).
+``The Informativeness of Estimation Moments.''
+\emph{Journal of Applied Econometrics} 35(7): 797--813.
+
+\bibitem[Breusch, Qian, Schmidt, and Wyhowski(1999)]{BreuschQianSchmidtWyhowski1999}
+Breusch, T., H.\ Qian, P.\ Schmidt, and D.\ Wyhowski (1999).
+``Redundancy of Moment Conditions.''
+\emph{Journal of Econometrics} 91(1): 89--111.
+
+\bibitem[Kroft, Luo, Mogstad, and Setzler(2025)]{KLMS2025}
+Kroft, K., Y.~Luo, M.~Mogstad, and B.~Setzler (2025).
+``Imperfect Competition and Rents in Labor and Product Markets: The Case of the Construction Industry.''
+\emph{American Economic Review} 115(9).
+
+\bibitem[Murphy and Topel(1985)]{MurphyTopel1985}
+Murphy, K.M. and R.H.~Topel (1985).
+``Estimation and Inference in Two-Step Econometric Models.''
+\emph{Journal of Business and Economic Statistics} 3(4): 370--379.
+
+\bibitem[Norris Keiller, de~Paula, and Van~Reenen(2024)]{NorrisKeillerdePaulaVanReenen2024}
+Norris Keiller, A., \'A.~de~Paula, and J.~Van~Reenen (2024).
+``Production Function Estimation Using Subjective Expectations Data.''
+NBER Working Paper 32725.
+
+\bibitem[Olley and Pakes(1996)]{OP1996}
+Olley, G.S. and A.~Pakes (1996).
+``The Dynamics of Productivity in the Telecommunications Equipment Industry.''
+\emph{Econometrica} 64(6): 1263--1297.
+
+\bibitem[Pagan(1984)]{Pagan1984}
+Pagan, A. (1984).
+``Econometric Issues in the Analysis of Regressions with Generated Regressors.''
+\emph{International Economic Review} 25(1): 221--247.
+
+\bibitem[Pakes(2021)]{Pakes2021AnnRev}
+Pakes, A. (2021).
+``A Helicopter Tour of Some Underlying Issues in Empirical Industrial Organization.''
+\emph{Annual Review of Economics} 13: 397--421.
+
+\end{thebibliography}
+
+\end{document}

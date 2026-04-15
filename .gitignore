@@ -41,6 +41,7 @@ temp/
 .Rhistory
 .Rapp.history
 .Rproj.user/
+.RData
 Rplots.pdf
 
 # Stata
@@ -48,6 +49,7 @@ Rplots.pdf
 
 # Python
 *.pyc
+**/__pycache__/
 
 # LaTeX
 *.aux
@@ -64,6 +66,7 @@ Rplots.pdf
 *.lot
 **/source/*.log
 **/source/*.pdf
+**/source/**/*.log
 
 # LyX
 *.lyx~

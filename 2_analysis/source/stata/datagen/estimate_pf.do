@@ -208,6 +208,25 @@ void compute_se(string scalar bn, string scalar mt,
     V = GWGi * G'*W*S*W*G * GWGi / N
     st_matrix("V_an", V)
     st_matrix("se_an", sqrt(diagonal(V))')
+
+    // Textbook Hansen J with efficient weighting W_eff = inv(S)
+    // (Conlon gmmnotes 54; matches Python lib/acf_estimator.py
+    // _hansen_j_test, which uses pinv(S) computed from clustered meat).
+    // Stored alongside crit_E (the one-step W_0 criterion that the paper
+    // currently labels "Hansen J") so consumers can cross-check.
+    K = cols(b)
+    n_overid = Kz - K
+    if (n_overid > 0) {
+        m_bar = (Z'*XI) / N
+        Sinv = invsym(S)
+        J_eff = (N * m_bar' * Sinv * m_bar)[1,1]
+        st_numscalar("hansen_j_eff", J_eff)
+        st_numscalar("n_overid", n_overid)
+    }
+    else {
+        st_numscalar("hansen_j_eff", 0)
+        st_numscalar("n_overid", 0)
+    }
 }
 
 end

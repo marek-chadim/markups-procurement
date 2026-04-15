@@ -38,7 +38,7 @@ suppressPackageStartupMessages({
 
 script_dir <- tryCatch(dirname(sys.frame(1)$ofile), error = function(e) ".")
 if (is.null(script_dir) || script_dir == "") script_dir <- "."
-source(file.path(script_dir, "theme_markups.R"))
+source(file.path(script_dir, "lib", "theme_markups.R"))
 
 input_dir  <- file.path(script_dir, "..", "input")
 output_dir <- file.path(script_dir, "..", "output")

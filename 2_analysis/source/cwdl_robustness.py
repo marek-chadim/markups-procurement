@@ -33,7 +33,9 @@ import pandas as pd
 from pathlib import Path
 from sklearn.linear_model import LogisticRegression
 
-# Import from our estimator
+# Import from our estimator (lib/)
+import os, sys
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "lib"))
 from acf_estimator import (
     ACFEstimator, Formulation, Optimization, CWDLExtensions,
     estimate_by_industry, options

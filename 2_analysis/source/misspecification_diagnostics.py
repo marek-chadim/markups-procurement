@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import sys
 import time
+from typing import Optional
 import numpy as np
 import pandas as pd
 import statsmodels.api as sm
@@ -29,7 +30,7 @@ from pathlib import Path
 from scipy.stats import chi2
 
 SCRIPT_DIR = Path(__file__).resolve().parent
-sys.path.insert(0, str(SCRIPT_DIR))
+sys.path.insert(0, str(SCRIPT_DIR / 'lib'))
 
 from acf_estimator import (
     ACFEstimator, Formulation, Optimization, CWDLExtensions,
@@ -40,7 +41,7 @@ INPUT_DIR = SCRIPT_DIR.parent / 'input'
 OUTPUT_DIR = SCRIPT_DIR.parent / 'output'
 acf_options.verbose = False
 
-B_BOOT = 500
+B_BOOT = 999
 RNG = np.random.default_rng(42)
 
 
@@ -131,12 +132,20 @@ def ols_premium(df: pd.DataFrame) -> tuple[float, float]:
     return float(res.params['D']), float(res.bse['D'])
 
 
-def bootstrap_premium_se(df: pd.DataFrame, B: int = B_BOOT) -> dict:
+def bootstrap_premium_se(df: pd.DataFrame, B: int = B_BOOT,
+                          theta_hat: Optional[float] = None,
+                          pivotal_ci: bool = True) -> dict:
     """Non-recentered cluster bootstrap for premium SE.
 
     Resamples firms (clusters) with replacement, reconstructs panel,
     re-runs OLS. The non-recentered bootstrap captures both sampling
     uncertainty AND misspecification bias (Andrews, Chen, Tecchio p.18-19).
+
+    When ``theta_hat`` is provided AND ``pivotal_ci=True`` (the default),
+    returns Conlon's "Better Way" pivotal CI ``[2*theta_hat - q97.5,
+    2*theta_hat - q2.5]`` (bootstrap.tex lines 75-82) plus a
+    bias-corrected point estimate. Otherwise returns the legacy
+    percentile CI ``[q2.5, q97.5]`` (backward-compatible).
     """
     firms = df['id'].unique()
     N_firms = len(firms)
@@ -165,18 +174,32 @@ def bootstrap_premium_se(df: pd.DataFrame, B: int = B_BOOT) -> dict:
     elapsed = time.time() - t0
     valid = beta_boot[np.isfinite(beta_boot)]
     boot_se = float(np.std(valid, ddof=1))
-    ci_lo = float(np.percentile(valid, 2.5))
-    ci_hi = float(np.percentile(valid, 97.5))
+    q_lo = float(np.percentile(valid, 2.5))
+    q_hi = float(np.percentile(valid, 97.5))
     pct_valid = 100 * len(valid) / B
+
+    if theta_hat is not None and pivotal_ci:
+        ci_lo = float(2.0 * theta_hat - q_hi)
+        ci_hi = float(2.0 * theta_hat - q_lo)
+        ci_method = "pivotal"
+    else:
+        ci_lo = q_lo
+        ci_hi = q_hi
+        ci_method = "percentile"
 
     print(f'  Bootstrap: {len(valid)}/{B} valid ({pct_valid:.0f}%), '
           f'{elapsed:.1f}s')
-    print(f'  Boot SE = {boot_se:.4f}, 95% CI = [{ci_lo:.4f}, {ci_hi:.4f}]')
+    print(f'  Boot SE = {boot_se:.4f}, 95% CI ({ci_method}) '
+          f'= [{ci_lo:.4f}, {ci_hi:.4f}]')
 
-    return {
+    out = {
         'boot_se': boot_se, 'ci_lo': ci_lo, 'ci_hi': ci_hi,
         'n_valid': len(valid), 'elapsed': elapsed,
     }
+    if theta_hat is not None:
+        out['bias'] = float(np.mean(valid) - theta_hat)
+        out['bias_corrected'] = float(2.0 * theta_hat - np.mean(valid))
+    return out
 
 
 # ================================================================== #
@@ -260,8 +283,8 @@ def main():
     beta_hat, se_analytical = ols_premium(mk)
     print(f'  Analytical: beta_pp = {beta_hat:.4f}, SE = {se_analytical:.4f}')
 
-    # Bootstrap SE
-    boot = bootstrap_premium_se(mk, B=B_BOOT)
+    # Bootstrap SE — pass theta_hat to enable Conlon's pivotal CI
+    boot = bootstrap_premium_se(mk, B=B_BOOT, theta_hat=beta_hat)
     se_ratio = boot['boot_se'] / se_analytical if se_analytical > 0 else np.nan
 
     print(f'\n  SE comparison:')

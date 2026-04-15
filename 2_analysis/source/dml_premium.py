@@ -29,10 +29,13 @@ Outputs:
 from __future__ import annotations
 from pathlib import Path
 
+import os
+import sys
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "lib"))
 from dml_core import (
     load_merged_panel, construct_X, firm_demean, cross_fit,
     plr_orthogonal, make_outcome_estimators, make_treatment_estimators,
@@ -82,7 +85,8 @@ def dml_plr(df: pd.DataFrame, covariates: list[str], label: str) -> pd.DataFrame
             sD = d[idx] - m[idx]
             return float(np.sum(sY * sD) / np.sum(sD ** 2))
 
-        boot = cluster_bootstrap(point_fn, firm, n_rep=200, seed=DEFAULT_SEED)
+        boot = cluster_bootstrap(point_fn, firm, n_rep=200, seed=DEFAULT_SEED,
+                                  theta_hat=res["point"])
 
         rows.append(dict(
             spec=label,

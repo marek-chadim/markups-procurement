@@ -33,6 +33,7 @@ import matplotlib.pyplot as plt
 from matplotlib.ticker import MaxNLocator
 
 # Shared Healy-inspired style (Paul Tol palette, 300 DPI, white bg, clean axes)
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "lib"))
 from style_markups import apply_markups_style, MARKUPS_BLUE, MARKUPS_PINK
 apply_markups_style()
 

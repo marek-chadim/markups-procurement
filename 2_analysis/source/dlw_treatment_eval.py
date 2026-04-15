@@ -11,11 +11,14 @@ Replicates the exporter-vs-nonexporter analysis of De Loecker & Warzynski
   5. Productivity-markup correlation (DLW Section V.C)
 """
 
+import os
+import sys
 import numpy as np
 import pandas as pd
 import statsmodels.formula.api as smf
 from pathlib import Path
 
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "lib"))
 from acf_estimator import Formulation, estimate_by_industry
 
 SCRIPT_DIR = Path(__file__).resolve().parent

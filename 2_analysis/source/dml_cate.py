@@ -25,9 +25,12 @@ Outputs:
 
 from __future__ import annotations
 
+import os
+import sys
 import numpy as np
 import pandas as pd
 
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "lib"))
 from dml_core import (
     load_merged_panel, construct_X, firm_demean, cross_fit,
     make_outcome_estimators, make_treatment_estimators, TAB_DIR,
@@ -57,7 +60,8 @@ def compute_cate_subgroup(y_dm: np.ndarray, d_dm: np.ndarray,
         den = np.sum(sd ** 2)
         return float(np.sum(sr * sd) / den) if den > 0 else float("nan")
 
-    boot = cluster_bootstrap(point_fn, sub_firm, n_rep=200, seed=DEFAULT_SEED)
+    boot = cluster_bootstrap(point_fn, sub_firm, n_rep=200, seed=DEFAULT_SEED,
+                              theta_hat=point)
     return dict(
         point=point,
         se=boot["se"],

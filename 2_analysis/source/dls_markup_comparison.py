@@ -18,10 +18,13 @@ Outputs:
   outputs/data/dls_comparison.csv — all markups by method
 """
 
+import os
+import sys
 import numpy as np
 import pandas as pd
 from pathlib import Path
 
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "lib"))
 from acf_estimator import Formulation, ACFEstimator, estimate_by_industry
 
 SCRIPT_DIR = Path(__file__).resolve().parent

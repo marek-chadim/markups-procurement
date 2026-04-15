@@ -23,7 +23,7 @@ from scipy.optimize import minimize
 from scipy.stats import chi2
 
 SCRIPT_DIR = Path(__file__).resolve().parent
-sys.path.insert(0, str(SCRIPT_DIR))
+sys.path.insert(0, str(SCRIPT_DIR / 'lib'))
 
 from acf_estimator import (
     ACFEstimator, Formulation, Optimization, CWDLExtensions,

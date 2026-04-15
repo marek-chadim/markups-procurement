@@ -27,6 +27,8 @@ from sklearn.linear_model import LogisticRegression
 
 warnings.filterwarnings('ignore')
 
+import os
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "lib"))
 from acf_estimator import (
     ACFEstimator, Formulation, Optimization, CWDLExtensions, options,
 )
@@ -40,11 +42,18 @@ DATA_PATH = str(INPUT_DIR / 'data_rebuilt.dta')
 
 
 def construct_survival(df: pd.DataFrame) -> pd.DataFrame:
-    """Probit-predicted survival probability (CWDL 2015).
+    """Adopt Stata's phat_survival if present; otherwise fit sklearn logit.
 
-    Matches paper_results.py::construct_survival so that Panel A columns
-    use the same survival imputation as the by-NACE Spec A results.
+    Matches the Stata pipeline by reading `phat_survival` from the
+    analysis panel built by prepare_data.do. This guarantees that the
+    Markov survival correction in the second stage uses identical
+    survival probabilities in both Python and Stata.
     """
+    if 'phat_survival' in df.columns:
+        df = df.copy()
+        df['survival'] = df['phat_survival']
+        return df
+
     df = df.sort_values(['id', 'year']).copy()
     df['next_yr'] = df.groupby('id')['year'].shift(-1)
     df['survival_1'] = ((df['next_yr'] - df['year']) == 1).astype(float)
@@ -84,6 +93,10 @@ def estimate_one(df, spec, sample_label, n_starts=3):
         extensions=ext, n_starts=n_starts,
     )
     res = est.solve()
+    print(f'  Python N={res.n_obs} criterion={res.gmm_criterion:.6f}')
+    # Print the full beta vector (including constant) so we can transfer
+    # it to Stata as a starting value for cross-validation.
+    print(f'  beta_full = {list(map(float, res.betas))}')
 
     row = {
         'spec': spec,
@@ -92,6 +105,9 @@ def estimate_one(df, spec, sample_label, n_starts=3):
         'criterion': res.gmm_criterion,
         'r2_first': res.first_stage_r2,
     }
+    # Save the full beta vector to the row for cross-validation
+    for i, name in enumerate(res.beta_names):
+        row[f'beta_{name}'] = float(res.betas[i])
     for name, coef, se in zip(res.beta_names, res.betas, res.se):
         row[f'b_{name}'] = float(coef)
         row[f'se_{name}'] = float(se)
@@ -107,6 +123,18 @@ def main():
     df = pd.read_stata(DATA_PATH)
     print(f'  {len(df):,} obs, {df["id"].nunique():,} firms')
     df = construct_survival(df)
+
+    # Write the sklearn-fitted survival back into the panel so Stata's
+    # table_beer_c2.do can read identical probabilities. This eliminates
+    # the last source of Python-Stata divergence: different phat_survival
+    # from sklearn vs Stata's `logit` converging to slightly different
+    # maximum-likelihood points on the year x nace2 dummy grid.
+    enriched = df[['id', 'year', 'survival']].rename(
+        columns={'survival': 'phat_survival_py'})
+    out_dta = OUTPUT_DIR / 'stata' / 'phat_survival_py.dta'
+    out_dta.parent.mkdir(parents=True, exist_ok=True)
+    enriched.to_stata(str(out_dta), write_index=False)
+    print(f'  Wrote Python survival to {out_dta}')
 
     samples = {
         'Pooled': df,
@@ -279,7 +307,10 @@ def write_latex(rdf):
 
     tex = '\n'.join(lines) + '\n'
     (OUTPUT_DIR / 'tables').mkdir(parents=True, exist_ok=True)
-    out_path = OUTPUT_DIR / 'tables' / 'table_pf_estimates.tex'
+    # Write to a distinct filename so Python's output does NOT clobber
+    # Stata's table_pf_estimates.tex (which is the canonical source for
+    # the paper). Python's version is for cross-check only.
+    out_path = OUTPUT_DIR / 'tables' / 'table_pf_estimates_python.tex'
     with open(out_path, 'w') as f:
         f.write(tex)
     print(f'Saved: {out_path}')

@@ -24,10 +24,13 @@ Outputs:
   outputs/data/adl_instrument_comparison.csv   — raw results
 """
 
+import os
+import sys
 import numpy as np
 import pandas as pd
 from pathlib import Path
 
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "lib"))
 from acf_estimator import (
     ACFEstimator, Formulation, Optimization, CWDLExtensions,
     ImperfectCompetition, options,

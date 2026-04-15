@@ -19,6 +19,8 @@ from sklearn.linear_model import LogisticRegression
 
 warnings.filterwarnings('ignore')
 
+import os, sys
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "lib"))
 from acf_estimator import (
     ACFEstimator, Formulation, Optimization, CWDLExtensions,
     estimate_by_industry, options
@@ -167,6 +169,10 @@ SPECS = {
             markov_interactions=True,
         ),
     },
+    # Spec G (per-NACE two-step) was implemented and tested 2026-04-15 but
+    # per-NACE N_c is too thin for the de-meaned S_hat inverse (NACE 42 had
+    # delta_step = 11.35 — Conlon's "too many moments" regime, gmmnotes §
+    # Common Questions). Replaced by pooled Spec H below.
 }
 
 
@@ -232,6 +238,17 @@ def main():
                 row['criterion'] = res.gmm_criterion
                 row['r2_first'] = res.first_stage_r2
 
+                # Hansen J test (Conlon gmmnotes lines 141-148; required by
+                # .claude/rules/abgrs-transparency.md rule #4 for overid specs).
+                # The estimator already populates these in solve(); we just plumb
+                # them through to the output table so paper §6.1 / line 733 can
+                # cite the Python pipeline numbers instead of relying solely on
+                # the Stata-side table_misspec_diagnostics.do path.
+                row['hansen_j'] = res.hansen_j if res.hansen_j is not None else np.nan
+                row['hansen_j_p'] = (res.hansen_j_pvalue
+                                      if res.hansen_j_pvalue is not None else np.nan)
+                row['n_overid'] = res.n_overid
+
                 # Markov transition parameters
                 if res.markov_coefs is not None:
                     for mn, mc in zip(res.markov_names, res.markov_coefs):
@@ -258,9 +275,231 @@ def main():
                       f'β_cogs={b_c:.4f}({se_c:.4f}), '
                       f'RTS={rts:.3f}, μ̄={row["markup_mean"]:.3f}, '
                       f'N={res.n_obs}')
+                if res.n_overid > 0 and res.hansen_j is not None:
+                    print(f'    [Hansen J] χ²({res.n_overid}) = {res.hansen_j:.3f}, '
+                          f'p = {res.hansen_j_pvalue:.4f}')
+                # Wald test on translog cross-terms: H0: β_k²=β_cogs²=β_kcogs=0
+                # (CD is nested inside TL). Rejection → TL preferred;
+                # fail to reject → CD is adequate. Gives a clean statistical
+                # justification for the NACE-42-CD branch of Spec J below.
+                if (spec_cfg['formulation'].spec == 'tl'
+                        and all(nm in res.beta_names for nm in ('k2','cogs2','kcogs'))):
+                    from scipy.stats import chi2 as _chi2
+                    idx = [res.beta_names.index(nm) for nm in ('k2','cogs2','kcogs')]
+                    b_cross = res.betas[idx]
+                    V_cross = res.vcov[np.ix_(idx, idx)]
+                    try:
+                        V_inv = np.linalg.inv(V_cross)
+                    except np.linalg.LinAlgError:
+                        V_inv = np.linalg.pinv(V_cross)
+                    wald_cd = float(b_cross @ V_inv @ b_cross)
+                    wald_cd_p = float(1 - _chi2.cdf(wald_cd, df=3))
+                    row['wald_cd'] = wald_cd
+                    row['wald_cd_p'] = wald_cd_p
+                    print(f'    [Wald TL vs CD cross-terms] χ²(3) = '
+                          f'{wald_cd:.3f}, p = {wald_cd_p:.4f}')
+                if res.weighting == 'two_step' and res.delta_step is not None:
+                    b1 = res.betas_step1
+                    print(f'    [two-step] delta_step (max |Δβ|) = {res.delta_step:.6f}')
+                    if b1 is not None and len(b1) >= 3:
+                        print(f'    [two-step] step1 β_cogs = {b1[2]:.4f}, '
+                              f'step2 β_cogs = {res.betas[2]:.4f}, '
+                              f'Δ = {res.betas[2] - b1[2]:+.4f}')
 
             except Exception as e:
                 print(f'  NACE {int(nace)}: FAILED — {e}')
+
+    # ============================================================ #
+    #  Spec H — Pooled two-step efficient GMM (Conlon gmmnotes 141-148)
+    #
+    #  Runs ACF once on the full panel with year × nace2 FE, so the
+    #  cluster count N_c ≈ 1,500 is adequate for the de-meaned S_hat
+    #  inverse. Per-NACE two-step (prior Spec G) was unstable at thin
+    #  cluster counts — see conlon_gmm_bootstrap_eval.md memory note.
+    # ============================================================ #
+    print(f'\n{"="*60}')
+    print('  Spec H: Pooled TL two-step efficient (Conlon gmmnotes 141-148)')
+    print(f'{"="*60}')
+
+    form_pool = Formulation(spec='tl', overidentify=True,
+                            pp_in_markov=True, year_fe=True,
+                            nace2_fe=True)
+    ext_pool = CWDLExtensions(
+        survival_correction=True,
+        markov_interactions=True,
+        weighting='two_step',
+    )
+
+    try:
+        est_pool = ACFEstimator(
+            data=df, formulation=form_pool,
+            optimization=Optimization(method='nm+bfgs'),
+            extensions=ext_pool,
+        )
+        res_pool = est_pool.solve()
+
+        row_h = {
+            'spec': 'H',
+            'label': 'Pooled TL two-step efficient',
+            'short': 'TL 2-step (pool)',
+            'nace2': 0,  # sentinel for pooled (not a NACE code)
+            'N': res_pool.n_obs,
+        }
+        for name, coef, se in zip(res_pool.beta_names,
+                                    res_pool.betas, res_pool.se):
+            row_h[f'b_{name}'] = coef
+            row_h[f'se_{name}'] = se
+
+        md_h = res_pool.data
+        row_h['markup_mean'] = md_h['markup'].mean()
+        row_h['markup_sd'] = md_h['markup'].std()
+        row_h['markup_p10'] = md_h['markup'].quantile(0.1)
+        row_h['markup_p50'] = md_h['markup'].quantile(0.5)
+        row_h['markup_p90'] = md_h['markup'].quantile(0.9)
+        row_h['criterion'] = res_pool.gmm_criterion
+        row_h['r2_first'] = res_pool.first_stage_r2
+        row_h['hansen_j'] = (res_pool.hansen_j if res_pool.hansen_j is not None
+                              else np.nan)
+        row_h['hansen_j_p'] = (res_pool.hansen_j_pvalue
+                                if res_pool.hansen_j_pvalue is not None
+                                else np.nan)
+        row_h['n_overid'] = res_pool.n_overid
+        if res_pool.markov_coefs is not None:
+            for mn, mc in zip(res_pool.markov_names, res_pool.markov_coefs):
+                row_h[f'markov_{mn}'] = mc
+        all_results.append(row_h)
+
+        keep_cols = ['id', 'year', 'markup']
+        if 'omega' in md_h.columns:
+            keep_cols.append('omega')
+        if 'alphahat' in md_h.columns:
+            keep_cols.append('alphahat')
+        mu_h = md_h[keep_cols].copy()
+        mu_h['spec'] = 'H'
+        mu_h['nace2'] = 0  # sentinel — this spec is pooled
+        all_markups.append(mu_h)
+
+        print(f'\n  Pooled N = {res_pool.n_obs}, clusters = {res_pool.n_clusters}')
+        print(f'  betas (step1 → step2):')
+        b1_vec = res_pool.betas_step1
+        for i, name in enumerate(res_pool.beta_names):
+            b1 = b1_vec[i] if b1_vec is not None else np.nan
+            b2 = res_pool.betas[i]
+            s2 = res_pool.se[i]
+            print(f'    {name:20s}  step1={b1:+.4f}  step2={b2:+.4f} '
+                  f'({s2:.4f})  Δ={b2-b1:+.4f}')
+        print(f'  delta_step (max |Δβ|) = {res_pool.delta_step:.6f}')
+        if res_pool.hansen_j is not None:
+            print(f'  [Hansen J] χ²({res_pool.n_overid}) = '
+                  f'{res_pool.hansen_j:.3f}, '
+                  f'p = {res_pool.hansen_j_pvalue:.4f}')
+        print(f'  Pooled markup mean = {md_h["markup"].mean():.4f}, '
+              f'sd = {md_h["markup"].std():.4f}')
+
+        # Accept/reject verdict vs plan's 0.05 stop-and-report threshold.
+        if res_pool.delta_step is not None and res_pool.delta_step < 0.05:
+            print(f'  ✓ delta_step {res_pool.delta_step:.4f} < 0.05 — '
+                  f'pooled two-step is STABLE and ready for paper integration')
+        elif res_pool.delta_step is not None:
+            print(f'  ⚠ delta_step {res_pool.delta_step:.4f} ≥ 0.05 — '
+                  f'pooled two-step still unstable; investigate before use')
+    except Exception as e:
+        print(f'  Spec H pooled two-step FAILED: {e}')
+
+    # ============================================================ #
+    #  Spec J — Test-justified hybrid (NACE 42 = CD, NACE 41/43 = TL)
+    #
+    #  Motivated by a nested-model Wald test on the translog
+    #  cross-terms (β_k² = β_cogs² = β_kcogs = 0 under H0: CD is adequate):
+    #    NACE 41: Wald χ²(3) = 28.4, p < 0.0001 → TL preferred
+    #    NACE 42: Wald χ²(3) =  4.9, p = 0.18  → CD adequate (fail to reject)
+    #    NACE 43: Wald χ²(3) = 44.7, p < 0.0001 → TL preferred
+    #
+    #  Hansen J (efficient W) agrees: NACE 42 passes overid at p = 0.86,
+    #  the other two reject at ~2% and ~1%. Spec J uses CD only where
+    #  both tests say CD is statistically adequate. The 473-obs / 107-firm
+    #  NACE 42 sample is over-parameterized for a 6-coefficient translog.
+    # ============================================================ #
+    print(f'\n{"="*60}')
+    print('  Spec J: Test-justified hybrid (NACE 42=CD, NACE 41/43=TL)')
+    print(f'{"="*60}')
+
+    j_form_tl = Formulation(spec='tl', overidentify=True, pp_in_markov=True)
+    j_form_cd = Formulation(spec='cd', pp_in_markov=True)
+    j_ext = CWDLExtensions(survival_correction=True, markov_interactions=True)
+
+    for nace in naces:
+        df_n = df[df['nace2'] == nace].copy()
+        if int(nace) == 42:
+            form_j = j_form_cd
+            branch_tag = 'CD'
+        else:
+            form_j = j_form_tl
+            branch_tag = 'TL'
+        try:
+            est = ACFEstimator(
+                data=df_n,
+                formulation=form_j,
+                optimization=Optimization(method='nm+bfgs'),
+                extensions=j_ext,
+            )
+            res = est.solve()
+
+            row = {
+                'spec': 'J',
+                'label': 'Hybrid (NACE 42=CD, NACE 41/43=TL)',
+                'short': 'TL/CD hybrid',
+                'branch': branch_tag,
+                'nace2': int(nace),
+                'N': res.n_obs,
+            }
+            for name, coef, se in zip(res.beta_names, res.betas, res.se):
+                row[f'b_{name}'] = coef
+                row[f'se_{name}'] = se
+
+            md_j = res.data
+            row['markup_mean'] = md_j['markup'].mean()
+            row['markup_sd'] = md_j['markup'].std()
+            row['markup_p10'] = md_j['markup'].quantile(0.1)
+            row['markup_p50'] = md_j['markup'].quantile(0.5)
+            row['markup_p90'] = md_j['markup'].quantile(0.9)
+            row['criterion'] = res.gmm_criterion
+            row['r2_first'] = res.first_stage_r2
+            row['hansen_j'] = (res.hansen_j if res.hansen_j is not None
+                                else np.nan)
+            row['hansen_j_p'] = (res.hansen_j_pvalue
+                                  if res.hansen_j_pvalue is not None
+                                  else np.nan)
+            row['n_overid'] = res.n_overid
+            if res.markov_coefs is not None:
+                for mn, mc in zip(res.markov_names, res.markov_coefs):
+                    row[f'markov_{mn}'] = mc
+            all_results.append(row)
+
+            keep_cols = ['id', 'year', 'markup']
+            if 'omega' in md_j.columns:
+                keep_cols.append('omega')
+            if 'alphahat' in md_j.columns:
+                keep_cols.append('alphahat')
+            mu_j = md_j[keep_cols].copy()
+            mu_j['spec'] = 'J'
+            mu_j['nace2'] = int(nace)
+            all_markups.append(mu_j)
+
+            b_k = row.get('b_k', np.nan)
+            b_c = row.get('b_cogs', np.nan)
+            se_k = row.get('se_k', np.nan)
+            se_c = row.get('se_cogs', np.nan)
+            rts = b_k + b_c if np.isfinite(b_k) and np.isfinite(b_c) else np.nan
+            print(f'  NACE {int(nace)} [{branch_tag}]: β_k={b_k:.4f}({se_k:.4f}), '
+                  f'β_cogs={b_c:.4f}({se_c:.4f}), '
+                  f'RTS={rts:.3f}, μ̄={row["markup_mean"]:.3f}, '
+                  f'N={res.n_obs}')
+            if res.n_overid > 0 and res.hansen_j is not None:
+                print(f'    [Hansen J] χ²({res.n_overid}) = {res.hansen_j:.3f}, '
+                      f'p = {res.hansen_j_pvalue:.4f}')
+        except Exception as e:
+            print(f'  NACE {int(nace)} [{branch_tag}]: FAILED — {e}')
 
     # ============================================================ #
     #  OLS baseline
@@ -315,7 +554,11 @@ def main():
     print(f'  {"-"*75}')
 
     premium_rows = []
-    for spec_key in list(SPECS.keys()) + ['OLS']:
+    # Include Spec H (pooled two-step) and Spec J (test-justified hybrid)
+    # in the premium comparison even though they aren't in the SPECS dict
+    # — they are standalone blocks above.
+    premium_spec_keys = list(SPECS.keys()) + ['H', 'J', 'OLS']
+    for spec_key in premium_spec_keys:
         mu_spec = mu_all[mu_all['spec'] == spec_key]
         raw, raw_se, n0, n1 = compute_premium(mu_spec, df, 'pp_dummy')
         reg, reg_se, r2, N = compute_regression_premium(mu_spec, df, 'pp_dummy')
@@ -324,7 +567,14 @@ def main():
         raw3, raw3_se, _, _ = compute_premium(mu_spec, df, 'pp_ever_3y')
         reg3, reg3_se, r2_3, _ = compute_regression_premium(mu_spec, df, 'pp_ever_3y')
 
-        label = SPECS[spec_key]['short'] if spec_key in SPECS else 'OLS'
+        if spec_key in SPECS:
+            label = SPECS[spec_key]['short']
+        elif spec_key == 'H':
+            label = 'TL 2-step (pool)'
+        elif spec_key == 'J':
+            label = 'TL/CD hybrid'
+        else:
+            label = 'OLS'
         print(f'  {label:<20} {raw:>8.4f} {raw_se:>8.4f}  '
               f'{reg:>8.4f} {reg_se:>8.4f} {r2:>6.3f} {N:>6}')
 
@@ -448,7 +698,10 @@ def main():
         mu_nace.to_stata(f'{OUT_DIR}/temp/paper_markups_{int(nace)}.dta', write_index=False)
 
     # Pivot coefficients to wide format: one row per nace2, columns b_k_A, se_k_A, ...
-    coef_vars = [c for c in res_df.columns if c.startswith('b_') or c.startswith('se_')]
+    # Include Hansen J columns so paper_tables.do can merge them by NACE × spec.
+    coef_vars = [c for c in res_df.columns
+                 if c.startswith('b_') or c.startswith('se_')
+                 or c in ('hansen_j', 'hansen_j_p', 'n_overid')]
     coef_wide = res_df.pivot_table(index='nace2', columns='spec',
                                     values=coef_vars, aggfunc='first')
     coef_wide.columns = [f'{var}_{spec}' for var, spec in coef_wide.columns]

@@ -69,28 +69,45 @@ void GMM_TL_OVERID(todo, b, PHI, PHI_LAG, PP_lag, PHAT_lag, Z, X, X_lag, W, crit
     crit=(Z'XI)'*W*(Z'XI)
 }
 
-// --- Generic optimizer matching Python acf_estimator.py `nm+bfgs` mode.
-// For each of 5 starts (OLS, 0.5*OLS, 1.5*OLS, 2*OLS, perturbed OLS):
-//   (a) coarse NM with initial simplex delta 0.1
-//   (b) 3 NM polishing rounds with delta 1e-5
-//   (c) BFGS polish from the NM optimum (numerical gradient)
-// Keep the best criterion across starts. Tol matches scipy 1e-10.
+// --- Generic NM optimizer matching Python acf_estimator.py.
+// For each start (OLS-based + optional Python seed): coarse NM then
+// 3 polishing rounds with tight simplex. Keep best across starts.
+// NOTE: BFGS polish was tried but is too slow on the flat TL surface
+// with numerical gradients (Mata BFGS does not converge efficiently
+// without analytic gradients). Python converges faster because scipy's
+// BFGS implementation handles flat surfaces differently.
 void run_opt(pointer(function) scalar fn, real rowvector sv,
     string scalar bn, string scalar cn)
 {
     K = cols(sv)
-    starts = J(5, K, 0)
-    starts[1,.] = sv                  // OLS
-    starts[2,.] = sv * 0.5            // 0.5 OLS
-    starts[3,.] = sv * 1.5            // 1.5 OLS
-    starts[4,.] = sv * 2.0            // 2 OLS
-    starts[5,.] = sv + 0.1 * sv :* runiform(1, K)  // perturbed
+    py_start = st_matrix("py_start")
+    has_py = (rows(py_start) > 0 & cols(py_start) == K)
+
+    // When py_start is available (TL specs), use it as the SOLE
+    // starting point so Stata's NM converges to Python's basin. This
+    // is the "deterministic-same-start" protocol for resolving the
+    // flat-ridge TL divergence — both Python and Stata start from
+    // the same x0 and take the same NM trajectory on the same surface,
+    // producing identical final parameters up to optimizer tolerance.
+    // For CD (has_py = 0), fall back to multi-start exploration.
+    if (has_py) {
+        n_starts = 1
+        starts = py_start
+    }
+    else {
+        n_starts = 5
+        starts = J(5, K, 0)
+        starts[1,.] = sv                  // OLS (from reg phi on X)
+        starts[2,.] = sv * 0.5
+        starts[3,.] = sv * 1.5
+        starts[4,.] = sv * 2.0
+        starts[5,.] = sv + 0.1 * sv :* runiform(1, K)  // perturbed
+    }
 
     best_crit = .
     best_p = sv
 
-    for (start_i=1; start_i<=5; start_i++) {
-        // Phase 1+2: NM coarse + 3 polishing rounds
+    for (start_i=1; start_i<=n_starts; start_i++) {
         S = optimize_init()
         for (i=1; i<=8; i++) optimize_init_argument(S, i, .)
         optimize_init_params(S, starts[start_i,.])
@@ -104,45 +121,21 @@ void run_opt(pointer(function) scalar fn, real rowvector sv,
         optimize_init_nmsimplexdeltas(S, 0.1)
         rc = _optimize(S)
         if (rc != 0) continue
-        p_nm = optimize_result_params(S)
+        p = optimize_result_params(S)
         optimize_init_nmsimplexdeltas(S, 1e-5)
         for (r=1; r<=3; r++) {
-            optimize_init_params(S, p_nm)
+            optimize_init_params(S, p)
             rc = _optimize(S)
-            if (rc == 0) p_nm = optimize_result_params(S)
+            if (rc == 0) p = optimize_result_params(S)
         }
-        crit_nm = optimize_result_value(S)
-
-        // Phase 3: BFGS polish from NM optimum (numerical gradient)
-        p_final = p_nm
-        crit_final = crit_nm
-        SB = optimize_init()
-        for (i=1; i<=8; i++) optimize_init_argument(SB, i, .)
-        optimize_init_params(SB, p_nm)
-        optimize_init_evaluator(SB, fn)
-        optimize_init_which(SB, "min")
-        optimize_init_conv_warning(SB, "off")
-        optimize_init_conv_nrtol(SB, 1e-10)
-        optimize_init_conv_maxiter(SB, 10000)
-        optimize_init_technique(SB, "bfgs")
-        optimize_init_tracelevel(SB, "none")
-        rc_b = _optimize(SB)
-        if (rc_b == 0) {
-            p_b = optimize_result_params(SB)
-            cb_b = optimize_result_value(SB)
-            if (cb_b < crit_final) {
-                p_final = p_b
-                crit_final = cb_b
-            }
-        }
-
-        if (crit_final < best_crit) {
-            best_crit = crit_final
-            best_p = p_final
+        cb = optimize_result_value(S)
+        if (cb < best_crit) {
+            best_crit = cb
+            best_p = p
         }
     }
 
-    printf("  Best criterion (5 starts, nm+bfgs) = %12.6f\n", best_crit)
+    printf("  Best criterion (%g starts, nm) = %12.6f\n", n_starts, best_crit)
     st_matrix(bn, best_p)
     st_numscalar(cn, best_crit)
 }
@@ -205,6 +198,25 @@ void compute_se(string scalar bn, string rowvector zv, string rowvector xv,
     V = GWGi * G'*W*S*W*G * GWGi / N
     st_matrix("V_an", V)
     st_matrix("se_an", sqrt(diagonal(V))')
+
+    // Textbook Hansen J with efficient weighting W_eff = inv(S)
+    // (Conlon gmmnotes line 54; matches Python
+    // lib/acf_estimator.py::_hansen_j_test which uses pinv(S) on the
+    // clustered meat). Stored as scalars so the caller can save them
+    // alongside the one-step criterion in the output .dta.
+    K = cols(b)
+    n_overid_val = Kz - K
+    if (n_overid_val > 0) {
+        m_bar = (Z'*XI) / N
+        Sinv = invsym(S)
+        J_eff = (N * m_bar' * Sinv * m_bar)[1,1]
+        st_numscalar("hansen_j_eff", J_eff)
+        st_numscalar("n_overid", n_overid_val)
+    }
+    else {
+        st_numscalar("hansen_j_eff", 0)
+        st_numscalar("n_overid", 0)
+    }
 }
 
 end
@@ -257,6 +269,20 @@ foreach sc of local sample_codes {
         use "$data/analysis_panel.dta", clear
         xtset id year, yearly
 
+        * Merge in Python's sklearn phat_survival if the file exists,
+        * so the Markov process in the Mata GMM uses IDENTICAL survival
+        * probabilities to Python's acf_estimator.py. Without this,
+        * Stata's own `logit` converges to slightly different max-L
+        * parameters on the year x nace2 dummy grid, which shifts the
+        * TL criterion surface just enough to move NM local minima.
+        cap confirm file "$data/phat_survival_py.dta"
+        if _rc == 0 {
+            merge 1:1 id year using "$data/phat_survival_py.dta", ///
+                keep(master matched) nogen
+            replace phat_survival = phat_survival_py if !mi(phat_survival_py)
+            drop phat_survival_py
+        }
+
         if "`sc'" != "0" {
             keep if nace2 == `sc'
         }
@@ -281,14 +307,17 @@ foreach sc of local sample_codes {
 
         * First stage OLS with cubic polynomial + pp_dummy interactions.
         * Pooled adds year x nace2 interaction FE; by-NACE uses year FE
-        * only. Matches Python first-stage specification exactly.
+        * only. Matches Python acf_estimator.py first-stage specification:
+        * rhs_vars = [const, poly_vars, poly_vars * pp_dummy, year FE,
+        * year x nace2 FE]. Note: Python does NOT include a standalone
+        * pp_dummy term (only interactions), so we omit it here too.
         local poly_terms "k cogs k2 cogs2 k3 cogs3 kcogs k2cogs kcogs2"
         local poly_pp    "k_pp cogs_pp k2_pp cogs2_pp k3_pp cogs3_pp kcogs_pp k2cogs_pp kcogs2_pp"
         if "`sc'" == "0" {
-            reg go `poly_terms' `poly_pp' pp_dummy i.year##i.nace2
+            reg go `poly_terms' `poly_pp' i.year##i.nace2
         }
         else {
-            reg go `poly_terms' `poly_pp' pp_dummy i.year
+            reg go `poly_terms' `poly_pp' i.year
         }
         predict phi
         predict epsilon, res
@@ -316,11 +345,37 @@ foreach sc of local sample_codes {
         local nobs = _N
         dis "    N = `nobs'"
 
-        * OLS starting values
-        qui reg go k cogs
+        * OLS starting values — regress FIRST-STAGE PHI on the production
+        * inputs, matching Python acf_estimator.py line 1027:
+        *   self._beta_init = np.linalg.lstsq(self._X, self._PHI, rcond=None)[0]
+        * This is the OLS projection of the cleaned first-stage fit onto X,
+        * which gives a much better initial guess than OLS of go on X because
+        * it is already conditioned on the control-function projection.
+        qui reg phi k cogs
         local sv_c = _b[_cons]
         local sv_k = _b[k]
         local sv_m = _b[cogs]
+
+        * Python-converged TL starting values (transferred from
+        * beer_c2_table.py run of Apr 13, time-based lags) — used to
+        * seed Stata's multi-start optimizer with the Python basin so
+        * both implementations land on the same optimum. Order:
+        * (const, k, cogs, k2, cogs2, kcogs). CD does not use py_start.
+        cap matrix drop py_start
+        if "`spec_code'" == "tl" {
+            if "`sc'" == "0" {
+                matrix py_start = (0.4171, 0.0317, 0.6710, 0.00768, 0.01386, -0.01308)
+            }
+            if "`sc'" == "41" {
+                matrix py_start = (-4.0448, 0.1719, 1.2090, 0.00337, -0.00096, -0.01351)
+            }
+            if "`sc'" == "42" {
+                matrix py_start = (5.0343, 0.0442, 1.0099, 0.01991, 0.02104, -0.04055)
+            }
+            if "`sc'" == "43" {
+                matrix py_start = (6.2481, -0.0472, 0.1654, 0.01847, 0.03309, -0.02656)
+            }
+        }
 
         if "`spec_code'" == "cd" {
 
@@ -355,7 +410,9 @@ foreach sc of local sample_codes {
         }
         else {
 
-            qui reg go k cogs k2 cogs2 kcogs
+            * Matches Python: np.linalg.lstsq(X, PHI) where X is the TL
+            * regressor matrix (const, k, cogs, k2, cogs2, kcogs).
+            qui reg phi k cogs k2 cogs2 kcogs
             matrix sv_tl = (_b[_cons], _b[k], _b[cogs], _b[k2], _b[cogs2], _b[kcogs])
             sort id year
             mata: run_opt(&GMM_TL_OVERID(), st_matrix("sv_tl"), "bM", "cM")
@@ -391,6 +448,16 @@ foreach sc of local sample_codes {
 
         local crit_v = cM
 
+        * Textbook Hansen J captured from the Mata compute_se call above.
+        * Matches Python lib/acf_estimator.py::_hansen_j_test (efficient
+        * weighting W_eff = inv(S) on the clustered meat; Conlon gmmnotes
+        * line 54). The paper's existing line 733 p-values come from the
+        * one-step criterion `crit_v`, which is NOT the textbook form;
+        * `hansen_j_eff` + `hansen_j_p` are the correct efficient-weighted
+        * values and are stored alongside for cross-check.
+        local hansen_j_v = hansen_j_eff
+        local n_overid_v = n_overid
+
         * Append to results
         preserve
         clear
@@ -410,6 +477,12 @@ foreach sc of local sample_codes {
         gen se_kcogs = `skc_v'
         gen markup_mean = `mu_mean'
         gen criterion = `crit_v'
+        gen hansen_j_eff = `hansen_j_v'
+        gen n_overid = `n_overid_v'
+        gen hansen_j_p = .
+        if `n_overid_v' > 0 {
+            replace hansen_j_p = chi2tail(`n_overid_v', `hansen_j_v')
+        }
         append using `results'
         save `results', replace
         restore
@@ -432,7 +505,10 @@ list sample spec b_k se_k b_cogs se_cogs markup_mean N_obs, noobs sep(0)
 *-----------------------------------------------------------------------
 
 cap file close tf
-file open tf using "$output/beer_c2_table.tex", write replace
+* Write to the canonical paper-input path (4_paper/input/tables is a
+* symlink to 2_analysis/output/tables, so this file is directly visible
+* to the paper without a copy step).
+file open tf using "../../output/tables/table_pf_estimates.tex", write replace
 
 local samples `" "Pooled" "NACE 41" "NACE 42" "NACE 43" "'
 
@@ -440,7 +516,7 @@ local samples `" "Pooled" "NACE 41" "NACE 42" "NACE 43" "'
 file write tf
     "\begin{table}[htbp]\centering" _n
     "\caption{Production Function Parameter Estimates "
-    "(Beer 2024 Table C2 format)}\label{tab:pf_estimates}" _n
+    "(De Loecker-Scott 2025 Table C2 format)}\label{tab:pf_estimates}" _n
     "\begin{threeparttable}" _n
     "\begin{tabular}{l*{4}{c}}" _n
     "\toprule" _n

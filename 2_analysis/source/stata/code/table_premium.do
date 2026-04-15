@@ -21,7 +21,7 @@ file write tf
     "\label{tab:premium}" _n
     "\begin{tabular}{l*{2}{c}}" _n
     "\hline\hline" _n
-    " & " _char(36) "pp_t" _char(36) " & " _char(36) "pp^{3y}_t" _char(36) " \\" _n
+    " & pp\_t & pp\_ever\_3y \\" _n
     "\hline" _n
     "\multicolumn{3}{l}{\textit{Raw log markup difference}} \\" _n
 ;
@@ -52,7 +52,7 @@ foreach spec in A B C D E OLS {
 #delimit ;
 file write tf
     "\hline" _n
-    "\multicolumn{3}{l}{\textit{Regression (" _char(36) "k" _char(36) ", cogs, year" _char(36) "\times" _char(36) "nace2 FE)}} \\" _n
+    "\multicolumn{3}{l}{\textit{Regression (k, cogs, year x nace2 FE)}} \\" _n
 ;
 #delimit cr
 
@@ -81,14 +81,14 @@ foreach spec in A B C D E OLS {
 #delimit ;
 file write tf
     "\hline" _n
-    _char(36) "N" _char(36) " & \multicolumn{2}{c}{" %6.0fc (`N') "} \\" _n
+    "N & \multicolumn{2}{c}{" %6.0fc (`N') "} \\" _n
     "\hline\hline" _n
     "\multicolumn{3}{p{10cm}}{\footnotesize" _n
     "Notes: Premium is the log markup difference between procurement"
-    " and non-procurement firms. Regression controls for " _char(36) "k" _char(36) ", cogs,"
-    " year" _char(36) "\times" _char(36) "nace2 FE; SEs clustered by firm."
-    " " _char(36) "pp_t" _char(36) " = active supplier in year " _char(36) "t" _char(36) ";"
-    " " _char(36) "pp^{3y}_t" _char(36) " = active in " _char(36) "t" _char(36) ", " _char(36) "t{-}1" _char(36) ", or " _char(36) "t{-}2" _char(36) ".} \\" _n
+    " and non-procurement firms. Regression controls for k, cogs,"
+    " year x nace2 FE; SEs clustered by firm."
+    " pp\_t = active supplier in year t;"
+    " pp\_ever\_3y = active in year t, t-1, or t-2.} \\" _n
     "\end{tabular}" _n
     "\end{table}" _n
 ;

@@ -40,7 +40,7 @@ References:
 
 from __future__ import annotations
 from pathlib import Path
-from typing import Callable
+from typing import Callable, Optional
 
 import numpy as np
 import pandas as pd
@@ -54,9 +54,14 @@ import statsmodels.api as sm
 import statsmodels.formula.api as smf
 
 # ---- Paths -----------------------------------------------------------------
-SCRIPT_DIR = Path(__file__).resolve().parent
-INPUT_DIR = SCRIPT_DIR.parent / "input"
-OUTPUT_DIR = SCRIPT_DIR.parent / "output"
+# This module lives in 2_analysis/source/lib/; climb 2 levels to reach
+# 2_analysis/, then into input/ or output/. Previously .parent was enough
+# because the module lived at source/ root; after the 2026-04-15 lib/
+# refactor it's one level deeper.
+LIB_DIR = Path(__file__).resolve().parent
+MODULE_DIR = LIB_DIR.parent.parent
+INPUT_DIR = MODULE_DIR / "input"
+OUTPUT_DIR = MODULE_DIR / "output"
 TAB_DIR = OUTPUT_DIR / "tables"
 FIG_DIR = OUTPUT_DIR / "figures"
 DAT_DIR = OUTPUT_DIR / "data"
@@ -299,6 +304,73 @@ def plr_iv_orthogonal(y: np.ndarray, d: np.ndarray, z: np.ndarray,
         t=point / stderr if stderr > 0 else float("nan"),
         ci_lo=point - 1.96 * stderr,
         ci_hi=point + 1.96 * stderr,
+        resY=resY,
+        resD=resD,
+        resZ=resZ,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Weak-IV-robust Anderson-Rubin confidence set for PLR-IV
+# ---------------------------------------------------------------------------
+
+def ar_confidence_set(resY: np.ndarray, resD: np.ndarray, resZ: np.ndarray,
+                       cluster: np.ndarray, alpha: float = 0.05,
+                       beta_grid: np.ndarray | None = None) -> dict:
+    """Cluster-robust Anderson-Rubin confidence set for the single-IV PLR-IV
+    model, inverted over a grid of candidate coefficients.
+
+    For each candidate $\\beta_0$ the moment vector is
+    $m_i(\\beta_0) = (resY_i - \\beta_0 \\cdot resD_i) \\cdot resZ_i$,
+    and the cluster-robust AR statistic is
+    $AR(\\beta_0) = \\bar{m}(\\beta_0)^2 / \\widehat{Var}_{cluster}(\\bar{m})$
+    where the cluster variance is computed as the sum of squared within-cluster
+    moment totals divided by $N^2$. Under $H_0: \\beta = \\beta_0$ the statistic
+    is $\\chi^2_1$-distributed regardless of instrument strength, so the set
+    $\\{\\beta_0 : AR(\\beta_0) \\le \\chi^2_{1, 1-\\alpha}\\}$ is a valid
+    $(1-\\alpha)$ confidence set (Anderson and Rubin 1949; Stock and Wright 2000).
+
+    Returns a dict with keys: `ar_lo`, `ar_hi` (the grid endpoints of the
+    accepted region), `ar_empty` (True if no grid point is accepted),
+    `ar_min_stat` (the minimum AR stat over the grid, should be near zero
+    at the IV point estimate), and `ar_n_accepted` (count of accepted
+    grid points).
+    """
+    from scipy.stats import chi2
+    if beta_grid is None:
+        beta_grid = np.linspace(-0.5, 1.5, 401)
+    crit = chi2.ppf(1 - alpha, df=1)
+
+    resY = np.asarray(resY)
+    resD = np.asarray(resD)
+    resZ = np.asarray(resZ)
+    cluster = np.asarray(cluster)
+    n = len(resY)
+
+    accepted = []
+    stats = []
+    for b in beta_grid:
+        m = (resY - b * resD) * resZ
+        df = pd.DataFrame({"m": m, "cluster": cluster})
+        cluster_sums = df.groupby("cluster")["m"].sum().values
+        var_cluster = float((cluster_sums ** 2).sum() / (n ** 2))
+        mean_sq = float(m.mean() ** 2)
+        ar_stat = mean_sq / var_cluster if var_cluster > 0 else float("inf")
+        stats.append(ar_stat)
+        if ar_stat < crit:
+            accepted.append(float(b))
+
+    stats = np.array(stats)
+    if not accepted:
+        return dict(
+            ar_lo=float("nan"), ar_hi=float("nan"), ar_empty=True,
+            ar_min_stat=float(stats.min()) if len(stats) else float("nan"),
+            ar_n_accepted=0,
+        )
+    return dict(
+        ar_lo=min(accepted), ar_hi=max(accepted), ar_empty=False,
+        ar_min_stat=float(stats.min()),
+        ar_n_accepted=len(accepted),
     )
 
 
@@ -401,14 +473,44 @@ def make_treatment_estimators(seed: int = DEFAULT_SEED,
 # ---------------------------------------------------------------------------
 
 def cluster_bootstrap(point_fn: Callable, firms: np.ndarray,
-                        n_rep: int = 500, seed: int = DEFAULT_SEED) -> dict:
+                        n_rep: int = 999, seed: int = DEFAULT_SEED,
+                        theta_hat: Optional[float] = None,
+                        pivotal_ci: bool = True) -> dict:
     """Block bootstrap by firm cluster.
 
-    point_fn : callable taking an index array and returning a point estimate
-    firms : cluster ids
-    n_rep : bootstrap replications
+    Parameters
+    ----------
+    point_fn : Callable
+        Takes an index array and returns a point estimate.
+    firms : np.ndarray
+        Cluster ids (typically firm ids).
+    n_rep : int
+        Bootstrap replications. Default 999 (Conlon bootstrap.tex convention
+        for percentile CIs; pivotal CIs are less sensitive to small B).
+    seed : int
+        RNG seed.
+    theta_hat : Optional[float]
+        Full-sample point estimate. When provided AND ``pivotal_ci=True``
+        (the default), pivotal CIs are returned along with bias-corrected
+        point estimate. When ``None``, falls back to percentile CIs
+        (backward-compatible with pre-2026-04-15 behavior).
+    pivotal_ci : bool
+        If True (default) and ``theta_hat`` is provided, return
+        Conlon's "Better Way" CI ``[2*theta_hat - q97.5, 2*theta_hat - q2.5]``
+        (bootstrap.tex lines 75-82). If False, return naive percentile CI
+        ``[q2.5, q97.5]`` even when ``theta_hat`` is provided.
 
-    Returns dict with se, ci_lo, ci_hi computed from the empirical distribution.
+    Returns
+    -------
+    dict with keys:
+        se : sample SD of bootstrap reps (with ddof=1)
+        ci_lo, ci_hi : 95% CI (pivotal if ``theta_hat`` given and
+            ``pivotal_ci=True``, percentile otherwise)
+        n_rep : number of valid replicates
+        bias : bootstrap bias estimate ``mean(reps) - theta_hat``
+            (only if ``theta_hat`` is provided)
+        bias_corrected : ``2*theta_hat - mean(reps)`` (only if
+            ``theta_hat`` is provided; Conlon bootstrap.tex line 61)
     """
     rng = np.random.default_rng(seed)
     uniq_firms = np.unique(firms)
@@ -423,12 +525,41 @@ def cluster_bootstrap(point_fn: Callable, firms: np.ndarray,
         except Exception:
             continue
     reps = np.asarray(reps)
-    return dict(
+    n_valid = int(len(reps))
+
+    # Conlon "When Does It Fail?" frame (bootstrap.tex lines 102-108): if too
+    # many reps are silently dropped, the empirical distribution may not
+    # approximate the true sampling distribution.
+    if n_rep > 0 and n_valid / n_rep < 0.95:
+        print(f"  WARNING: cluster_bootstrap dropped "
+              f"{n_rep - n_valid}/{n_rep} reps "
+              f"({100*(1 - n_valid/n_rep):.0f}%)")
+
+    q_lo = float(np.quantile(reps, 0.025))
+    q_hi = float(np.quantile(reps, 0.975))
+
+    out = dict(
         se=float(np.std(reps, ddof=1)),
-        ci_lo=float(np.quantile(reps, 0.025)),
-        ci_hi=float(np.quantile(reps, 0.975)),
-        n_rep=int(len(reps)),
+        n_rep=n_valid,
     )
+
+    if theta_hat is not None and pivotal_ci:
+        # Conlon bootstrap.tex lines 75-82: pivotal CI carries automatic
+        # bias correction and the higher-order Edgeworth refinement that's
+        # the reason to prefer bootstrap over delta method.
+        out["ci_lo"] = float(2.0 * theta_hat - q_hi)
+        out["ci_hi"] = float(2.0 * theta_hat - q_lo)
+    else:
+        # Naive percentile CI (Conlon's "obvious way"): backward-compatible
+        # path for callers that don't supply theta_hat.
+        out["ci_lo"] = q_lo
+        out["ci_hi"] = q_hi
+
+    if theta_hat is not None:
+        out["bias"] = float(reps.mean() - theta_hat)
+        out["bias_corrected"] = float(2.0 * theta_hat - reps.mean())
+
+    return out
 
 
 # ---------------------------------------------------------------------------

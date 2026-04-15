@@ -61,7 +61,11 @@ run_python adl_instrument_comparison.py "${LOGFILE}" || exit 1
 run_python panel_treatment.py "${LOGFILE}" || exit 1
 run_R panel_treatment_effects.R "${LOGFILE}" || exit 1
 run_stata panel_treatment_sdid_honestdid.do "${LOGFILE}" || exit 1
-run_python build_bacon_tex.py "${LOGFILE}" || exit 1
+# build_bacon_tex.py moved to .legacy/ Apr 15 — panel_bacon.tex is in
+# 4_paper/input/tables/.legacy/ and not \input{} anywhere in the paper.
+# The upstream .do file stays because build_honestdid_tex.py (below)
+# still consumes panel_treatment_sdid_honestdid.log.
+# run_python build_bacon_tex.py "${LOGFILE}" || exit 1
 run_python build_honestdid_tex.py "${LOGFILE}" || exit 1
 run_R panel_treatment_weidner.R "${LOGFILE}" || exit 1
 run_python favoritism_decomposition.py "${LOGFILE}" || exit 1
@@ -80,21 +84,8 @@ run_R sunab_event_study.R "${LOGFILE}" || exit 1
 # Phase 3: Stata table formatting
 run_stata paper_tables.do "${LOGFILE}" || exit 1
 
-## --- DISABLED (not in core DLW/DLEU/CWDL/ADL/DLS scope) ---
-# run_python premium_timeseries.py "${LOGFILE}" || exit 1
-# run_python specification_sensitivity_table.py "${LOGFILE}" || exit 1
-# run_python acf_specification_tests.py "${LOGFILE}" || exit 1
-# run_python bmy_czech_analysis.py "${LOGFILE}" || exit 1
-# run_python dls_table2_replication.py "${LOGFILE}" || exit 1
-# run_python raval_test.py "${LOGFILE}" || exit 1
-# run_python klms_analysis.py "${LOGFILE}" || exit 1
+## --- Phase 3: remaining live scripts ---
 run_R fect_estimation.R "${LOGFILE}" || exit 1
-# run_R trop_estimation.R "${LOGFILE}" || exit 1
-# run_R panelview_diagnostics.R "${LOGFILE}" || exit 1
-# run_python favoritism_decomposition.py "${LOGFILE}" || exit 1
-# run_python orbis_acf_estimation.py "${LOGFILE}" || exit 1
-# run_python strong_exclusion_diagnostic.py "${LOGFILE}" || exit 1
-# run_python acf_strong_exclusion.py "${LOGFILE}" || exit 1
 run_python borusyak_hull_randomization.py "${LOGFILE}" || exit 1
 run_python ags_twostep_identification.py "${LOGFILE}" || exit 1
 run_python misspecification_diagnostics.py "${LOGFILE}" || exit 1
@@ -105,8 +96,15 @@ run_R lalonde_sens.R "${LOGFILE}" || exit 1
 run_R lalonde_placebo.R "${LOGFILE}" || exit 1
 run_R lalonde_catt.R "${LOGFILE}" || exit 1
 run_R lalonde_paired_table.R "${LOGFILE}" || exit 1
-# run_R kitagawa_iv_test.R "${LOGFILE}" || exit 1
 run_python specification_curve.py "${LOGFILE}" || exit 1
+
+## --- Moved to .legacy/ on Apr 14 tidy pass (see source/.legacy/README.md) ---
+##   Python: premium_timeseries, specification_sensitivity_table,
+##           acf_specification_tests, dls_table2_replication, raval_test,
+##           klms_analysis, orbis_acf_estimation, strong_exclusion_diagnostic,
+##           acf_strong_exclusion, check_python_counts
+##   R: trop_estimation, panelview_diagnostics, kitagawa_iv_test,
+##      Kitagawa2015_functions
 # (cd source/stata && stata-mp -e do launcher.do)  # Stata replication pipeline
 ) || false
 

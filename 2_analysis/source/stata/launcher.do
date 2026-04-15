@@ -58,6 +58,17 @@ do "$datagen/estimate_pf.do"
 * 1c. Calculate firm-level markups
 do "$datagen/calculate_markups.do"
 
+* 1d. Build contract-level panel (merges Datlab tenders with firm markups)
+cap noisily do "$datagen/build_contract_level.do"
+
+* 1e. Build MagnusWeb profitability panel (Contribution Margin III, wage share)
+* Moved to 1_data module Apr 15. Cross-module path still works because
+* both callers are 3 levels deep under markups-procurement/ so the
+* script's relative input path (../../../0_raw/magnusweb/) resolves the
+* same from either module, and the script uses the $data global which
+* launcher.do has already set to 2_analysis/output/stata.
+cap noisily do "../../../1_data/source/stata/build_magnusweb_profit.do"
+
 *-----------------------------------------------------------------------
 * STEP 2: ANALYSIS (TABLES AND FIGURES)
 *-----------------------------------------------------------------------

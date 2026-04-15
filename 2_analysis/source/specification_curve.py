@@ -13,6 +13,8 @@ import matplotlib.pyplot as plt
 from pathlib import Path
 
 # Shared Healy-inspired style (Paul Tol palette, 300 DPI, white bg, clean axes)
+import os, sys
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "lib"))
 from style_markups import apply_markups_style, MARKUPS_BLUE, MARKUPS_PINK
 apply_markups_style()
 

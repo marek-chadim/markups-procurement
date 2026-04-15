@@ -11,8 +11,8 @@ suppressPackageStartupMessages({
   library(ggrepel)
 })
 
-source("theme_markups.R")
-source("lalonde_functions_helpers.R")
+source("lib/theme_markups.R")
+source("lib/lalonde_functions_helpers.R")
 
 input_dir    <- file.path("..", "input")
 output_dir   <- file.path("..", "output")

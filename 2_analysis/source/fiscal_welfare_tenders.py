@@ -26,10 +26,13 @@ Reference: Hendren and Sprung-Keyser 2020 QJE; Finkelstein and Hendren 2020 JEP.
 from __future__ import annotations
 from pathlib import Path
 
+import os
+import sys
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "lib"))
 from style_markups import (
     apply_markups_style, MARKUPS_BLUE, MARKUPS_RED, MARKUPS_GREY,
 )
