@@ -4,6 +4,8 @@
 
 Reproducible pipeline estimating firm-level markups in Czech construction and measuring the causal effect of public procurement on markups.
 
+Thesis versions of the paper (BSc & MSc PDFs, slides, figures): [marek-chadim/thesis](https://github.com/marek-chadim/thesis). Latest materials: [marek-chadim.github.io/research](https://marek-chadim.github.io/research.html).
+
 ## Headline Result
 
 Procurement firms charge **14% higher markups** than otherwise-similar private-sector firms. The premium declined from 30% in 2006 to 10% in 2021, with Act 55/2012 (single-bid ban) and Act 134/2016 (MEAT criteria) DiD estimates of −2.6 and −2.2 log points respectively.
@@ -20,7 +22,7 @@ bash run_all.sh
 Requires: Python 3.10+ (anaconda), R 4.2+ (with `fect`, `haven`, `dplyr`, `grf`, `CBPS`, `hbal`, `DoubleML`), Stata 17+, LaTeX (with `latexmk`).
 
 The pipeline produces:
-- `4_paper/output/markups_procurement.pdf` — 67-page working paper (JMP readiness ~92/100 per `4_paper/jmp_readiness_report.md`)
+- `4_paper/output/markups_procurement.pdf` — 67-page working paper
 - `3_slides/output/slides.pdf` — beamer presentation
 
 ## Data
@@ -75,8 +77,6 @@ All three helpers define the identical 7-color palette so R, Python, and Stata f
 ## Acknowledgments
 
 Repository structure adapted from [GentzkowLabTemplate](https://github.com/gentzkowlab/GentzkowLabTemplate) (© 2024 Matthew Gentzkow, MIT license). Build infrastructure based on the template's module/source/get_inputs/make.sh pattern.
-
-MAD audit protocol adapted from [tjhavranek/research-audit-duel-protocol](https://github.com/tjhavranek/research-audit-duel-protocol).
 
 ## License
 
