@@ -45,13 +45,13 @@ Raw data is NOT committed to this repository. To reproduce, populate `0_raw/` wi
 ## Figure Style (Apr 2026)
 
 All paper figures use the colorblind-safe **Paul Tol bright** palette via three language-specific helpers, following Healy (2026, *Data Visualization: A Practical Introduction*, 2nd ed., Ch 8):
-- **R / ggplot2:** `2_analysis/source/theme_markups.R` — `theme_set(theme_minimal(base_size=11))` + `tol_bright` named vector + `ggsave_markups()`
-- **Python / matplotlib:** `2_analysis/source/style_markups.py` — `apply_markups_style()` + STIX Two Text serif + Computer Modern math (`mathtext.fontset='cm'`)
+- **R / ggplot2:** `2_analysis/source/lib/theme_markups.R` — `theme_set(theme_minimal(base_size=11))` + `tol_bright` named vector + `ggsave_markups()`
+- **Python / matplotlib:** `2_analysis/source/lib/style_markups.py` — `apply_markups_style()` + STIX Two Text serif + Computer Modern math (`mathtext.fontset='cm'`)
 - **Stata:** `2_analysis/source/stata/code/graph_markups.do` — `${tol_*_hex}` globals + `${markups_gropts}` plot-region options
 
 Palette: `#4477AA` blue, `#EE6677` red, `#228833` green, `#CCBB44` yellow, `#66CCEE` cyan, `#AA3377` purple, `#BBBBBB` grey.
 
-All three helpers define the identical 7-color palette so R, Python, and Stata figures render with matching colors in the final paper. Source the appropriate helper at the top of any new figure-producing script for automatic cross-language consistency. Full study notes: `references/notes/healy_socviz_2026_study.md`.
+All three helpers define the identical 7-color palette so R, Python, and Stata figures render with matching colors in the final paper. Source the appropriate helper at the top of any new figure-producing script for automatic cross-language consistency.
 
 ## Key References
 
