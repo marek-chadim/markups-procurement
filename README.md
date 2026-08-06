@@ -8,9 +8,9 @@ Thesis versions of the paper (BSc & MSc PDFs, slides, figures): [marek-chadim/th
 
 ## Headline Result
 
-Procurement firms charge **14% higher markups** than otherwise-similar private-sector firms. The premium declined from 30% in 2006 to 10% in 2021, with Act 55/2012 (single-bid ban) and Act 134/2016 (MEAT criteria) DiD estimates of −2.6 and −2.2 log points respectively.
+Firms charge markups roughly **15% higher** in years they hold public procurement contracts, estimated on a 2006–2021 panel of Czech construction firms. The premium declines from about 30% in 2006 to 10% in 2021.
 
-**Fiscal welfare** (§7): capping procurement contracts at engineer estimates would save ~10 bn CZK/year (3.6%); pricing at marginal cost implies ~70 bn CZK/year (12.3%). The top 10% of contracts account for 72% of the implied fiscal transfer, concentrated in NACE 42 civil engineering.
+These are the thesis results. The paper has been substantially revised and extended during Yale Ph.D. coursework (2025–26) — a broader robustness program, external-instrument identification, and misspecification diagnostics. Those estimates are not yet validated and are therefore not reported here; the latest draft is available on request.
 
 ## Running the Pipeline
 
