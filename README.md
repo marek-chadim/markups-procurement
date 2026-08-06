@@ -1,7 +1,4 @@
 # Markups and Public Procurement: Evidence from Czech Construction
-
-**Author:** Marek Chadim (Pre-Doctoral Fellow, Tobin Center for Economic Policy, Yale)
-
 Reproducible pipeline estimating firm-level markups in Czech construction and measuring the causal effect of public procurement on markups.
 
 Thesis versions of the paper (BSc & MSc PDFs, slides, figures): [marek-chadim/thesis](https://github.com/marek-chadim/thesis). Latest materials: [marek-chadim.github.io/research](https://marek-chadim.github.io/research.html).
